@@ -8,6 +8,12 @@ const WALL=preload("res://assets/village/Wall_Plaster_Straight.gltf")
 const DOOR=preload("res://assets/village/Wall_Plaster_Door_Round.gltf")
 const ROOF=preload("res://assets/village/Roof_RoundTiles_6x6.gltf")
 const RETARGETER=preload("res://scripts/retargeter.gd")
+const CAMERA_MIN_DISTANCE=5.5
+const CAMERA_MAX_DISTANCE=76.0
+const CAMERA_HEIGHT_RATIO=0.61
+const CAMERA_MIN_HEIGHT=4.2
+const CAMERA_MAX_HEIGHT=48.0
+const CAMERA_FOCUS_LIMIT=32.0
 
 var rng=RandomNumberGenerator.new()
 var people=[]
@@ -36,6 +42,8 @@ func box(p,s,c):
 	var n=MeshInstance3D.new(); var b=BoxMesh.new(); b.size=s; n.mesh=b; n.position=p; n.material_override=mat(c); add_child(n); return n
 func cyl(p,r,h,c):
 	var n=MeshInstance3D.new(); var m=CylinderMesh.new(); m.top_radius=r; m.bottom_radius=r; m.height=h; n.mesh=m; n.position=p; n.material_override=mat(c); add_child(n); return n
+func sphere(p,r,c):
+	var n=MeshInstance3D.new(); var m=SphereMesh.new(); m.radius=r; m.height=r*2.0; n.mesh=m; n.position=p; n.material_override=mat(c); add_child(n); return n
 
 func _ready():
 	rng.seed=5302026
@@ -61,6 +69,7 @@ func _ready():
 		box(p,Vector3(.8,.5,.7),Color("#73756f"))
 
 	make_idol()
+	make_memory_flower()
 	make_house(Vector3(-9,0,-7),8)
 	make_house(Vector3(8,0,-8),-12)
 	var wagon=WAGON.instantiate(); wagon.position=Vector3(9,0,3); add_child(wagon)
@@ -86,6 +95,18 @@ func make_idol():
 	box(Vector3(0,2,0),Vector3(1.7,4,1.25),Color("#77776f"))
 	box(Vector3(-.38,2.45,-.66),Vector3(.18,.18,.08),Color("#242620"))
 	box(Vector3(.38,2.45,-.66),Vector3(.18,.18,.08),Color("#242620"))
+
+func make_memory_flower():
+	var root=Vector3(1.55,0,-1.25)
+	cyl(root+Vector3(0,.38,0),.035,.76,Color("#2f7d3d"))
+	var leaf=box(root+Vector3(.12,.28,0),Vector3(.24,.055,.08),Color("#3a8f46"))
+	leaf.rotation_degrees.z=-25
+	var head=root+Vector3(0,.86,0)
+	sphere(head, .07, Color("#f0c957"))
+	sphere(head+Vector3(-.11,.065,0), .095, Color("#f8f8f4"))
+	sphere(head+Vector3(.11,.065,0), .095, Color("#f8f8f4"))
+	sphere(head+Vector3(-.11,-.085,0), .095, Color("#c92232"))
+	sphere(head+Vector3(.11,-.085,0), .095, Color("#c92232"))
 
 func make_house(p,rot):
 	var h=Node3D.new(); h.position=p; h.rotation_degrees.y=rot; h.scale=Vector3(1.05,1.05,1.05); add_child(h)
@@ -143,11 +164,17 @@ func _process(d):
 			if anim_ready and v.has("anim"): retargeter.play(v.anim,"walk")
 		else:
 			if anim_ready and v.has("anim"): retargeter.play(v.anim,"idle")
-	hud.text="IDOL — GENESIS 0.6.2 RETARGET\nLudzie 10   Tryb: %s\nDrewno %d   Kamień %d   Jagody %d\n10 ludzi • retarget animacji • kamera RTS 2.0" % [order,stock.wood,stock.stone,stock.berries]
+	hud.text="IDOL — GENESIS 0.6.3 CAMERA FIX\nLudzie 10   Tryb: %s\nDrewno %d   Kamień %d   Jagody %d\n10 ludzi • retarget animacji • kamera RTS 2.1" % [order,stock.wood,stock.stone,stock.berries]
 	var v=people[selected]
-	info.text="%s — %s\n\nSIŁA %d   ZRĘCZNOŚĆ %d   INT %d\nGłód %.0f   Energia %.0f\n\nDrwalstwo %.1f\nZbieranie %.1f\nBudowanie %.1f\n\nKamera: 1 palec przesuwa • 2 palce zoom/obrót" % [v.name,v.trait,v.str,v.dex,v.int,v.hunger,v.energy,v.wood,v.gather,v.build]
+	info.text="%s — %s\n\nSIŁA %d   ZRĘCZNOŚĆ %d   INT %d\nGłód %.0f   Energia %.0f\n\nDrwalstwo %.1f\nZbieranie %.1f\nBudowanie %.1f\n\nKamera: 1 palec chwyta mapę • 2 palce zoom/obrót" % [v.name,v.trait,v.str,v.dex,v.int,v.hunger,v.energy,v.wood,v.gather,v.build]
+
+func set_camera_distance(value):
+	cam_distance=clamp(value,CAMERA_MIN_DISTANCE,CAMERA_MAX_DISTANCE)
+	cam_height=clamp(cam_distance*CAMERA_HEIGHT_RATIO,CAMERA_MIN_HEIGHT,CAMERA_MAX_HEIGHT)
 
 func update_camera():
+	cam_focus.x=clamp(cam_focus.x,-CAMERA_FOCUS_LIMIT,CAMERA_FOCUS_LIMIT)
+	cam_focus.z=clamp(cam_focus.z,-CAMERA_FOCUS_LIMIT,CAMERA_FOCUS_LIMIT)
 	var horizontal=Vector3(sin(cam_yaw),0,cos(cam_yaw))*cam_distance
 	cam.position=cam_focus+horizontal+Vector3(0,cam_height,0)
 	cam.look_at(cam_focus+Vector3(0,1.2,0),Vector3.UP)
@@ -156,37 +183,46 @@ func _unhandled_input(e):
 	if e is InputEventScreenTouch:
 		if e.pressed:
 			touches[e.index]=e.position
+			if touches.size()<2:
+				last_pinch_dist=0.0
+				last_pinch_angle=0.0
 		else:
 			touches.erase(e.index)
 			last_pinch_dist=0.0
+			last_pinch_angle=0.0
 		update_camera()
 		return
 
 	if e is InputEventScreenDrag:
 		touches[e.index]=e.position
 		if touches.size()==1:
-			var right=Vector3(cos(cam_yaw),0,-sin(cam_yaw))
-			var forward=Vector3(-sin(cam_yaw),0,-cos(cam_yaw))
-			cam_focus += right*(-e.relative.x*.018)+forward*(-e.relative.y*.018)
+			var right=cam.global_transform.basis.x
+			right.y=0
+			right=right.normalized()
+			var forward=-cam.global_transform.basis.z
+			forward.y=0
+			forward=forward.normalized()
+			var pan_speed=clamp(cam_distance*.00115,.008,.075)
+			cam_focus += (-right*e.relative.x+forward*e.relative.y)*pan_speed
 		elif touches.size()>=2:
 			var ids=touches.keys()
+			ids.sort()
 			var a:Vector2=touches[ids[0]]
 			var b:Vector2=touches[ids[1]]
 			var dist=a.distance_to(b)
 			var ang=(b-a).angle()
 			if last_pinch_dist>0.0:
 				var ratio=dist/max(last_pinch_dist,1.0)
-				cam_distance=clamp(cam_distance/ratio,10.0,44.0)
-				cam_height=clamp(cam_height/ratio,7.0,30.0)
+				set_camera_distance(cam_distance/ratio)
 				var da=wrapf(ang-last_pinch_angle,-PI,PI)
-				cam_yaw-=da
+				cam_yaw+=da
 			last_pinch_dist=dist
 			last_pinch_angle=ang
 		update_camera()
 
 	if e is InputEventMouseButton:
 		if e.button_index==MOUSE_BUTTON_WHEEL_UP:
-			cam_distance=max(10.0,cam_distance-2.0); cam_height=max(7.0,cam_height-1.0)
+			set_camera_distance(cam_distance-3.0)
 		elif e.button_index==MOUSE_BUTTON_WHEEL_DOWN:
-			cam_distance=min(44.0,cam_distance+2.0); cam_height=min(30.0,cam_height+1.0)
+			set_camera_distance(cam_distance+3.0)
 		update_camera()
