@@ -16,15 +16,22 @@ const CAMERA_MAX_HEIGHT=48.0
 const CAMERA_FOCUS_LIMIT=32.0
 const STICK_RADIUS=62.0
 const STICK_DEADZONE=0.14
+const BUILD_COST_STICKS=5
+const BUILD_COST_STONE=5
+const BUILD_WORK=8.0
+const MAX_BUILD_PLANS=3
 
 var rng=RandomNumberGenerator.new()
 var people=[]
 var stock={"sticks":3,"stone":2,"berries":25}
 var buildings={"houses":2,"granaries":0}
 var build_plans=[]
+var build_spots=[]
 var tech_points=0
 var order="AUTO"
 var selected=0
+var notice=""
+var notice_timer=0.0
 var cam:Camera3D
 var cam_focus=Vector3.ZERO
 var cam_distance=28.0
@@ -55,6 +62,8 @@ func mat(c):
 	var m=StandardMaterial3D.new(); m.albedo_color=c; m.roughness=.95; return m
 func box(p,s,c):
 	var n=MeshInstance3D.new(); var b=BoxMesh.new(); b.size=s; n.mesh=b; n.position=p; n.material_override=mat(c); add_child(n); return n
+func box_in(parent,p,s,c):
+	var n=MeshInstance3D.new(); var b=BoxMesh.new(); b.size=s; n.mesh=b; n.position=p; n.material_override=mat(c); parent.add_child(n); return n
 func cyl(p,r,h,c):
 	var n=MeshInstance3D.new(); var m=CylinderMesh.new(); m.top_radius=r; m.bottom_radius=r; m.height=h; n.mesh=m; n.position=p; n.material_override=mat(c); add_child(n); return n
 func sphere(p,r,c):
@@ -85,8 +94,12 @@ func _ready():
 
 	make_idol()
 	make_memory_flower()
-	make_house(Vector3(-9,0,-7),8)
-	make_house(Vector3(8,0,-8),-12)
+	var home_a=Vector3(-9,0,-7)
+	var home_b=Vector3(8,0,-8)
+	make_house(home_a,8)
+	register_build_spot(home_a)
+	make_house(home_b,-12)
+	register_build_spot(home_b)
 	var wagon=WAGON.instantiate(); wagon.position=Vector3(9,0,3); add_child(wagon)
 	for p in [Vector3(-9,0,4),Vector3(-8,0,5.5),Vector3(7,0,6)]:
 		var c=CRATE.instantiate(); c.position=p; add_child(c)
@@ -145,12 +158,17 @@ func make_granary(p):
 	box(p+Vector3(0,1.2,-1.89),Vector3(1.7,.12,.08),Color("#3d2a1b"))
 
 func make_build_site(p,kind):
-	var site=box(p+Vector3(0,.05,0),Vector3(4.7,.1,3.9),Color("#9b875e"))
+	var site=Node3D.new()
 	site.name="Plan budowy "+kind
-	box(p+Vector3(-2.0,.22,-1.5),Vector3(.55,.35,.55),Color("#686a64"))
-	box(p+Vector3(2.0,.22,1.5),Vector3(.55,.35,.55),Color("#686a64"))
-	box(p+Vector3(-.7,.18,1.55),Vector3(1.2,.2,.35),Color("#6b4328"))
-	box(p+Vector3(.75,.18,-1.55),Vector3(1.3,.2,.35),Color("#6b4328"))
+	site.position=p
+	add_child(site)
+	box_in(site,Vector3(0,.05,0),Vector3(4.7,.1,3.9),Color("#9b875e"))
+	box_in(site,Vector3(-2.0,.22,-1.5),Vector3(.55,.35,.55),Color("#686a64"))
+	box_in(site,Vector3(2.0,.22,1.5),Vector3(.55,.35,.55),Color("#686a64"))
+	box_in(site,Vector3(-.7,.18,1.55),Vector3(1.2,.2,.35),Color("#6b4328"))
+	box_in(site,Vector3(.75,.18,-1.55),Vector3(1.3,.2,.35),Color("#6b4328"))
+	box_in(site,Vector3(0,.26,0),Vector3(3.7,.08,.16),Color("#dfd0a4"))
+	box_in(site,Vector3(0,.26,.42),Vector3(2.6,.08,.16),Color("#dfd0a4"))
 	return site
 
 func make_person(i):
@@ -162,14 +180,14 @@ func make_person(i):
 
 func make_ui():
 	var layer=CanvasLayer.new(); add_child(layer)
-	var bg=ColorRect.new(); bg.position=Vector2(14,14); bg.size=Vector2(485,135); bg.color=Color(0.02,0.02,0.015,.87); layer.add_child(bg)
+	var bg=ColorRect.new(); bg.position=Vector2(14,14); bg.size=Vector2(545,158); bg.color=Color(0.02,0.02,0.015,.87); layer.add_child(bg)
 	hud=Label.new(); hud.position=Vector2(29,27); hud.add_theme_font_size_override("font_size",17); layer.add_child(hud)
 	var menu=VBoxContainer.new(); menu.position=Vector2(1005,18); menu.size=Vector2(250,310); layer.add_child(menu)
 	var title=Label.new(); title.text="ROZKAZY IDOLA"; title.add_theme_font_size_override("font_size",19); menu.add_child(title)
 	for s in ["AUTO","PATYKI","KAMIEŃ","JAGODY","DOM 5/5","SPICHLERZ 5/5"]:
 		var b=Button.new(); b.text=s; b.custom_minimum_size=Vector2(240,34); b.pressed.connect(func(): set_order(s)); menu.add_child(b)
-	var ibg=ColorRect.new(); ibg.position=Vector2(14,160); ibg.size=Vector2(365,250); ibg.color=Color(0.02,0.02,0.015,.82); layer.add_child(ibg)
-	info=Label.new(); info.position=Vector2(32,176); info.add_theme_font_size_override("font_size",15); layer.add_child(info)
+	var ibg=ColorRect.new(); ibg.position=Vector2(14,180); ibg.size=Vector2(430,268); ibg.color=Color(0.02,0.02,0.015,.78); layer.add_child(ibg)
+	info=Label.new(); info.position=Vector2(32,194); info.add_theme_font_size_override("font_size",14); layer.add_child(info)
 	make_camera_sticks(layer)
 
 func make_round_panel(pos,size,fill,border):
@@ -197,8 +215,8 @@ func make_touch_panel(pos,size):
 	p.size=size
 	p.mouse_filter=Control.MOUSE_FILTER_IGNORE
 	var st=StyleBoxFlat.new()
-	st.bg_color=Color(0.02,0.02,0.015,.52)
-	st.border_color=Color(1,1,1,.34)
+	st.bg_color=Color(0.02,0.02,0.015,.34)
+	st.border_color=Color(1,1,1,.24)
 	st.border_width_left=2
 	st.border_width_top=2
 	st.border_width_right=2
@@ -223,13 +241,13 @@ func make_stick_label(layer,center,text):
 
 func make_camera_sticks(layer):
 	layer.add_child(make_touch_panel(rotate_stick_panel.position,rotate_stick_panel.size))
-	layer.add_child(make_round_panel(rotate_stick_center-Vector2(72,72),Vector2(144,144),Color(0.02,0.02,0.015,.36),Color(1,1,1,.28)))
-	rotate_stick_thumb=make_round_panel(rotate_stick_center-Vector2(29,29),Vector2(58,58),Color(1,1,1,.54),Color(1,1,1,.82))
+	layer.add_child(make_round_panel(rotate_stick_center-Vector2(72,72),Vector2(144,144),Color(0.02,0.02,0.015,.23),Color(1,1,1,.22)))
+	rotate_stick_thumb=make_round_panel(rotate_stick_center-Vector2(29,29),Vector2(58,58),Color(1,1,1,.42),Color(1,1,1,.68))
 	layer.add_child(rotate_stick_thumb)
 	make_stick_label(layer,rotate_stick_center,"OBRÓT KAMERY")
 	layer.add_child(make_touch_panel(move_stick_panel.position,move_stick_panel.size))
-	layer.add_child(make_round_panel(move_stick_center-Vector2(72,72),Vector2(144,144),Color(0.02,0.02,0.015,.36),Color(1,1,1,.28)))
-	move_stick_thumb=make_round_panel(move_stick_center-Vector2(29,29),Vector2(58,58),Color(1,1,1,.54),Color(1,1,1,.82))
+	layer.add_child(make_round_panel(move_stick_center-Vector2(72,72),Vector2(144,144),Color(0.02,0.02,0.015,.23),Color(1,1,1,.22)))
+	move_stick_thumb=make_round_panel(move_stick_center-Vector2(29,29),Vector2(58,58),Color(1,1,1,.42),Color(1,1,1,.68))
 	layer.add_child(move_stick_thumb)
 	make_stick_label(layer,move_stick_center,"PORUSZANIE")
 
@@ -239,6 +257,19 @@ func open_plan_count():
 		if not p.done:
 			count+=1
 	return count
+
+func set_notice(msg):
+	notice=msg
+	notice_timer=3.0
+
+func active_plan_number(plan):
+	var count=0
+	for p in build_plans:
+		if not p.done:
+			count+=1
+			if p==plan:
+				return count
+	return 0
 
 func get_active_plan():
 	for p in build_plans:
@@ -259,6 +290,28 @@ func count_workers(job_name):
 			count+=1
 	return count
 
+func worker_summary():
+	return "Prace: patyki %d | kamień %d | budowa %d | jagody %d" % [count_workers("PATYKI"),count_workers("KAMIEŃ"),count_workers("BUDOWA"),count_workers("JAGODY")]
+
+func register_build_spot(p):
+	build_spots.append(p)
+
+func river_x_at_z(z):
+	return 8+sin(z*.17)*5
+
+func is_build_pos_clear(p):
+	if p.length()<7.5:
+		return false
+	if abs(p.x-river_x_at_z(p.z))<4.8:
+		return false
+	for spot in build_spots:
+		if Vector2(spot.x,spot.z).distance_to(Vector2(p.x,p.z))<7.0:
+			return false
+	for plan in build_plans:
+		if not plan.done and Vector2(plan.pos.x,plan.pos.z).distance_to(Vector2(p.x,p.z))<6.5:
+			return false
+	return true
+
 func random_field_point(job_name):
 	if job_name=="PATYKI":
 		return Vector3(rng.randf_range(-24,24),0,rng.randf_range(-24,24))
@@ -272,23 +325,35 @@ func random_field_point(job_name):
 
 func pick_build_pos(kind):
 	var idx=build_plans.size()+buildings.houses+buildings.granaries
-	var a=idx*1.27+rng.randf_range(-.35,.35)
-	var r=rng.randf_range(10,15)
-	if kind=="SPICHLERZ":
-		r+=2
-	return Vector3(cos(a)*r,0,sin(a)*r)
+	for attempt in range(32):
+		var a=(idx+attempt)*1.41+rng.randf_range(-.42,.42)
+		var r=rng.randf_range(10,18)
+		if kind=="SPICHLERZ":
+			r+=2
+		var p=Vector3(cos(a)*r,0,sin(a)*r)
+		if is_build_pos_clear(p):
+			return p
+	return Vector3(rng.randf_range(-18,-10),0,rng.randf_range(8,18))
 
 func queue_build_plan(kind):
+	if open_plan_count()>=MAX_BUILD_PLANS:
+		set_notice("Kolejka budowy pełna: max %d" % MAX_BUILD_PLANS)
+		redirect_people()
+		return
 	var p=pick_build_pos(kind)
-	build_plans.append({"kind":kind,"need_sticks":5,"need_stone":5,"funded":false,"done":false,"progress":0.0,"work":5.0,"pos":p,"site":make_build_site(p,kind)})
-	order="BUDOWA"
+	build_plans.append({"kind":kind,"need_sticks":BUILD_COST_STICKS,"need_stone":BUILD_COST_STONE,"stored_sticks":0,"stored_stone":0,"funded":false,"done":false,"progress":0.0,"work":BUILD_WORK,"pos":p,"site":make_build_site(p,kind)})
+	order="BUDUJ "+kind
+	set_notice("Plan %s dodany do kolejki" % kind)
 	redirect_people()
 
 func fund_plan(plan):
 	if not plan.funded and stock.sticks>=plan.need_sticks and stock.stone>=plan.need_stone:
 		stock.sticks-=plan.need_sticks
 		stock.stone-=plan.need_stone
+		plan.stored_sticks=plan.need_sticks
+		plan.stored_stone=plan.need_stone
 		plan.funded=true
+		set_notice("Materiały dla %s opłacone na budowie" % plan.kind)
 
 func complete_build(plan):
 	if plan.done:
@@ -302,7 +367,9 @@ func complete_build(plan):
 	elif plan.kind=="SPICHLERZ":
 		make_granary(plan.pos)
 		buildings.granaries+=1
+	register_build_spot(plan.pos)
 	tech_points+=1
+	set_notice("%s ukończony. Tech +1" % plan.kind)
 	if open_plan_count()==0:
 		order="AUTO"
 
@@ -379,13 +446,27 @@ func finish_job(v):
 			if plan.progress>=plan.work:
 				complete_build(plan)
 
+func plan_brief():
+	var plan=get_active_plan()
+	if plan==null:
+		return "Plan: brak"
+	var nr=active_plan_number(plan)
+	var total=open_plan_count()
+	if not plan.funded:
+		return "Plan %d/%d %s: materiały %d/%d P, %d/%d K" % [nr,total,plan.kind,stock.sticks,plan.need_sticks,stock.stone,plan.need_stone]
+	var pct=int(round(clamp(plan.progress/plan.work,0.0,1.0)*100.0))
+	return "Plan %d/%d %s: budowa %d%%" % [nr,total,plan.kind,pct]
+
 func plan_summary():
 	var plan=get_active_plan()
 	if plan==null:
-		return "Plan: brak aktywnej budowy"
+		return "Plan: brak aktywnej budowy\n"+worker_summary()
+	var nr=active_plan_number(plan)
+	var total=open_plan_count()
 	if not plan.funded:
-		return "Plan %s: zbierz %d/%d patyków i %d/%d kamieni" % [plan.kind,stock.sticks,plan.need_sticks,stock.stone,plan.need_stone]
-	return "Plan %s: budowa %.0f z %.0f" % [plan.kind,plan.progress,plan.work]
+		return "Plan %d/%d %s: zbierz %d/%d patyków i %d/%d kamieni\n%s" % [nr,total,plan.kind,stock.sticks,plan.need_sticks,stock.stone,plan.need_stone,worker_summary()]
+	var pct=int(round(clamp(plan.progress/plan.work,0.0,1.0)*100.0))
+	return "Plan %d/%d %s: budowa %d%%\nMateriały na budowie: %d/%d patyków, %d/%d kamieni\n%s" % [nr,total,plan.kind,pct,plan.stored_sticks,plan.need_sticks,plan.stored_stone,plan.need_stone,worker_summary()]
 
 func set_order(s):
 	if s=="DOM 5/5":
@@ -413,9 +494,12 @@ func _process(d):
 		else:
 			if anim_ready and v.has("anim"): retargeter.play(v.anim,"idle")
 	apply_camera_sticks(d)
-	hud.text="IDOL — GENESIS 0.6.7 ROZDZIAŁ I\nEpoka kamienia łupanego   Tryb: %s\nPatyki %d   Kamień %d   Jagody %d\nDomy %d   Spichlerze %d   Tech %d" % [order,stock.sticks,stock.stone,stock.berries,buildings.houses,buildings.granaries,tech_points]
+	if notice_timer>0.0:
+		notice_timer=max(0.0,notice_timer-d)
+	var status=(notice if notice_timer>0.0 else plan_brief())
+	hud.text="IDOL — GENESIS 0.6.8 BUILD CLARITY\nRozdział I   Rozkaz Idola: %s\nPatyki %d   Kamień %d   Jagody %d\nDomy %d   Spichlerze %d   Tech %d\n%s" % [order,stock.sticks,stock.stone,stock.berries,buildings.houses,buildings.granaries,tech_points,status]
 	var v=people[selected]
-	info.text="%s — %s\nPraca: %s\n\nSIŁA %d   ZRĘCZNOŚĆ %d   INT %d\nGłód %.0f   Energia %.0f\n\nDrwalstwo %.1f\nZbieranie %.1f\nBudowanie %.1f\n\n%s\nKoszt: DOM/SPICHLERZ = 5 patyków + 5 kamieni" % [v.name,v.trait,v.job,v.str,v.dex,v.int,v.hunger,v.energy,v.wood,v.gather,v.build,plan_summary()]
+	info.text="%s — %s\nPraca: %s\n\nSIŁA %d   ZRĘCZNOŚĆ %d   INT %d\nGłód %.0f   Energia %.0f\n\nDrwalstwo %.1f   Zbieranie %.1f   Budowanie %.1f\n\n%s\nKoszt: DOM/SPICHLERZ = 5 patyków + 5 kamieni" % [v.name,v.trait,v.job,v.str,v.dex,v.int,v.hunger,v.energy,v.wood,v.gather,v.build,plan_summary()]
 
 func set_camera_distance(value):
 	cam_distance=clamp(value,CAMERA_MIN_DISTANCE,CAMERA_MAX_DISTANCE)

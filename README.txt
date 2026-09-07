@@ -1,10 +1,20 @@
-IDOL Genesis 0.6.7 — ROZDZIAŁ I: KAMIEŃ ŁUPANY
+IDOL Genesis 0.6.8 — BUILD CLARITY
 
 Kierunek gry:
 - gracz jest Idolem: wolą osady i bytem z pełną kontrolą nad populacją
 - ludzie nie są wojskiem do szkolenia, tylko pierwszą społecznością
 - później mają tworzyć pary, rozmnażać się, budować relacje, dzielić się na grupy i wchodzić w konflikty
 - rozwój technologii ma wynikać z prostych zadań, które Idol zleca mieszkańcom
+
+Zmiany 0.6.8:
+- HUD rozdziela Rozkaz Idola od aktywnego planu budowy
+- aktywny plan pokazuje numer w kolejce, np. Plan 1/2
+- plan pokazuje procent budowy po opłaceniu materiałów
+- panel mieszkańca pokazuje podział pracy: patyki, kamień, budowa, jagody
+- plac budowy jest teraz jednym obiektem i znika cały po ukończeniu budynku
+- nowe domy/spichlerze szukają bezpieczniejszego miejsca, dalej od rzeki i innych budynków
+- kolejka budowy ma limit 3 aktywnych planów, żeby gracz nie zaspamował mapy przypadkiem
+- gałki kamery są mniej nachalne wizualnie, ale nadal widoczne i duże pod palce
 
 Zmiany 0.6.7:
 - zbrojownia została odrzucona jako zły kierunek i nie trafiła do tej wersji
