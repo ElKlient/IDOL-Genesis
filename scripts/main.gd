@@ -8,7 +8,7 @@ const WALL=preload("res://assets/village/Wall_Plaster_Straight.gltf")
 const DOOR=preload("res://assets/village/Wall_Plaster_Door_Round.gltf")
 const ROOF=preload("res://assets/village/Roof_RoundTiles_6x6.gltf")
 const RETARGETER=preload("res://scripts/retargeter.gd")
-const VERSION_TITLE="IDOL — GENESIS 0.7.1 IDOL TOUCH"
+const VERSION_TITLE="IDOL — GENESIS 0.7.2 LIFE SPARK"
 const CAMERA_MIN_DISTANCE=5.5
 const CAMERA_MAX_DISTANCE=88.0
 const CAMERA_HEIGHT_RATIO=0.61
@@ -28,12 +28,16 @@ const HOME_CAPACITY=4
 const CHAPTER_HOUSES_GOAL=3
 const CHAPTER_GRANARIES_GOAL=1
 const CHAPTER_WORKSHOPS_GOAL=1
-const USE_PROCEDURAL_BONE_POSE=false
+const USE_PROCEDURAL_BONE_POSE=true
 const STOCKPILE_POS=Vector3(-5.8,0,3.6)
 const RESEARCH_POS=Vector3(2.75,0,2.25)
 const PAIR_BOND_THRESHOLD=.62
 const SELECT_TAP_MAX_MOVE=22.0
 const SELECT_SCREEN_RADIUS=92.0
+const POPULATION_LIMIT=18
+const CHILD_FOOD_COST=12
+const LIFE_PROGRESS_GOAL=8.0
+const FAMILY_BOND_THRESHOLD=.68
 
 var rng=RandomNumberGenerator.new()
 var people=[]
@@ -48,9 +52,11 @@ var stone_sources=[]
 var berry_sources=[]
 var hearth_pos=Vector3(-2.8,0,2.6)
 var social_bond=34.0
-var discoveries={"OGIEŃ":false,"NARZĘDZIA":false,"MAGAZYN":false,"WIĘZI":false,"OSADA":false}
-var discovery_sequence=["OGIEŃ","NARZĘDZIA","MAGAZYN","WIĘZI","OSADA"]
+var discoveries={"OGIEŃ":false,"NARZĘDZIA":false,"MAGAZYN":false,"WIĘZI":false,"OSADA":false,"RODZINA":false}
+var discovery_sequence=["OGIEŃ","NARZĘDZIA","MAGAZYN","WIĘZI","OSADA","RODZINA"]
 var insight_progress=0.0
+var life_progress=0.0
+var children_born=0
 var world_env:WorldEnvironment
 var sun:DirectionalLight3D
 var day_clock=0.22
@@ -87,6 +93,7 @@ var move_stick_center=Vector2(1125,585)
 var move_stick_thumb:Control
 var rotate_stick_thumb:Control
 var names=["Alda","Sela","Mira","Nara","Ena","Eryk","Oren","Bran","Tovan","Milan"]
+var child_names=["Lira","Ari","Tala","Nim","Rin","Oda","Uma","Leno"]
 var traits=["Pracowita","Odważna","Ciekawska","Śpioch","Spokojna","Silny","Uparty","Myśliciel","Zwinny","Towarzyski"]
 
 func mat(c):
@@ -155,7 +162,7 @@ func _ready():
 	anim_ready=retargeter.initialize()
 	if anim_ready:
 		for v in people:
-			v["anim"]=retargeter.attach(v.node)
+			attach_person_animation(v)
 
 	cam=Camera3D.new(); cam.fov=52; add_child(cam); cam.current=true
 	update_camera()
@@ -515,23 +522,85 @@ func make_person(i):
 	make_settler_gear(n,i)
 	var cargo=make_carry_node(n)
 	var sk=find_skeleton(n)
-	people.append({"node":n,"skeleton":sk,"bones":cache_pose_bones(sk),"base_scale":base_scale,"phase":rng.randf_range(0,TAU),"work_timer":0.0,"rest_time":rng.randf_range(1.5,3.6),"name":names[i],"trait":traits[i],"sex":"K" if i<5 else "M","age":rng.randi_range(18,34),"bond":rng.randf_range(.28,.62),"partner":-1,"str":rng.randi_range(3,9),"dex":rng.randi_range(3,9),"int":rng.randi_range(3,9),"hunger":rng.randf_range(5,25),"energy":rng.randf_range(72,100),"wood":0.0,"gather":0.0,"build":0.0,"knowledge":0.0,"job":"IDLE","carry":"","cargo":cargo,"target":n.position})
+	var v={"node":n,"skeleton":sk,"bones":cache_pose_bones(sk),"base_scale":base_scale,"phase":rng.randf_range(0,TAU),"work_timer":0.0,"rest_time":rng.randf_range(1.5,3.6),"name":names[i],"trait":traits[i],"sex":"K" if i<5 else "M","age":rng.randi_range(18,34),"adult":true,"parent_a":-1,"parent_b":-1,"family_cd":rng.randf_range(8.0,18.0),"bond":rng.randf_range(.28,.62),"partner":-1,"str":rng.randi_range(3,9),"dex":rng.randi_range(3,9),"int":rng.randi_range(3,9),"hunger":rng.randf_range(5,25),"energy":rng.randf_range(72,100),"wood":0.0,"gather":0.0,"build":0.0,"knowledge":0.0,"job":"IDLE","carry":"","cargo":cargo,"target":n.position}
+	people.append(v)
+	return v
+
+func attach_person_animation(v):
+	if anim_ready and retargeter and v.has("node"):
+		v["anim"]=retargeter.attach(v.node)
+
+func next_child_name():
+	var base=child_names[children_born%child_names.size()]
+	if children_born>=child_names.size():
+		return "%s %d" % [base,int(children_born/child_names.size())+2]
+	return base
+
+func make_birth_marker(pos,child_name):
+	var root=Node3D.new()
+	root.name="Kołyska "+child_name
+	root.position=pos+Vector3(.65,0,.35)
+	add_child(root)
+	box_in(root,Vector3(0,.13,0),Vector3(.9,.18,.48),Color("#6a472d"))
+	box_in(root,Vector3(-.48,.3,0),Vector3(.08,.42,.52),Color("#7b5636"))
+	box_in(root,Vector3(.48,.3,0),Vector3(.08,.42,.52),Color("#7b5636"))
+	box_in(root,Vector3(0,.37,0),Vector3(.72,.08,.38),Color("#d8c08a"))
+	sphere_in(root,Vector3(-.2,.49,-.02),.13,Color("#d1a071"))
+	var flag=box_in(root,Vector3(.52,.7,.18),Vector3(.05,.7,.05),Color("#4b3324"))
+	flag.rotation_degrees.z=-6
+	box_in(root,Vector3(.72,.95,.18),Vector3(.34,.2,.04),Color("#f5f0d2"))
+
+func spawn_child(parent_a_idx,parent_b_idx):
+	if parent_a_idx<0 or parent_b_idx<0 or parent_a_idx>=people.size() or parent_b_idx>=people.size():
+		return null
+	if people.size()>=POPULATION_LIMIT or stock.berries<CHILD_FOOD_COST:
+		return null
+	var parent_a=people[parent_a_idx]
+	var parent_b=people[parent_b_idx]
+	var sex="K" if rng.randf()<.5 else "M"
+	var n=(FEMALE if sex=="K" else MALE).instantiate()
+	var base_scale=Vector3(1.08,1.08,1.08)
+	n.scale=base_scale
+	var center=(parent_a.node.position+parent_b.node.position)*.5
+	n.position=center+Vector3(rng.randf_range(-.75,.75),0,rng.randf_range(-.75,.75))
+	add_child(n)
+	make_settler_gear(n,children_born+2)
+	var cargo=make_carry_node(n)
+	var sk=find_skeleton(n)
+	var child_name=next_child_name()
+	var v={"node":n,"skeleton":sk,"bones":cache_pose_bones(sk),"base_scale":base_scale,"phase":rng.randf_range(0,TAU),"work_timer":0.0,"rest_time":rng.randf_range(1.8,3.8),"name":child_name,"trait":"Dziecko osady","sex":sex,"age":1,"adult":false,"parent_a":parent_a_idx,"parent_b":parent_b_idx,"family_cd":0.0,"bond":rng.randf_range(.62,.78),"partner":-1,"str":rng.randi_range(1,3),"dex":rng.randi_range(2,5),"int":rng.randi_range(2,5),"hunger":rng.randf_range(0,12),"energy":rng.randf_range(82,100),"wood":0.0,"gather":0.0,"build":0.0,"knowledge":0.0,"job":"DZIECKO","carry":"","cargo":cargo,"target":n.position}
+	people.append(v)
+	children_born+=1
+	stock.berries=max(0,stock.berries-CHILD_FOOD_COST)
+	parent_a.family_cd=42.0
+	parent_b.family_cd=42.0
+	parent_a.bond=min(1.0,parent_a.bond+.05)
+	parent_b.bond=min(1.0,parent_b.bond+.05)
+	social_bond=min(100.0,social_bond+4.5)
+	attach_person_animation(v)
+	assign_job(v,"DZIECKO",family_point(v))
+	make_birth_marker(n.position,child_name)
+	selected=people.size()-1
+	update_selection_marker()
+	check_discoveries()
+	set_notice("Narodziny: %s. Osada ma nowe pokolenie." % child_name)
+	return v
 
 func make_ui():
 	var layer=CanvasLayer.new(); add_child(layer)
-	var bg=ColorRect.new(); bg.position=Vector2(14,14); bg.size=Vector2(574,156); bg.color=Color(0.02,0.02,0.015,.87); layer.add_child(bg)
+	var bg=ColorRect.new(); bg.position=Vector2(14,14); bg.size=Vector2(574,174); bg.color=Color(0.02,0.02,0.015,.87); layer.add_child(bg)
 	hud=Label.new(); hud.position=Vector2(29,27); hud.add_theme_font_size_override("font_size",14); layer.add_child(hud)
-	var menu=VBoxContainer.new(); menu.position=Vector2(1005,18); menu.size=Vector2(250,360); layer.add_child(menu)
-	var title=Label.new(); title.text="ROZKAZY IDOLA"; title.add_theme_font_size_override("font_size",19); menu.add_child(title)
+	var menu=VBoxContainer.new(); menu.position=Vector2(1005,18); menu.size=Vector2(250,430); menu.add_theme_constant_override("separation",2); layer.add_child(menu)
+	var title=Label.new(); title.text="ROZKAZY IDOLA"; title.add_theme_font_size_override("font_size",17); menu.add_child(title)
 	for s in ["AUTO","PATYKI","KAMIEŃ","JAGODY","ZGROMADZENIE","ODKRYCIA","DOM 5/5","SPICHLERZ 5/5","WARSZTAT 8/6"]:
 		var cmd=s
-		var b=Button.new(); b.text=cmd; b.custom_minimum_size=Vector2(240,31); b.pressed.connect(func(): set_order(cmd)); menu.add_child(b)
-	var next_btn=Button.new(); next_btn.text="OSOBA +"; next_btn.custom_minimum_size=Vector2(240,31); next_btn.pressed.connect(func(): cycle_selected()); menu.add_child(next_btn)
-	for s in ["KAMERA OS.","PRZYWOŁAJ","BŁOGOSŁAW","WIĘŹ +"]:
+		var b=Button.new(); b.text=cmd; b.custom_minimum_size=Vector2(240,25); b.pressed.connect(func(): set_order(cmd)); menu.add_child(b)
+	var next_btn=Button.new(); next_btn.text="OSOBA +"; next_btn.custom_minimum_size=Vector2(240,25); next_btn.pressed.connect(func(): cycle_selected()); menu.add_child(next_btn)
+	for s in ["KAMERA OS.","PRZYWOŁAJ","BŁOGOSŁAW","WIĘŹ +","KRĄG ŻYCIA"]:
 		var action=s
-		var b=Button.new(); b.text=action; b.custom_minimum_size=Vector2(240,27); b.pressed.connect(func(): handle_idol_action(action)); menu.add_child(b)
-	var ibg=ColorRect.new(); ibg.position=Vector2(14,176); ibg.size=Vector2(430,250); ibg.color=Color(0.02,0.02,0.015,.72); layer.add_child(ibg)
-	info=Label.new(); info.position=Vector2(30,188); info.add_theme_font_size_override("font_size",12); layer.add_child(info)
+		var b=Button.new(); b.text=action; b.custom_minimum_size=Vector2(240,22); b.pressed.connect(func(): handle_idol_action(action)); menu.add_child(b)
+	var ibg=ColorRect.new(); ibg.position=Vector2(14,194); ibg.size=Vector2(430,262); ibg.color=Color(0.02,0.02,0.015,.72); layer.add_child(ibg)
+	info=Label.new(); info.position=Vector2(30,206); info.add_theme_font_size_override("font_size",12); layer.add_child(info)
 	make_camera_sticks(layer)
 
 func make_round_panel(pos,size,fill,border):
@@ -636,6 +705,8 @@ func handle_idol_action(action):
 		bless_selected_person()
 	elif action=="WIĘŹ +":
 		nudge_selected_bond()
+	elif action=="KRĄG ŻYCIA":
+		kindle_life_circle()
 
 func focus_selected_person():
 	var v=selected_person()
@@ -678,6 +749,25 @@ func nudge_selected_bond():
 		other.bond=min(1.0,other.bond+.08)
 	try_form_pair(v)
 	set_notice("Idol wzmacnia więź: %s" % v.name)
+
+func kindle_life_circle():
+	if count_pairs()<1:
+		set_notice("Krąg życia wymaga pierwszej pary")
+		return
+	if not spend_will(30.0,"Krąg życia"):
+		return
+	for v in people:
+		if is_adult(v) and v.partner!=-1:
+			v.bond=min(1.0,v.bond+.035)
+			assign_job(v,"WSPÓLNOTA",meeting_point(v))
+	social_bond=min(100.0,social_bond+3.0)
+	life_progress=min(LIFE_PROGRESS_GOAL,life_progress+2.6)
+	var pair=find_family_pair()
+	if can_raise_child() and not pair.is_empty() and life_progress>=LIFE_PROGRESS_GOAL:
+		life_progress=0.0
+		spawn_child(pair[0],pair[1])
+	else:
+		set_notice("Krąg życia wzmacnia rodziny. %s" % family_summary())
 
 func building_cost(kind):
 	if kind=="WARSZTAT":
@@ -725,6 +815,8 @@ func make_discovery_marker(key):
 		col=Color("#d46f75")
 	elif key=="OSADA":
 		col=Color("#7fc37d")
+	elif key=="RODZINA":
+		col=Color("#f2a3b3")
 	cyl(p+Vector3(0,.28,0),.08,.55,Color("#4f3828"))
 	sphere(p+Vector3(0,.66,0),.18,col)
 
@@ -739,6 +831,8 @@ func check_discoveries():
 		unlock_discovery("WIĘZI","Odkrycie: pierwsze pary. Osada zaczyna mieć pamięć relacji.")
 	if not discoveries["OSADA"] and buildings.houses>=CHAPTER_HOUSES_GOAL and buildings.granaries>=CHAPTER_GRANARIES_GOAL and buildings.workshops>=CHAPTER_WORKSHOPS_GOAL:
 		unlock_discovery("OSADA","Rozdział I ustabilizowany: domy, zapas i warsztat działają.")
+	if not discoveries["RODZINA"] and children_born>=1:
+		unlock_discovery("RODZINA","Odkrycie: rodzina. Osada ma pierwsze nowe pokolenie.")
 
 func active_plan_number(plan):
 	var count=0
@@ -769,7 +863,7 @@ func count_workers(job_name):
 	return count
 
 func worker_summary():
-	return "Załoga: P%d K%d J%d B%d D%d W%d O%d R%d" % [count_workers("PATYKI"),count_workers("KAMIEŃ"),count_workers("JAGODY"),count_workers("BUDOWA"),count_workers("DOSTAWA"),count_workers("WSPÓLNOTA"),count_workers("ODKRYCIA"),count_workers("ODPOCZYNEK")]
+	return "Załoga: P%d K%d J%d B%d D%d W%d O%d R%d Dz%d" % [count_workers("PATYKI"),count_workers("KAMIEŃ"),count_workers("JAGODY"),count_workers("BUDOWA"),count_workers("DOSTAWA"),count_workers("WSPÓLNOTA"),count_workers("ODKRYCIA"),count_workers("ODPOCZYNEK"),count_workers("DZIECKO")]
 
 func shelter_capacity():
 	return buildings.houses*HOME_CAPACITY
@@ -792,10 +886,40 @@ func count_pairs():
 			pairs+=1
 	return int(pairs/2)
 
+func is_adult(v):
+	return (not v.has("adult")) or v.adult
+
+func count_adults():
+	var count=0
+	for v in people:
+		if is_adult(v):
+			count+=1
+	return count
+
+func count_children():
+	var count=0
+	for v in people:
+		if not is_adult(v):
+			count+=1
+	return count
+
+func life_progress_percent():
+	return int(round(clamp(life_progress/LIFE_PROGRESS_GOAL,0.0,1.0)*100.0))
+
+func person_name_at(idx):
+	if idx>=0 and idx<people.size():
+		return people[idx].name
+	return "brak"
+
 func partner_name(v):
 	if v.partner>=0 and v.partner<people.size():
-		return people[v.partner].name
+		return person_name_at(v.partner)
 	return "brak"
+
+func family_label(v):
+	if is_adult(v):
+		return "Para: "+partner_name(v)
+	return "Rodzice: %s + %s" % [person_name_at(v.parent_a),person_name_at(v.parent_b)]
 
 func carry_label(kind):
 	if kind=="sticks":
@@ -806,6 +930,90 @@ func carry_label(kind):
 		return "jagody"
 	return "brak"
 
+func family_point(v):
+	var idx=people.find(v)
+	var base=hearth_pos
+	if not is_adult(v) and v.parent_a>=0 and v.parent_b>=0 and v.parent_a<people.size() and v.parent_b<people.size():
+		base=(people[v.parent_a].node.position+people[v.parent_b].node.position)*.5
+	elif is_adult(v) and v.partner>=0 and v.partner<people.size():
+		base=(v.node.position+people[v.partner].node.position)*.5
+	elif not home_spots.is_empty():
+		base=home_spots[max(0,idx)%home_spots.size()]
+	var a=TAU*float(max(0,idx))/max(1.0,float(people.size()))
+	return base+Vector3(cos(a)*1.35,0,sin(a)*1.05)
+
+func find_family_pair():
+	var best=[]
+	var best_score=-1.0
+	for i in range(people.size()):
+		var a=people[i]
+		if not is_adult(a) or a.partner<0:
+			continue
+		var j=int(a.partner)
+		if j<=i or j>=people.size():
+			continue
+		var b=people[j]
+		if not is_adult(b):
+			continue
+		if a.family_cd>0.0 or b.family_cd>0.0:
+			continue
+		var bond=(a.bond+b.bond)*.5
+		if bond<FAMILY_BOND_THRESHOLD:
+			continue
+		var score=bond+float(a.int+b.int)*.012
+		if score>best_score:
+			best_score=score
+			best=[i,j]
+	return best
+
+func can_raise_child():
+	if not discoveries["WIĘZI"]:
+		return false
+	if people.size()>=POPULATION_LIMIT:
+		return false
+	if shelter_capacity()<=people.size():
+		return false
+	if stock.berries<CHILD_FOOD_COST:
+		return false
+	if social_bond<56.0:
+		return false
+	return count_pairs()>0
+
+func family_summary():
+	var state="gotowe"
+	if count_pairs()<1:
+		state="brak pary"
+	elif shelter_capacity()<=people.size():
+		state="brak miejsca w domu"
+	elif stock.berries<CHILD_FOOD_COST:
+		state="mało jagód"
+	elif social_bond<56.0:
+		state="słaba wspólnota"
+	elif find_family_pair().is_empty():
+		state="para potrzebuje czasu"
+	return "Rodzina: dzieci %d/%d | życie %d%% | %s" % [count_children(),POPULATION_LIMIT-count_adults(),life_progress_percent(),state]
+
+func update_life_growth(d):
+	for v in people:
+		if is_adult(v) and v.family_cd>0.0:
+			v.family_cd=max(0.0,v.family_cd-d)
+	if not can_raise_child():
+		life_progress=max(0.0,life_progress-d*.1)
+		return
+	var pair=find_family_pair()
+	if pair.is_empty():
+		life_progress=max(0.0,life_progress-d*.035)
+		return
+	var a=people[pair[0]]
+	var b=people[pair[1]]
+	var warmth=(a.bond+b.bond)*.5+social_bond/100.0+float(count_pairs())*.08
+	if order=="ZGROMADZENIE":
+		warmth+=.16
+	life_progress+=d*warmth*.22
+	if life_progress>=LIFE_PROGRESS_GOAL:
+		life_progress=0.0
+		spawn_child(pair[0],pair[1])
+
 func chapter_goal():
 	if buildings.houses<CHAPTER_HOUSES_GOAL:
 		return "Cel: postaw 3 domy i 1 spichlerz"
@@ -815,7 +1023,9 @@ func chapter_goal():
 		return "Cel: odkryj narzędzia kamienne"
 	if buildings.workshops<CHAPTER_WORKSHOPS_GOAL:
 		return "Cel: zbuduj pierwszy warsztat"
-	return "Cel rozdziału: osada ma schronienie, zapas i narzędzia"
+	if children_born<1:
+		return "Cel: utrzymaj parę, wolny dom i 12 jagód dla dziecka"
+	return "Cel rozdziału: pierwsza rodzina, zapas i narzędzia"
 
 func register_build_spot(p):
 	build_spots.append(p)
@@ -904,7 +1114,8 @@ func try_form_pair(v):
 	v.bond=min(1.0,v.bond+.16)
 	other.bond=min(1.0,other.bond+.16)
 	make_pair_marker(v.name,other.name)
-	set_notice("%s i %s tworzą pierwszą parę osady" % [v.name,other.name])
+	life_progress=min(LIFE_PROGRESS_GOAL,life_progress+1.0)
+	set_notice("%s i %s tworzą parę osady" % [v.name,other.name])
 	check_discoveries()
 
 func random_field_point(job_name):
@@ -1045,6 +1256,8 @@ func deposit_carry(v):
 	check_discoveries()
 
 func job_duration(v):
+	if v.job=="DZIECKO":
+		return 1.8
 	if v.job=="BUDOWA":
 		var build_time=.92
 		if discoveries["NARZĘDZIA"]:
@@ -1097,6 +1310,9 @@ func assign_for_plan(v,plan):
 			assign_job(v,"JAGODY",random_field_point("JAGODY"))
 
 func choose_work(v):
+	if not is_adult(v):
+		assign_job(v,"DZIECKO",family_point(v))
+		return
 	if v.carry!="":
 		start_delivery(v,v.carry)
 		return
@@ -1188,6 +1404,12 @@ func finish_job(v):
 			rest_gain+=3.0
 		v.energy=min(100.0,v.energy+rest_gain)
 		v.hunger=min(100.0,v.hunger+1.5)
+	elif v.job=="DZIECKO":
+		v.bond=min(1.0,v.bond+.012)
+		v.energy=min(100.0,v.energy+1.8)
+		social_bond=min(100.0,social_bond+.035)
+		v.target=family_point(v)
+		check_discoveries()
 	return false
 
 func plan_brief():
@@ -1244,6 +1466,17 @@ func apply_bone_pose(v,moving):
 	var step=sin(v.phase)
 	var work=sin(v.phase*2.4)
 	var arm_drop=.92
+	if not is_adult(v):
+		pose_bone(sk,bones,"spine_01",Vector3(.04+sin(v.phase*.7)*.018,0,0))
+		pose_bone(sk,bones,"upperarm_l",Vector3(.12,0,-.82))
+		pose_bone(sk,bones,"upperarm_r",Vector3(.12,0,.82))
+		pose_bone(sk,bones,"lowerarm_l",Vector3(.2+step*.05,0,-.16))
+		pose_bone(sk,bones,"lowerarm_r",Vector3(.2-step*.05,0,.16))
+		pose_bone(sk,bones,"thigh_l",Vector3.ZERO)
+		pose_bone(sk,bones,"thigh_r",Vector3.ZERO)
+		pose_bone(sk,bones,"calf_l",Vector3.ZERO)
+		pose_bone(sk,bones,"calf_r",Vector3.ZERO)
+		return
 	if not moving:
 		pose_bone(sk,bones,"thigh_l",Vector3.ZERO)
 		pose_bone(sk,bones,"thigh_r",Vector3.ZERO)
@@ -1297,9 +1530,14 @@ func apply_bone_pose(v,moving):
 		pose_bone(sk,bones,"calf_r",Vector3.ZERO)
 
 func apply_living_pose(v,d,moving,flat_dir):
-	v.phase+=d*(6.4 if moving else (3.6 if v.job!="IDLE" else 1.05))
+	v.phase+=d*(5.4 if not is_adult(v) else (6.4 if moving else (3.6 if v.job!="IDLE" else 1.05)))
 	var n:Node3D=v.node
-	if not moving and v.job=="WSPÓLNOTA":
+	if not moving and v.job=="DZIECKO":
+		var look=family_point(v)-n.position
+		look.y=0
+		if look.length()>.2:
+			n.look_at(n.position+look,Vector3.UP)
+	elif not moving and v.job=="WSPÓLNOTA":
 		var look=hearth_pos-n.position
 		look.y=0
 		if look.length()>.2:
@@ -1319,10 +1557,18 @@ func apply_living_pose(v,d,moving,flat_dir):
 		if v.carry!="":
 			pitch+=2.2
 			roll*=.55
+		if not is_adult(v):
+			bob*=.72
+			pitch*=.72
+			roll*=.72
 	elif v.job=="BUDOWA":
 		bob=max(0.0,sin(v.phase*2.4))*0.055
 		pitch=-5.0+sin(v.phase*2.4)*2.0
 		roll=sin(v.phase)*1.3
+	elif v.job=="DZIECKO":
+		bob=abs(sin(v.phase*1.4))*0.028
+		pitch=sin(v.phase*.9)*1.2
+		roll=sin(v.phase*.7)*1.4
 	elif v.job in ["PATYKI","KAMIEŃ","JAGODY"]:
 		bob=max(0.0,sin(v.phase*2.2))*0.045
 		pitch=-7.0+sin(v.phase*2.2)*1.7
@@ -1362,25 +1608,31 @@ func _process(d):
 	idol_will=min(100.0,idol_will+d*1.15)
 	for v in people:
 		var n:Node3D=v.node
-		v.hunger=min(100.0,v.hunger+d*.04); v.energy=max(0.0,v.energy-d*.017)
+		var adult=is_adult(v)
+		var hunger_rate=.04 if adult else .027
+		var energy_rate=.017 if adult else .01
+		v.hunger=min(100.0,v.hunger+d*hunger_rate); v.energy=max(0.0,v.energy-d*energy_rate)
+		if not adult and v.job=="DZIECKO":
+			v.target=family_point(v)
 		if v.hunger>92.0 and stock.berries<=0:
 			v.energy=max(0.0,v.energy-d*.08)
 		if v.hunger>82.0 and stock.berries>0:
 			stock.berries-=1
-			v.hunger=max(0.0,v.hunger-34.0)
-			v.energy=min(100.0,v.energy+7.0)
+			v.hunger=max(0.0,v.hunger-(34.0 if adult else 42.0))
+			v.energy=min(100.0,v.energy+(7.0 if adult else 10.0))
 		var dir=Vector3(v.target.x-n.position.x,0,v.target.z-n.position.z)
 		var moving=dir.length()>.55
 		if moving:
 			v.work_timer=0.0
-			n.position+=dir.normalized()*d*(.8+v.dex*.04)
+			var speed=(.8+v.dex*.04)*(1.0 if adult else .72)
+			n.position+=dir.normalized()*d*speed
 			n.look_at(n.position+dir,Vector3.UP)
 			if anim_ready and v.has("anim"): retargeter.play(v.anim,"walk")
 			apply_living_pose(v,d,true,dir)
 		else:
 			v.work_timer+=d
 			if v.job!="IDLE":
-				if anim_ready and v.has("anim"): retargeter.play(v.anim,"work")
+				if anim_ready and v.has("anim"): retargeter.play(v.anim,"idle" if v.job=="DZIECKO" else "work")
 				apply_living_pose(v,d,false,dir)
 				if v.work_timer>=job_duration(v):
 					var keep_job=finish_job(v)
@@ -1392,15 +1644,16 @@ func _process(d):
 				apply_living_pose(v,d,false,dir)
 				if v.work_timer>=job_duration(v):
 					choose_work(v)
+	update_life_growth(d)
 	update_build_sites()
 	update_selection_marker()
 	apply_camera_sticks(d)
 	if notice_timer>0.0:
 		notice_timer=max(0.0,notice_timer-d)
 	var status=(notice if notice_timer>0.0 else plan_brief())
-	hud.text="%s\nRozdział I: epoka kamienia łupanego | Wola Idola %.0f%%\nRozkaz %s | Ludzie %d | Pary %d | Schronienie %d/%d | Więź %.0f%%\nP %d/%d  K %d/%d  J %d/%d | Domy %d  Spich. %d  Warszt. %d  Tech %d\n%s\n%s\nOdkrycia: %s" % [VERSION_TITLE,idol_will,order,people.size(),count_pairs(),sheltered_people(),people.size(),average_bond()*100.0,stock.sticks,resource_capacity("sticks"),stock.stone,resource_capacity("stone"),stock.berries,resource_capacity("berries"),buildings.houses,buildings.granaries,buildings.workshops,tech_points,status,chapter_goal(),discovery_text()]
+	hud.text="%s\nRozdział I: epoka kamienia łupanego | Wola %.0f%% | Życie %d%%\nRozkaz %s | Ludzie %d (D%d Dz%d) | Pary %d | Schronienie %d/%d | Więź %.0f%%\nP %d/%d  K %d/%d  J %d/%d | Domy %d  Spich. %d  Warszt. %d  Tech %d\n%s\n%s\n%s\nOdkrycia: %s" % [VERSION_TITLE,idol_will,life_progress_percent(),order,people.size(),count_adults(),count_children(),count_pairs(),sheltered_people(),people.size(),average_bond()*100.0,stock.sticks,resource_capacity("sticks"),stock.stone,resource_capacity("stone"),stock.berries,resource_capacity("berries"),buildings.houses,buildings.granaries,buildings.workshops,tech_points,status,chapter_goal(),family_summary(),discovery_text()]
 	var v=people[selected]
-	info.text="%s — %s, %d lat\nPraca: %s | Ładunek: %s | Para: %s\nWięź %.0f%% | Głód %.0f | Energia %.0f\nSIŁA %d   ZRĘCZNOŚĆ %d   INT %d\nUmiej.: drwal %.1f  zbier %.1f  bud %.1f  odk %.1f\n\n%s\nMoce: kamera, przywołaj, błogosław, więź +" % [v.name,v.trait,v.age,v.job,carry_label(v.carry),partner_name(v),v.bond*100.0,v.hunger,v.energy,v.str,v.dex,v.int,v.wood,v.gather,v.build,v.knowledge,plan_summary()]
+	info.text="%s — %s, %d lat\n%s | Praca: %s | Ładunek: %s\nWięź %.0f%% | Głód %.0f | Energia %.0f\nSIŁA %d   ZRĘCZNOŚĆ %d   INT %d\nUmiej.: drwal %.1f  zbier %.1f  bud %.1f  odk %.1f\n\n%s\n%s\nMoce: kamera, przywołaj, błogosław, więź +, krąg życia" % [v.name,v.trait,v.age,family_label(v),v.job,carry_label(v.carry),v.bond*100.0,v.hunger,v.energy,v.str,v.dex,v.int,v.wood,v.gather,v.build,v.knowledge,plan_summary(),family_summary()]
 
 func set_camera_distance(value):
 	cam_distance=clamp(value,CAMERA_MIN_DISTANCE,CAMERA_MAX_DISTANCE)

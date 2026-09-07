@@ -1,4 +1,4 @@
-IDOL Genesis 0.7.1 - IDOL TOUCH
+IDOL Genesis 0.7.2 - LIFE SPARK
 
 Prompt roboczy tej łatki:
 Zbuduj pierwszy grywalny rdzeń osady epoki kamienia. Gracz jest Idolem: wolą osady, nie dowódcą armii. Ludzie mają samodzielnie dzielić robotę, nosić surowce, budować podstawowe budynki, odpoczywać, tworzyć pierwsze więzi i odkrywać proste technologie przez zadania.
@@ -8,6 +8,17 @@ Kierunek gry:
 - ludzie nie są wojskiem do szkolenia, tylko pierwszą społecznością
 - później mają tworzyć pary, rozmnażać się, budować relacje, dzielić się na grupy i wchodzić w konflikty
 - rozwój technologii wynika z prostych zadań, które Idol zleca mieszkańcom
+
+Zmiany 0.7.2:
+- dodany pierwszy system rodziny i narodzin w osadzie
+- pary mogą powiększyć populację, jeśli mają więź, wolne miejsce w domu i zapas 12 jagód
+- dzieci są widocznymi mniejszymi postaciami, nie pracują jak dorośli i trzymają się rodziny
+- dodany postęp Życia, licznik dorosłych/dzieci oraz stan rodziny w HUD
+- dodana moc Idola KRĄG ŻYCIA, która wzmacnia pary i przyspiesza rozwój rodziny
+- po narodzinach pojawia się mała kołyska jako znacznik nowego pokolenia
+- dodane odkrycie RODZINA po pierwszym dziecku
+- prawy panel rozkazów został zagęszczony, aby zmieścić moce nad gałką kamery
+- po analizie filmów ponownie włączona bezpieczna proceduralna poza kości, aby ograniczyć efekt T-pose
 
 Zmiany 0.7.1:
 - dodany wybór mieszkańca dotykiem na ekranie gry
