@@ -8,7 +8,7 @@ const WALL=preload("res://assets/village/Wall_Plaster_Straight.gltf")
 const DOOR=preload("res://assets/village/Wall_Plaster_Door_Round.gltf")
 const ROOF=preload("res://assets/village/Roof_RoundTiles_6x6.gltf")
 const RETARGETER=preload("res://scripts/retargeter.gd")
-const VERSION_TITLE="IDOL — GENESIS 0.7.0 FIRST SOCIETY"
+const VERSION_TITLE="IDOL — GENESIS 0.7.1 IDOL TOUCH"
 const CAMERA_MIN_DISTANCE=5.5
 const CAMERA_MAX_DISTANCE=88.0
 const CAMERA_HEIGHT_RATIO=0.61
@@ -32,6 +32,8 @@ const USE_PROCEDURAL_BONE_POSE=false
 const STOCKPILE_POS=Vector3(-5.8,0,3.6)
 const RESEARCH_POS=Vector3(2.75,0,2.25)
 const PAIR_BOND_THRESHOLD=.62
+const SELECT_TAP_MAX_MOVE=22.0
+const SELECT_SCREEN_RADIUS=92.0
 
 var rng=RandomNumberGenerator.new()
 var people=[]
@@ -53,6 +55,7 @@ var world_env:WorldEnvironment
 var sun:DirectionalLight3D
 var day_clock=0.22
 var tech_points=0
+var idol_will=72.0
 var order="AUTO"
 var selected=0
 var notice=""
@@ -64,12 +67,15 @@ var cam_height=17.0
 var cam_yaw=0.70
 var cam_pitch=0.58
 var touches={}
+var touch_start={}
+var touch_gesture_had_multi=false
 var last_pinch_dist=0.0
 var last_pinch_angle=0.0
 var retargeter
 var anim_ready=false
 var hud:Label
 var info:Label
+var selected_marker:Node3D
 var move_stick=Vector2.ZERO
 var rotate_stick=Vector2.ZERO
 var move_stick_touch=-1
@@ -142,6 +148,7 @@ func _ready():
 	make_world_details(home_a,home_b)
 
 	for i in range(10): make_person(i)
+	make_selection_marker()
 
 	retargeter=RETARGETER.new()
 	add_child(retargeter)
@@ -337,6 +344,47 @@ func make_memory_flower():
 	sphere(head+Vector3(-.11,-.085,0), .095, Color("#c92232"))
 	sphere(head+Vector3(.11,-.085,0), .095, Color("#c92232"))
 
+func make_selection_marker():
+	selected_marker=Node3D.new()
+	selected_marker.name="Znacznik wybranego"
+	add_child(selected_marker)
+	var disk=cyl_in(selected_marker,Vector3(0,.035,0),.92,.045,Color("#d9bd58"))
+	disk.scale.x=1.25
+	var core=cyl_in(selected_marker,Vector3(0,.07,0),.24,.05,Color("#f2e59a"))
+	core.scale.x=1.25
+	update_selection_marker()
+
+func update_selection_marker():
+	if not selected_marker or people.is_empty():
+		return
+	selected=int(clamp(selected,0,people.size()-1))
+	var n:Node3D=people[selected].node
+	selected_marker.position=Vector3(n.position.x,.04,n.position.z)
+	selected_marker.rotation_degrees.y+=1.2
+
+func select_person_at_screen(pos):
+	if not cam or people.is_empty():
+		return false
+	var best=-1
+	var best_dist=SELECT_SCREEN_RADIUS
+	for i in range(people.size()):
+		var n:Node3D=people[i].node
+		var world=n.global_position+Vector3(0,1.25,0)
+		if cam.is_position_behind(world):
+			continue
+		var screen=cam.unproject_position(world)
+		var dist=screen.distance_to(pos)
+		if dist<best_dist:
+			best=i
+			best_dist=dist
+	if best>=0:
+		selected=best
+		var v=people[selected]
+		set_notice("Dotyk Idola: %s — %s" % [v.name,v.trait])
+		update_selection_marker()
+		return true
+	return false
+
 func make_house(p,rot):
 	var h=Node3D.new(); h.position=p; h.rotation_degrees.y=rot; h.scale=Vector3(1.05,1.05,1.05); add_child(h)
 	var a=WALL.instantiate(); a.position=Vector3(-1.8,0,0); h.add_child(a)
@@ -479,6 +527,9 @@ func make_ui():
 		var cmd=s
 		var b=Button.new(); b.text=cmd; b.custom_minimum_size=Vector2(240,31); b.pressed.connect(func(): set_order(cmd)); menu.add_child(b)
 	var next_btn=Button.new(); next_btn.text="OSOBA +"; next_btn.custom_minimum_size=Vector2(240,31); next_btn.pressed.connect(func(): cycle_selected()); menu.add_child(next_btn)
+	for s in ["KAMERA OS.","PRZYWOŁAJ","BŁOGOSŁAW","WIĘŹ +"]:
+		var action=s
+		var b=Button.new(); b.text=action; b.custom_minimum_size=Vector2(240,27); b.pressed.connect(func(): handle_idol_action(action)); menu.add_child(b)
 	var ibg=ColorRect.new(); ibg.position=Vector2(14,176); ibg.size=Vector2(430,250); ibg.color=Color(0.02,0.02,0.015,.72); layer.add_child(ibg)
 	info=Label.new(); info.position=Vector2(30,188); info.add_theme_font_size_override("font_size",12); layer.add_child(info)
 	make_camera_sticks(layer)
@@ -561,6 +612,72 @@ func cycle_selected():
 	selected=(selected+1)%people.size()
 	var v=people[selected]
 	set_notice("Wybrano: %s — %s" % [v.name,v.trait])
+	update_selection_marker()
+
+func selected_person():
+	if people.is_empty():
+		return null
+	selected=int(clamp(selected,0,people.size()-1))
+	return people[selected]
+
+func spend_will(cost,label):
+	if idol_will<cost:
+		set_notice("%s wymaga Woli %.0f" % [label,cost])
+		return false
+	idol_will=max(0.0,idol_will-cost)
+	return true
+
+func handle_idol_action(action):
+	if action=="KAMERA OS.":
+		focus_selected_person()
+	elif action=="PRZYWOŁAJ":
+		recall_selected_person()
+	elif action=="BŁOGOSŁAW":
+		bless_selected_person()
+	elif action=="WIĘŹ +":
+		nudge_selected_bond()
+
+func focus_selected_person():
+	var v=selected_person()
+	if v==null:
+		return
+	var n:Node3D=v.node
+	cam_focus=Vector3(n.position.x,0,n.position.z)
+	update_camera()
+	set_notice("Kamera śledzi: %s" % v.name)
+
+func recall_selected_person():
+	var v=selected_person()
+	if v==null or not spend_will(7.0,"Przywołanie"):
+		return
+	v.carry=""
+	set_carry_visual(v.cargo,"")
+	assign_job(v,"WSPÓLNOTA",meeting_point(v))
+	v.bond=min(1.0,v.bond+.025)
+	set_notice("%s słyszy wezwanie Idola" % v.name)
+
+func bless_selected_person():
+	var v=selected_person()
+	if v==null or not spend_will(16.0,"Błogosławieństwo"):
+		return
+	v.energy=min(100.0,v.energy+28.0)
+	v.hunger=max(0.0,v.hunger-24.0)
+	v.bond=min(1.0,v.bond+.035)
+	v.knowledge+=.06
+	set_notice("%s dostaje siłę od Idola" % v.name)
+
+func nudge_selected_bond():
+	var v=selected_person()
+	if v==null or not spend_will(20.0,"Wpływ na więź"):
+		return
+	v.bond=min(1.0,v.bond+.13)
+	assign_job(v,"WSPÓLNOTA",meeting_point(v))
+	var candidate_idx=find_pair_candidate(v)
+	if candidate_idx>=0:
+		var other=people[candidate_idx]
+		other.bond=min(1.0,other.bond+.08)
+	try_form_pair(v)
+	set_notice("Idol wzmacnia więź: %s" % v.name)
 
 func building_cost(kind):
 	if kind=="WARSZTAT":
@@ -678,6 +795,15 @@ func count_pairs():
 func partner_name(v):
 	if v.partner>=0 and v.partner<people.size():
 		return people[v.partner].name
+	return "brak"
+
+func carry_label(kind):
+	if kind=="sticks":
+		return "patyki"
+	if kind=="stone":
+		return "kamień"
+	if kind=="berries":
+		return "jagody"
 	return "brak"
 
 func chapter_goal():
@@ -1233,6 +1359,7 @@ func update_world_lighting(d):
 
 func _process(d):
 	update_world_lighting(d)
+	idol_will=min(100.0,idol_will+d*1.15)
 	for v in people:
 		var n:Node3D=v.node
 		v.hunger=min(100.0,v.hunger+d*.04); v.energy=max(0.0,v.energy-d*.017)
@@ -1266,13 +1393,14 @@ func _process(d):
 				if v.work_timer>=job_duration(v):
 					choose_work(v)
 	update_build_sites()
+	update_selection_marker()
 	apply_camera_sticks(d)
 	if notice_timer>0.0:
 		notice_timer=max(0.0,notice_timer-d)
 	var status=(notice if notice_timer>0.0 else plan_brief())
-	hud.text="%s\nRozdział I: epoka kamienia łupanego\nRozkaz %s | Ludzie %d | Pary %d | Schronienie %d/%d | Więź %.0f%%\nP %d/%d  K %d/%d  J %d/%d | Domy %d  Spich. %d  Warszt. %d  Tech %d\n%s\n%s\nOdkrycia: %s" % [VERSION_TITLE,order,people.size(),count_pairs(),sheltered_people(),people.size(),average_bond()*100.0,stock.sticks,resource_capacity("sticks"),stock.stone,resource_capacity("stone"),stock.berries,resource_capacity("berries"),buildings.houses,buildings.granaries,buildings.workshops,tech_points,status,chapter_goal(),discovery_text()]
+	hud.text="%s\nRozdział I: epoka kamienia łupanego | Wola Idola %.0f%%\nRozkaz %s | Ludzie %d | Pary %d | Schronienie %d/%d | Więź %.0f%%\nP %d/%d  K %d/%d  J %d/%d | Domy %d  Spich. %d  Warszt. %d  Tech %d\n%s\n%s\nOdkrycia: %s" % [VERSION_TITLE,idol_will,order,people.size(),count_pairs(),sheltered_people(),people.size(),average_bond()*100.0,stock.sticks,resource_capacity("sticks"),stock.stone,resource_capacity("stone"),stock.berries,resource_capacity("berries"),buildings.houses,buildings.granaries,buildings.workshops,tech_points,status,chapter_goal(),discovery_text()]
 	var v=people[selected]
-	info.text="%s — %s, %d lat\nPraca: %s | Para: %s | Więź %.0f%%\nSIŁA %d   ZRĘCZNOŚĆ %d   INT %d\nGłód %.0f   Energia %.0f\nUmiej.: drwal %.1f  zbier %.1f  bud %.1f  odk %.1f\n\n%s\nKoszt: dom/spichlerz 5P+5K, warsztat 8P+6K" % [v.name,v.trait,v.age,v.job,partner_name(v),v.bond*100.0,v.str,v.dex,v.int,v.hunger,v.energy,v.wood,v.gather,v.build,v.knowledge,plan_summary()]
+	info.text="%s — %s, %d lat\nPraca: %s | Ładunek: %s | Para: %s\nWięź %.0f%% | Głód %.0f | Energia %.0f\nSIŁA %d   ZRĘCZNOŚĆ %d   INT %d\nUmiej.: drwal %.1f  zbier %.1f  bud %.1f  odk %.1f\n\n%s\nMoce: kamera, przywołaj, błogosław, więź +" % [v.name,v.trait,v.age,v.job,carry_label(v.carry),partner_name(v),v.bond*100.0,v.hunger,v.energy,v.str,v.dex,v.int,v.wood,v.gather,v.build,v.knowledge,plan_summary()]
 
 func set_camera_distance(value):
 	cam_distance=clamp(value,CAMERA_MIN_DISTANCE,CAMERA_MAX_DISTANCE)
@@ -1342,7 +1470,10 @@ func _unhandled_input(e):
 				move_stick_touch=e.index
 				move_stick=update_stick(e.position,move_stick_center,move_stick_thumb)
 				return
+			touch_start[e.index]=e.position
 			touches[e.index]=e.position
+			if touches.size()>=2:
+				touch_gesture_had_multi=true
 			if touches.size()<2:
 				last_pinch_dist=0.0
 				last_pinch_angle=0.0
@@ -1355,7 +1486,15 @@ func _unhandled_input(e):
 				rotate_stick_touch=-1
 				rotate_stick=reset_stick(rotate_stick_center,rotate_stick_thumb)
 				return
+			var start=touch_start.get(e.index,e.position)
+			var was_single=touches.size()<=1
 			touches.erase(e.index)
+			touch_start.erase(e.index)
+			if was_single and not touch_gesture_had_multi and start.distance_to(e.position)<=SELECT_TAP_MAX_MOVE and select_person_at_screen(e.position):
+				update_camera()
+				return
+			if touches.is_empty():
+				touch_gesture_had_multi=false
 			last_pinch_dist=0.0
 			last_pinch_angle=0.0
 		update_camera()
@@ -1381,6 +1520,7 @@ func _unhandled_input(e):
 			var b:Vector2=touches[ids[1]]
 			var dist=a.distance_to(b)
 			var ang=(b-a).angle()
+			touch_gesture_had_multi=true
 			if last_pinch_dist>0.0:
 				var ratio=dist/max(last_pinch_dist,1.0)
 				set_camera_distance(cam_distance/ratio)
@@ -1395,4 +1535,6 @@ func _unhandled_input(e):
 			set_camera_distance(cam_distance-3.0)
 		elif e.button_index==MOUSE_BUTTON_WHEEL_DOWN:
 			set_camera_distance(cam_distance+3.0)
+		elif e.button_index==MOUSE_BUTTON_LEFT and not e.pressed:
+			select_person_at_screen(e.position)
 		update_camera()

@@ -1,5 +1,5 @@
 [application]
-config/name="IDOL Genesis 0.7.0 First Society"
+config/name="IDOL Genesis 0.7.1 Idol Touch"
 run/main_scene="res://main.tscn"
 
 [display]

@@ -1,4 +1,4 @@
-IDOL Genesis 0.7.0 - FIRST SOCIETY
+IDOL Genesis 0.7.1 - IDOL TOUCH
 
 Prompt roboczy tej łatki:
 Zbuduj pierwszy grywalny rdzeń osady epoki kamienia. Gracz jest Idolem: wolą osady, nie dowódcą armii. Ludzie mają samodzielnie dzielić robotę, nosić surowce, budować podstawowe budynki, odpoczywać, tworzyć pierwsze więzi i odkrywać proste technologie przez zadania.
@@ -8,6 +8,16 @@ Kierunek gry:
 - ludzie nie są wojskiem do szkolenia, tylko pierwszą społecznością
 - później mają tworzyć pary, rozmnażać się, budować relacje, dzielić się na grupy i wchodzić w konflikty
 - rozwój technologii wynika z prostych zadań, które Idol zleca mieszkańcom
+
+Zmiany 0.7.1:
+- dodany wybór mieszkańca dotykiem na ekranie gry
+- wybrana osoba ma złoty znacznik pod nogami i panel od razu pokazuje jej stan
+- dodane pierwsze moce Idola: KAMERA OS., PRZYWOŁAJ, BŁOGOSŁAW i WIĘŹ +
+- Wola Idola regeneruje się w czasie i ogranicza spamowanie mocami
+- PRZYWOŁAJ zdejmuje ładunek i kieruje osobę do kręgu wspólnoty
+- BŁOGOSŁAW poprawia energię, głód, więź i odrobinę wiedzy wybranego mieszkańca
+- WIĘŹ + wzmacnia relację wybranej osoby i może pomóc stworzyć pierwszą parę
+- panel mieszkańca pokazuje teraz także aktualny ładunek
 
 Zmiany 0.7.0:
 - dodany pełniejszy obieg pracy: mieszkaniec idzie do źródła, zbiera, niesie widoczny ładunek i dopiero przy składzie zwiększa zasoby
