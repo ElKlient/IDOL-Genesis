@@ -1,6 +1,9 @@
-IDOL Genesis 0.6.5 — CAMERA PANELS
+IDOL Genesis 0.6.6 — WORK SYNC TEST
 
 Zmiany:
+- łatka testowa Work -> GitHub -> Termux -> Godot
+- HUD pokazuje 0.6.6 WORK SYNC TEST
+- obok Idola dodany mały niebiesko-żółty marker synchronizacji
 - dwa duże widoczne panele pod kciuki po lewej i prawej stronie ekranu
 - lewa gałka obraca kamerę wokół osady
 - prawa gałka przesuwa kamerę po mapie

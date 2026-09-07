@@ -82,6 +82,7 @@ func _ready():
 
 	make_idol()
 	make_memory_flower()
+	make_work_sync_marker()
 	make_house(Vector3(-9,0,-7),8)
 	make_house(Vector3(8,0,-8),-12)
 	var wagon=WAGON.instantiate(); wagon.position=Vector3(9,0,3); add_child(wagon)
@@ -119,6 +120,13 @@ func make_memory_flower():
 	sphere(head+Vector3(.11,.065,0), .095, Color("#f8f8f4"))
 	sphere(head+Vector3(-.11,-.085,0), .095, Color("#c92232"))
 	sphere(head+Vector3(.11,-.085,0), .095, Color("#c92232"))
+
+func make_work_sync_marker():
+	var root=Vector3(-1.55,0,-1.25)
+	cyl(root+Vector3(0,.55,0),.035,1.1,Color("#20252a"))
+	box(root+Vector3(.22,1.02,0),Vector3(.44,.28,.06),Color("#2387d5"))
+	box(root+Vector3(.22,.81,0),Vector3(.44,.14,.065),Color("#f0d94f"))
+	sphere(root+Vector3(0,1.15,0),.075,Color("#f8f8f4"))
 
 func make_house(p,rot):
 	var h=Node3D.new(); h.position=p; h.rotation_degrees.y=rot; h.scale=Vector3(1.05,1.05,1.05); add_child(h)
@@ -239,9 +247,9 @@ func _process(d):
 		else:
 			if anim_ready and v.has("anim"): retargeter.play(v.anim,"idle")
 	apply_camera_sticks(d)
-	hud.text="IDOL — GENESIS 0.6.5 CAMERA PANELS\nLudzie 10   Tryb: %s\nDrewno %d   Kamień %d   Jagody %d\n10 ludzi • retarget animacji • kamera RTS 2.3" % [order,stock.wood,stock.stone,stock.berries]
+	hud.text="IDOL — GENESIS 0.6.6 WORK SYNC TEST\nLudzie 10   Tryb: %s\nDrewno %d   Kamień %d   Jagody %d\nWork sync OK • 2 gałki • kamera RTS 2.4" % [order,stock.wood,stock.stone,stock.berries]
 	var v=people[selected]
-	info.text="%s — %s\n\nSIŁA %d   ZRĘCZNOŚĆ %d   INT %d\nGłód %.0f   Energia %.0f\n\nDrwalstwo %.1f\nZbieranie %.1f\nBudowanie %.1f\n\nLewa gałka: obrót\nPrawa gałka: poruszanie" % [v.name,v.trait,v.str,v.dex,v.int,v.hunger,v.energy,v.wood,v.gather,v.build]
+	info.text="%s — %s\n\nSIŁA %d   ZRĘCZNOŚĆ %d   INT %d\nGłód %.0f   Energia %.0f\n\nDrwalstwo %.1f\nZbieranie %.1f\nBudowanie %.1f\n\nLewa gałka: obrót\nPrawa gałka: poruszanie\nWork -> GitHub: OK" % [v.name,v.trait,v.str,v.dex,v.int,v.hunger,v.energy,v.wood,v.gather,v.build]
 
 func set_camera_distance(value):
 	cam_distance=clamp(value,CAMERA_MIN_DISTANCE,CAMERA_MAX_DISTANCE)
