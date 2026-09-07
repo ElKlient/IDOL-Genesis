@@ -1,25 +1,22 @@
-IDOL Genesis 0.6.6 — WORK SYNC TEST
+IDOL Genesis 0.6.7 — ROZDZIAŁ I: KAMIEŃ ŁUPANY
 
-Zmiany:
-- łatka testowa Work -> GitHub -> Termux -> Godot
-- HUD pokazuje 0.6.6 WORK SYNC TEST
-- obok Idola dodany mały niebiesko-żółty marker synchronizacji
-- dwa duże widoczne panele pod kciuki po lewej i prawej stronie ekranu
-- lewa gałka obraca kamerę wokół osady
-- prawa gałka przesuwa kamerę po mapie
-- panel informacji przeniesiony spod prawego kciuka pod HUD
-- sterowanie gestami nadal działa równolegle
-- naturalne przesuwanie mapy jednym palcem: palec chwyta teren i przesuwa go pod sobą
-- dwa palce: szerszy pinch zoom oraz naturalny obrót kamery wokół oglądanej osady
-- większy zakres przybliżenia i oddalenia do wygodnego oglądania całej mapy
-- mały biało-czerwony kwiatek obok Idola jako pamiątka pierwszego połączenia z GitHubem
-- jedna instancja UAL2 jako źródło animacji
-- runtime retarget: ścieżki tracków animacji są przekierowywane do Skeleton3D każdego NPC
-- Idle / Walk / Work wybierane z biblioteki po nazwach
-- NIE tworzymy 10 kopii ciężkiego GLB
-- ludzie zmniejszeni z 3.2 do 2.15 skali
-- domy zwiększone z 0.7 do 1.05
-- osada rozstawiona szerzej i czytelniej
+Kierunek gry:
+- gracz jest Idolem: wolą osady i bytem z pełną kontrolą nad populacją
+- ludzie nie są wojskiem do szkolenia, tylko pierwszą społecznością
+- później mają tworzyć pary, rozmnażać się, budować relacje, dzielić się na grupy i wchodzić w konflikty
+- rozwój technologii ma wynikać z prostych zadań, które Idol zleca mieszkańcom
+
+Zmiany 0.6.7:
+- zbrojownia została odrzucona jako zły kierunek i nie trafiła do tej wersji
+- dodany pierwszy rdzeń rozgrywki epoki kamienia łupanego
+- zasób Drewno zastąpiony zasobem Patyki
+- nowe rozkazy: PATYKI, KAMIEŃ, JAGODY, DOM 5/5, SPICHLERZ 5/5
+- dom i spichlerz kosztują po 5 patyków i 5 kamieni
+- po zleceniu budowy powstaje plan budowy zamiast natychmiastowego budynku
+- mieszkańcy sami dzielą robotę: zbierają brakujące patyki/kamienie, potem część przechodzi do budowy
+- po ukończeniu budowy rośnie liczba domów/spichlerzy i punkt Tech
+- HUD pokazuje Rozdział I, tryb, zasoby, liczbę budynków i Tech
+- panel mieszkańca pokazuje aktualną pracę i aktywny plan budowy
 
 Kamera mobilna:
 - lewa gałka = obrót kamery
@@ -27,8 +24,10 @@ Kamera mobilna:
 - 1 palec = naturalne przesuwanie mapy
 - 2 palce rozsuń/zsuń = mocniejszy zoom
 - 2 palce obracane względem siebie = naturalny obrót kamery
-- zakres zoomu pozwala mocno przybliżyć postacie i oddalić widok na całą osadę
 
-Jeśli konkretna animacja nadal nie poruszy kośćmi, oznacza to różnice w nazwach/układzie
-kości i następnym krokiem będzie stała mapa BoneMap między UAL2 i Base Characters.
-Ta wersja testuje lżejszy runtime retarget bez ponownego zawieszania Androida.
+Następne kroki:
+- relacje między mieszkańcami
+- pary i rozmnażanie
+- potrzeby populacji: jedzenie, schronienie, odpoczynek
+- rozkazy Idola jako drzewko prostych odkryć technologicznych
+- konflikty społeczne dopiero po zbudowaniu fundamentu populacji

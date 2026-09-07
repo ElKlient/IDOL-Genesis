@@ -19,7 +19,10 @@ const STICK_DEADZONE=0.14
 
 var rng=RandomNumberGenerator.new()
 var people=[]
-var stock={"wood":30,"stone":18,"berries":25}
+var stock={"sticks":3,"stone":2,"berries":25}
+var buildings={"houses":2,"granaries":0}
+var build_plans=[]
+var tech_points=0
 var order="AUTO"
 var selected=0
 var cam:Camera3D
@@ -82,7 +85,6 @@ func _ready():
 
 	make_idol()
 	make_memory_flower()
-	make_work_sync_marker()
 	make_house(Vector3(-9,0,-7),8)
 	make_house(Vector3(8,0,-8),-12)
 	var wagon=WAGON.instantiate(); wagon.position=Vector3(9,0,3); add_child(wagon)
@@ -121,13 +123,6 @@ func make_memory_flower():
 	sphere(head+Vector3(-.11,-.085,0), .095, Color("#c92232"))
 	sphere(head+Vector3(.11,-.085,0), .095, Color("#c92232"))
 
-func make_work_sync_marker():
-	var root=Vector3(-1.55,0,-1.25)
-	cyl(root+Vector3(0,.55,0),.035,1.1,Color("#20252a"))
-	box(root+Vector3(.22,1.02,0),Vector3(.44,.28,.06),Color("#2387d5"))
-	box(root+Vector3(.22,.81,0),Vector3(.44,.14,.065),Color("#f0d94f"))
-	sphere(root+Vector3(0,1.15,0),.075,Color("#f8f8f4"))
-
 func make_house(p,rot):
 	var h=Node3D.new(); h.position=p; h.rotation_degrees.y=rot; h.scale=Vector3(1.05,1.05,1.05); add_child(h)
 	var a=WALL.instantiate(); a.position=Vector3(-1.8,0,0); h.add_child(a)
@@ -135,22 +130,45 @@ func make_house(p,rot):
 	var d=DOOR.instantiate(); d.position=Vector3(0,0,-3.5); d.rotation_degrees.y=180; h.add_child(d)
 	var r=ROOF.instantiate(); r.position=Vector3(0,3,-1.5); r.scale=Vector3(.65,.65,.65); h.add_child(r)
 
+func make_granary(p):
+	box(p+Vector3(0,.18,0),Vector3(4.4,.35,3.4),Color("#6b5034"))
+	for x in [-1.8,1.8]:
+		for z in [-1.35,1.35]:
+			cyl(p+Vector3(x,.95,z),.12,1.9,Color("#5b3924"))
+	var roof_a=box(p+Vector3(-.9,2.15,0),Vector3(2.2,.22,3.9),Color("#8a3f22"))
+	roof_a.rotation_degrees.z=18
+	var roof_b=box(p+Vector3(.9,2.15,0),Vector3(2.2,.22,3.9),Color("#8a3f22"))
+	roof_b.rotation_degrees.z=-18
+	for i in range(4):
+		var c=CRATE.instantiate(); c.position=p+Vector3(-1.35+i*.9,.36,.25); c.scale=Vector3(.8,.8,.8); add_child(c)
+	box(p+Vector3(0,1.2,-1.75),Vector3(2.0,.75,.22),Color("#c9b27a"))
+	box(p+Vector3(0,1.2,-1.89),Vector3(1.7,.12,.08),Color("#3d2a1b"))
+
+func make_build_site(p,kind):
+	var site=box(p+Vector3(0,.05,0),Vector3(4.7,.1,3.9),Color("#9b875e"))
+	site.name="Plan budowy "+kind
+	box(p+Vector3(-2.0,.22,-1.5),Vector3(.55,.35,.55),Color("#686a64"))
+	box(p+Vector3(2.0,.22,1.5),Vector3(.55,.35,.55),Color("#686a64"))
+	box(p+Vector3(-.7,.18,1.55),Vector3(1.2,.2,.35),Color("#6b4328"))
+	box(p+Vector3(.75,.18,-1.55),Vector3(1.3,.2,.35),Color("#6b4328"))
+	return site
+
 func make_person(i):
 	var n=(FEMALE if i<5 else MALE).instantiate()
 	# Diagnostic showed source character is tiny. Correct source-to-world scale here.
 	n.scale=Vector3(2.15,2.15,2.15)
 	var a=TAU*i/10.0; n.position=Vector3(cos(a)*rng.randf_range(5,10),0,sin(a)*rng.randf_range(5,10)); add_child(n)
-	people.append({"node":n,"name":names[i],"trait":traits[i],"str":rng.randi_range(3,9),"dex":rng.randi_range(3,9),"int":rng.randi_range(3,9),"hunger":rng.randf_range(5,25),"energy":rng.randf_range(72,100),"wood":0.0,"gather":0.0,"build":0.0,"target":n.position})
+	people.append({"node":n,"name":names[i],"trait":traits[i],"str":rng.randi_range(3,9),"dex":rng.randi_range(3,9),"int":rng.randi_range(3,9),"hunger":rng.randf_range(5,25),"energy":rng.randf_range(72,100),"wood":0.0,"gather":0.0,"build":0.0,"job":"IDLE","target":n.position})
 
 func make_ui():
 	var layer=CanvasLayer.new(); add_child(layer)
-	var bg=ColorRect.new(); bg.position=Vector2(14,14); bg.size=Vector2(400,135); bg.color=Color(0.02,0.02,0.015,.87); layer.add_child(bg)
+	var bg=ColorRect.new(); bg.position=Vector2(14,14); bg.size=Vector2(485,135); bg.color=Color(0.02,0.02,0.015,.87); layer.add_child(bg)
 	hud=Label.new(); hud.position=Vector2(29,27); hud.add_theme_font_size_override("font_size",17); layer.add_child(hud)
-	var menu=VBoxContainer.new(); menu.position=Vector2(1020,18); menu.size=Vector2(235,310); layer.add_child(menu)
+	var menu=VBoxContainer.new(); menu.position=Vector2(1005,18); menu.size=Vector2(250,310); layer.add_child(menu)
 	var title=Label.new(); title.text="ROZKAZY IDOLA"; title.add_theme_font_size_override("font_size",19); menu.add_child(title)
-	for s in ["AUTO","DREWNO","KAMIEŃ","JAGODY","SZAŁAS","SPICHLERZ","WARSZTAT"]:
-		var b=Button.new(); b.text=s; b.custom_minimum_size=Vector2(225,34); b.pressed.connect(func(): set_order(s)); menu.add_child(b)
-	var ibg=ColorRect.new(); ibg.position=Vector2(14,160); ibg.size=Vector2(330,230); ibg.color=Color(0.02,0.02,0.015,.82); layer.add_child(ibg)
+	for s in ["AUTO","PATYKI","KAMIEŃ","JAGODY","DOM 5/5","SPICHLERZ 5/5"]:
+		var b=Button.new(); b.text=s; b.custom_minimum_size=Vector2(240,34); b.pressed.connect(func(): set_order(s)); menu.add_child(b)
+	var ibg=ColorRect.new(); ibg.position=Vector2(14,160); ibg.size=Vector2(365,250); ibg.color=Color(0.02,0.02,0.015,.82); layer.add_child(ibg)
 	info=Label.new(); info.position=Vector2(32,176); info.add_theme_font_size_override("font_size",15); layer.add_child(info)
 	make_camera_sticks(layer)
 
@@ -215,30 +233,178 @@ func make_camera_sticks(layer):
 	layer.add_child(move_stick_thumb)
 	make_stick_label(layer,move_stick_center,"PORUSZANIE")
 
+func open_plan_count():
+	var count=0
+	for p in build_plans:
+		if not p.done:
+			count+=1
+	return count
+
+func get_active_plan():
+	for p in build_plans:
+		if not p.done:
+			return p
+	return null
+
+func get_active_funded_plan():
+	for p in build_plans:
+		if not p.done and p.funded:
+			return p
+	return null
+
+func count_workers(job_name):
+	var count=0
+	for v in people:
+		if v.has("job") and v.job==job_name:
+			count+=1
+	return count
+
+func random_field_point(job_name):
+	if job_name=="PATYKI":
+		return Vector3(rng.randf_range(-24,24),0,rng.randf_range(-24,24))
+	if job_name=="KAMIEŃ":
+		return Vector3(rng.randf_range(-22,22),0,rng.randf_range(-22,22))
+	if job_name=="JAGODY":
+		return Vector3(rng.randf_range(-18,18),0,rng.randf_range(-18,18))
+	var a=rng.randf_range(0,TAU)
+	var r=rng.randf_range(4,12)
+	return Vector3(cos(a)*r,0,sin(a)*r)
+
+func pick_build_pos(kind):
+	var idx=build_plans.size()+buildings.houses+buildings.granaries
+	var a=idx*1.27+rng.randf_range(-.35,.35)
+	var r=rng.randf_range(10,15)
+	if kind=="SPICHLERZ":
+		r+=2
+	return Vector3(cos(a)*r,0,sin(a)*r)
+
+func queue_build_plan(kind):
+	var p=pick_build_pos(kind)
+	build_plans.append({"kind":kind,"need_sticks":5,"need_stone":5,"funded":false,"done":false,"progress":0.0,"work":5.0,"pos":p,"site":make_build_site(p,kind)})
+	order="BUDOWA"
+	redirect_people()
+
+func fund_plan(plan):
+	if not plan.funded and stock.sticks>=plan.need_sticks and stock.stone>=plan.need_stone:
+		stock.sticks-=plan.need_sticks
+		stock.stone-=plan.need_stone
+		plan.funded=true
+
+func complete_build(plan):
+	if plan.done:
+		return
+	plan.done=true
+	if plan.has("site") and is_instance_valid(plan.site):
+		plan.site.queue_free()
+	if plan.kind=="DOM":
+		make_house(plan.pos,rng.randf_range(-180,180))
+		buildings.houses+=1
+	elif plan.kind=="SPICHLERZ":
+		make_granary(plan.pos)
+		buildings.granaries+=1
+	tech_points+=1
+	if open_plan_count()==0:
+		order="AUTO"
+
+func assign_job(v,job_name,target):
+	v.job=job_name
+	v.target=target
+
+func assign_for_plan(v,plan):
+	if not plan.funded:
+		var real_missing_sticks=max(0,plan.need_sticks-stock.sticks)
+		var real_missing_stone=max(0,plan.need_stone-stock.stone)
+		var missing_sticks=max(0,real_missing_sticks-count_workers("PATYKI"))
+		var missing_stone=max(0,real_missing_stone-count_workers("KAMIEŃ"))
+		if real_missing_sticks==0 and real_missing_stone==0:
+			fund_plan(plan)
+		elif missing_sticks>0 and (missing_sticks>=missing_stone or rng.randf()<.55):
+			assign_job(v,"PATYKI",random_field_point("PATYKI"))
+			return
+		elif missing_stone>0:
+			assign_job(v,"KAMIEŃ",random_field_point("KAMIEŃ"))
+			return
+		else:
+			assign_job(v,"JAGODY",random_field_point("JAGODY"))
+			return
+	if plan.funded:
+		if count_workers("BUDOWA")<4:
+			assign_job(v,"BUDOWA",plan.pos+Vector3(rng.randf_range(-1.7,1.7),0,rng.randf_range(-1.25,1.25)))
+		elif stock.sticks<7:
+			assign_job(v,"PATYKI",random_field_point("PATYKI"))
+		elif stock.stone<7:
+			assign_job(v,"KAMIEŃ",random_field_point("KAMIEŃ"))
+		else:
+			assign_job(v,"JAGODY",random_field_point("JAGODY"))
+
+func choose_work(v):
+	var plan=get_active_plan()
+	if plan!=null:
+		assign_for_plan(v,plan)
+		return
+	if order=="PATYKI":
+		assign_job(v,"PATYKI",random_field_point("PATYKI"))
+	elif order=="KAMIEŃ":
+		assign_job(v,"KAMIEŃ",random_field_point("KAMIEŃ"))
+	elif order=="JAGODY":
+		assign_job(v,"JAGODY",random_field_point("JAGODY"))
+	elif stock.berries<18:
+		assign_job(v,"JAGODY",random_field_point("JAGODY"))
+	elif stock.sticks<8:
+		assign_job(v,"PATYKI",random_field_point("PATYKI"))
+	elif stock.stone<8:
+		assign_job(v,"KAMIEŃ",random_field_point("KAMIEŃ"))
+	else:
+		assign_job(v,"IDLE",random_field_point("IDLE"))
+
+func redirect_people():
+	for v in people:
+		choose_work(v)
+
+func finish_job(v):
+	if v.job=="PATYKI":
+		stock.sticks+=1
+		v.wood+=.1
+	elif v.job=="KAMIEŃ":
+		stock.stone+=1
+		v.gather+=.1
+	elif v.job=="JAGODY":
+		stock.berries+=1
+		v.gather+=.1
+	elif v.job=="BUDOWA":
+		var plan=get_active_funded_plan()
+		if plan!=null:
+			plan.progress+=.38+float(v.str+v.dex)*.018
+			v.build+=.12
+			if plan.progress>=plan.work:
+				complete_build(plan)
+
+func plan_summary():
+	var plan=get_active_plan()
+	if plan==null:
+		return "Plan: brak aktywnej budowy"
+	if not plan.funded:
+		return "Plan %s: zbierz %d/%d patyków i %d/%d kamieni" % [plan.kind,stock.sticks,plan.need_sticks,stock.stone,plan.need_stone]
+	return "Plan %s: budowa %.0f z %.0f" % [plan.kind,plan.progress,plan.work]
+
 func set_order(s):
+	if s=="DOM 5/5":
+		queue_build_plan("DOM")
+		return
+	if s=="SPICHLERZ 5/5":
+		queue_build_plan("SPICHLERZ")
+		return
 	order=s
-	if s=="SZAŁAS" and stock.wood>=18:
-		stock.wood-=18; make_house(Vector3(rng.randf_range(-10,10),0,rng.randf_range(-10,10)),rng.randf_range(-180,180))
-	elif s=="SPICHLERZ" and stock.wood>=25 and stock.stone>=8:
-		stock.wood-=25; stock.stone-=8
-		for j in range(3):
-			var c=CRATE.instantiate(); c.position=Vector3(-3+j*1.3,0,9); c.scale=Vector3(1.3,1.3,1.3); add_child(c)
-	elif s=="WARSZTAT" and stock.wood>=30 and stock.stone>=12:
-		stock.wood-=30; stock.stone-=12
-		var w=WAGON.instantiate(); w.position=Vector3(-10,0,-1); add_child(w)
+	redirect_people()
 
 func _process(d):
 	for v in people:
 		var n:Node3D=v.node
 		v.hunger=min(100.0,v.hunger+d*.04); v.energy=max(0.0,v.energy-d*.017)
 		if n.position.distance_to(v.target)<.65:
-			var a=rng.randf_range(0,TAU); var r=rng.randf_range(4,12); v.target=Vector3(cos(a)*r,0,sin(a)*r)
-			if order=="DREWNO": stock.wood+=1; v.wood+=.1
-			elif order=="KAMIEŃ": stock.stone+=1; v.gather+=.1
-			elif order=="JAGODY": stock.berries+=1; v.gather+=.1
-			elif order=="AUTO":
-				if stock.berries<22: stock.berries+=1; v.gather+=.05
-				elif stock.wood<35: stock.wood+=1; v.wood+=.05
+			finish_job(v)
+			v.job="IDLE"
+			choose_work(v)
 		var dir=v.target-n.position
 		if dir.length()>.35:
 			n.position+=dir.normalized()*d*(.75+v.dex*.035)
@@ -247,9 +413,9 @@ func _process(d):
 		else:
 			if anim_ready and v.has("anim"): retargeter.play(v.anim,"idle")
 	apply_camera_sticks(d)
-	hud.text="IDOL — GENESIS 0.6.6 WORK SYNC TEST\nLudzie 10   Tryb: %s\nDrewno %d   Kamień %d   Jagody %d\nWork sync OK • 2 gałki • kamera RTS 2.4" % [order,stock.wood,stock.stone,stock.berries]
+	hud.text="IDOL — GENESIS 0.6.7 ROZDZIAŁ I\nEpoka kamienia łupanego   Tryb: %s\nPatyki %d   Kamień %d   Jagody %d\nDomy %d   Spichlerze %d   Tech %d" % [order,stock.sticks,stock.stone,stock.berries,buildings.houses,buildings.granaries,tech_points]
 	var v=people[selected]
-	info.text="%s — %s\n\nSIŁA %d   ZRĘCZNOŚĆ %d   INT %d\nGłód %.0f   Energia %.0f\n\nDrwalstwo %.1f\nZbieranie %.1f\nBudowanie %.1f\n\nLewa gałka: obrót\nPrawa gałka: poruszanie\nWork -> GitHub: OK" % [v.name,v.trait,v.str,v.dex,v.int,v.hunger,v.energy,v.wood,v.gather,v.build]
+	info.text="%s — %s\nPraca: %s\n\nSIŁA %d   ZRĘCZNOŚĆ %d   INT %d\nGłód %.0f   Energia %.0f\n\nDrwalstwo %.1f\nZbieranie %.1f\nBudowanie %.1f\n\n%s\nKoszt: DOM/SPICHLERZ = 5 patyków + 5 kamieni" % [v.name,v.trait,v.job,v.str,v.dex,v.int,v.hunger,v.energy,v.wood,v.gather,v.build,plan_summary()]
 
 func set_camera_distance(value):
 	cam_distance=clamp(value,CAMERA_MIN_DISTANCE,CAMERA_MAX_DISTANCE)

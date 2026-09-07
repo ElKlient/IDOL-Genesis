@@ -1,5 +1,5 @@
 [application]
-config/name="IDOL Genesis 0.6.6 Work Sync Test"
+config/name="IDOL Genesis 0.6.7 Rozdzial I"
 run/main_scene="res://main.tscn"
 
 [display]
