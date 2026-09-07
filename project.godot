@@ -1,5 +1,5 @@
 [application]
-config/name="IDOL Genesis 0.6.8 Build Clarity"
+config/name="IDOL Genesis 0.6.9 Living World"
 run/main_scene="res://main.tscn"
 
 [display]

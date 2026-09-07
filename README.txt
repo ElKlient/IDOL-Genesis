@@ -1,10 +1,20 @@
-IDOL Genesis 0.6.8 — BUILD CLARITY
+IDOL Genesis 0.6.9 — ŻYWA OSADA
 
 Kierunek gry:
 - gracz jest Idolem: wolą osady i bytem z pełną kontrolą nad populacją
 - ludzie nie są wojskiem do szkolenia, tylko pierwszą społecznością
 - później mają tworzyć pary, rozmnażać się, budować relacje, dzielić się na grupy i wchodzić w konflikty
 - rozwój technologii ma wynikać z prostych zadań, które Idol zleca mieszkańcom
+
+Zmiany 0.6.9:
+- scena dostała więcej życia: brzeg rzeki, ścieżki, krąg ogniska, trawy oraz widoczne źródła patyków, kamieni i jagód
+- mieszkańcy chodzą teraz do konkretnych miejsc pracy zamiast do losowych punktów na pustej trawie
+- dodany rozkaz ZGROMADZENIE jako pierwszy fundament relacji i wspólnoty, bez wchodzenia jeszcze w pary/rozmnażanie/konflikty
+- panel HUD pokazuje cel rozdziału, schronienie populacji i średnią więź społeczną
+- prace mają krótką fazę wykonywania na miejscu, więc zbieranie i budowanie nie dzieje się już natychmiast po dojściu do punktu
+- plac budowy pokazuje pasek oraz etapy konstrukcji w 3D
+- dodany proceduralny pose-driver: chód, oddech, pochylenie przy pracy i ruch kości jako awaryjne ożywienie postaci do czasu pełnego retargetowania
+- dodany delikatny cykl światła, żeby osada wyglądała mniej płasko na Androidzie
 
 Zmiany 0.6.8:
 - HUD rozdziela Rozkaz Idola od aktywnego planu budowy
