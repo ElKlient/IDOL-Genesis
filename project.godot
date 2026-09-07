@@ -1,5 +1,5 @@
 [application]
-config/name="IDOL Genesis 0.6.10 Animation Safety"
+config/name="IDOL Genesis 0.7.0 First Society"
 run/main_scene="res://main.tscn"
 
 [display]

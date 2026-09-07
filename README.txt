@@ -1,48 +1,33 @@
-IDOL Genesis 0.6.10 — ANIMATION SAFETY
+IDOL Genesis 0.7.0 - FIRST SOCIETY
+
+Prompt roboczy tej łatki:
+Zbuduj pierwszy grywalny rdzeń osady epoki kamienia. Gracz jest Idolem: wolą osady, nie dowódcą armii. Ludzie mają samodzielnie dzielić robotę, nosić surowce, budować podstawowe budynki, odpoczywać, tworzyć pierwsze więzi i odkrywać proste technologie przez zadania.
 
 Kierunek gry:
 - gracz jest Idolem: wolą osady i bytem z pełną kontrolą nad populacją
 - ludzie nie są wojskiem do szkolenia, tylko pierwszą społecznością
 - później mają tworzyć pary, rozmnażać się, budować relacje, dzielić się na grupy i wchodzić w konflikty
-- rozwój technologii ma wynikać z prostych zadań, które Idol zleca mieszkańcom
+- rozwój technologii wynika z prostych zadań, które Idol zleca mieszkańcom
+
+Zmiany 0.7.0:
+- dodany pełniejszy obieg pracy: mieszkaniec idzie do źródła, zbiera, niesie widoczny ładunek i dopiero przy składzie zwiększa zasoby
+- na mapie jest teraz skład osady z patykami, kamieniami, koszami jagód i znakiem
+- dodane kamienie odkryć oraz rozkaz ODKRYCIA
+- dodany cywilny budynek WARSZTAT 8/6, bez kierunku militarnego
+- odkrycia: OGIEN, NARZEDZIA, MAGAZYN, WIEZI i OSADA
+- dom i spichlerz nadal kosztują po 5 patyków i 5 kamieni
+- mieszkańcy mogą odpoczywać przy domach, gdy energia spada
+- zgromadzenie przy ognisku buduje więzi i może stworzyć pierwsze pary
+- wybrany mieszkaniec pokazuje partnera, pracę, głód, energię i umiejętności
+- dodane proste ubrania/rekwizyty osadników oraz widoczne ładunki patyków, kamieni i jagód
+- HUD pokazuje pary, schronienie, pojemność składu, warsztaty, Tech i odkrycia
+- dodany przycisk OSOBA + do szybkiego przełączania mieszkańca na Androidzie
+- kamera nadal używa dwóch dużych gałek: lewa obrót, prawa poruszanie
 
 Zmiany 0.6.10:
-- po teście z telefonu wyłączono ryzykowną warstwę proceduralnego sterowania kośćmi, bo lokalne osie szkieletu wyginały ręce zbyt mocno
+- po teście z telefonu wyłączono ryzykowną warstwę proceduralnego sterowania kośćmi
 - zostaje bezpieczna animacja zastępcza całego ciała: chód, oddech, pochylenie przy pracy i ruch przy ognisku
-- HUD i panel mieszkańca są krótsze, żeby na Androidzie więcej ekranu zostawało na samą osadę
-- pełny retarget kości zostaje kolejnym osobnym etapem, już z diagnostyką skeleton/bone rest pose
-
-Zmiany 0.6.9:
-- scena dostała więcej życia: brzeg rzeki, ścieżki, krąg ogniska, trawy oraz widoczne źródła patyków, kamieni i jagód
-- mieszkańcy chodzą teraz do konkretnych miejsc pracy zamiast do losowych punktów na pustej trawie
-- dodany rozkaz ZGROMADZENIE jako pierwszy fundament relacji i wspólnoty, bez wchodzenia jeszcze w pary/rozmnażanie/konflikty
-- panel HUD pokazuje cel rozdziału, schronienie populacji i średnią więź społeczną
-- prace mają krótką fazę wykonywania na miejscu, więc zbieranie i budowanie nie dzieje się już natychmiast po dojściu do punktu
-- plac budowy pokazuje pasek oraz etapy konstrukcji w 3D
-- dodany proceduralny pose-driver: chód, oddech, pochylenie przy pracy i ruch kości jako awaryjne ożywienie postaci do czasu pełnego retargetowania
-- dodany delikatny cykl światła, żeby osada wyglądała mniej płasko na Androidzie
-
-Zmiany 0.6.8:
-- HUD rozdziela Rozkaz Idola od aktywnego planu budowy
-- aktywny plan pokazuje numer w kolejce, np. Plan 1/2
-- plan pokazuje procent budowy po opłaceniu materiałów
-- panel mieszkańca pokazuje podział pracy: patyki, kamień, budowa, jagody
-- plac budowy jest teraz jednym obiektem i znika cały po ukończeniu budynku
-- nowe domy/spichlerze szukają bezpieczniejszego miejsca, dalej od rzeki i innych budynków
-- kolejka budowy ma limit 3 aktywnych planów, żeby gracz nie zaspamował mapy przypadkiem
-- gałki kamery są mniej nachalne wizualnie, ale nadal widoczne i duże pod palce
-
-Zmiany 0.6.7:
-- zbrojownia została odrzucona jako zły kierunek i nie trafiła do tej wersji
-- dodany pierwszy rdzeń rozgrywki epoki kamienia łupanego
-- zasób Drewno zastąpiony zasobem Patyki
-- nowe rozkazy: PATYKI, KAMIEŃ, JAGODY, DOM 5/5, SPICHLERZ 5/5
-- dom i spichlerz kosztują po 5 patyków i 5 kamieni
-- po zleceniu budowy powstaje plan budowy zamiast natychmiastowego budynku
-- mieszkańcy sami dzielą robotę: zbierają brakujące patyki/kamienie, potem część przechodzi do budowy
-- po ukończeniu budowy rośnie liczba domów/spichlerzy i punkt Tech
-- HUD pokazuje Rozdział I, tryb, zasoby, liczbę budynków i Tech
-- panel mieszkańca pokazuje aktualną pracę i aktywny plan budowy
+- HUD i panel mieszkańca skrócono pod Androida
 
 Kamera mobilna:
 - lewa gałka = obrót kamery
@@ -52,8 +37,8 @@ Kamera mobilna:
 - 2 palce obracane względem siebie = naturalny obrót kamery
 
 Następne kroki:
-- relacje między mieszkańcami
-- pary i rozmnażanie
-- potrzeby populacji: jedzenie, schronienie, odpoczynek
-- rozkazy Idola jako drzewko prostych odkryć technologicznych
-- konflikty społeczne dopiero po zbudowaniu fundamentu populacji
+- pełna diagnostyka retargetowania animacji kości
+- narodziny dzieci dopiero po stabilnym systemie par, potrzeb i schronienia
+- bardziej czytelne wybieranie mieszkańców dotykiem
+- rozkazy Idola jako drzewko odkryć technologicznych
+- przyszłe podziały społeczne i konflikty dopiero po rozbudowie relacji

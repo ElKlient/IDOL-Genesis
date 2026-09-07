@@ -8,8 +8,9 @@ const WALL=preload("res://assets/village/Wall_Plaster_Straight.gltf")
 const DOOR=preload("res://assets/village/Wall_Plaster_Door_Round.gltf")
 const ROOF=preload("res://assets/village/Roof_RoundTiles_6x6.gltf")
 const RETARGETER=preload("res://scripts/retargeter.gd")
+const VERSION_TITLE="IDOL — GENESIS 0.7.0 FIRST SOCIETY"
 const CAMERA_MIN_DISTANCE=5.5
-const CAMERA_MAX_DISTANCE=76.0
+const CAMERA_MAX_DISTANCE=88.0
 const CAMERA_HEIGHT_RATIO=0.61
 const CAMERA_MIN_HEIGHT=4.2
 const CAMERA_MAX_HEIGHT=48.0
@@ -18,25 +19,36 @@ const STICK_RADIUS=62.0
 const STICK_DEADZONE=0.14
 const BUILD_COST_STICKS=5
 const BUILD_COST_STONE=5
+const WORKSHOP_COST_STICKS=8
+const WORKSHOP_COST_STONE=6
 const BUILD_WORK=8.0
-const MAX_BUILD_PLANS=3
+const WORKSHOP_BUILD_WORK=11.0
+const MAX_BUILD_PLANS=4
 const HOME_CAPACITY=4
 const CHAPTER_HOUSES_GOAL=3
 const CHAPTER_GRANARIES_GOAL=1
+const CHAPTER_WORKSHOPS_GOAL=1
 const USE_PROCEDURAL_BONE_POSE=false
+const STOCKPILE_POS=Vector3(-5.8,0,3.6)
+const RESEARCH_POS=Vector3(2.75,0,2.25)
+const PAIR_BOND_THRESHOLD=.62
 
 var rng=RandomNumberGenerator.new()
 var people=[]
 var material_cache={}
-var stock={"sticks":3,"stone":2,"berries":25}
-var buildings={"houses":2,"granaries":0}
+var stock={"sticks":4,"stone":3,"berries":24}
+var buildings={"houses":2,"granaries":0,"workshops":0}
 var build_plans=[]
 var build_spots=[]
+var home_spots=[]
 var stick_sources=[]
 var stone_sources=[]
 var berry_sources=[]
 var hearth_pos=Vector3(-2.8,0,2.6)
 var social_bond=34.0
+var discoveries={"OGIEŃ":false,"NARZĘDZIA":false,"MAGAZYN":false,"WIĘZI":false,"OSADA":false}
+var discovery_sequence=["OGIEŃ","NARZĘDZIA","MAGAZYN","WIĘZI","OSADA"]
+var insight_progress=0.0
 var world_env:WorldEnvironment
 var sun:DirectionalLight3D
 var day_clock=0.22
@@ -114,12 +126,14 @@ func _ready():
 	make_idol()
 	make_memory_flower()
 	make_hearth()
+	make_stockpile()
+	make_research_stones()
 	var home_a=Vector3(-9,0,-7)
 	var home_b=Vector3(8,0,-8)
 	make_house(home_a,8)
-	register_build_spot(home_a)
+	register_home_spot(home_a)
 	make_house(home_b,-12)
-	register_build_spot(home_b)
+	register_home_spot(home_b)
 	var wagon=WAGON.instantiate(); wagon.position=Vector3(9,0,3); add_child(wagon)
 	for p in [Vector3(-9,0,4),Vector3(-8,0,5.5),Vector3(7,0,6)]:
 		var c=CRATE.instantiate(); c.position=p; add_child(c)
@@ -192,6 +206,67 @@ func make_hearth():
 	light.shadow_enabled=false
 	h.add_child(light)
 
+func make_stockpile():
+	var s=Node3D.new()
+	s.name="Skład osady"
+	s.position=STOCKPILE_POS
+	add_child(s)
+	box_in(s,Vector3(0,.045,0),Vector3(4.8,.09,3.2),Color("#5f5138"))
+	for i in range(4):
+		var rack=box_in(s,Vector3(-1.75+i*.45,.32,-.78),Vector3(.12,.25,1.55),Color("#725031"))
+		rack.rotation_degrees.y=8*i
+	for i in range(6):
+		var stick=box_in(s,Vector3(-1.7+i*.45,.55,-.82+rng.randf_range(-.12,.12)),Vector3(.12,.12,1.35),Color("#875d34"))
+		stick.rotation_degrees.y=rng.randf_range(-8,8)
+	for i in range(5):
+		var stone=box_in(s,Vector3(.75+rng.randf_range(-.55,.55),.2,.7+rng.randf_range(-.38,.38)),Vector3(.42,.28,.38),Color("#777a72"))
+		stone.rotation_degrees=Vector3(rng.randf_range(-7,7),rng.randf_range(0,180),rng.randf_range(-7,7))
+	for x in [-1.05,.05]:
+		var basket=cyl_in(s,Vector3(x,.32,.82),.34,.42,Color("#6f4b2c"))
+		basket.scale.x=1.25
+		for j in range(5):
+			sphere_in(s,Vector3(x+rng.randf_range(-.23,.23),.6,rng.randf_range(.66,.98)),.075,Color("#96253d"))
+	box_in(s,Vector3(1.78,.88,-.95),Vector3(.12,1.2,.12),Color("#4d3625"))
+	box_in(s,Vector3(1.78,1.52,-.95),Vector3(1.15,.52,.1),Color("#c2aa74"))
+
+func make_research_stones():
+	var r=Node3D.new()
+	r.name="Kamienie odkryć"
+	r.position=RESEARCH_POS
+	add_child(r)
+	box_in(r,Vector3(0,.04,0),Vector3(3.1,.08,2.2),Color("#696144"))
+	for i in range(4):
+		var a=TAU*float(i)/4.0+PI*.25
+		var slab=box_in(r,Vector3(cos(a)*1.1,.42,sin(a)*.78),Vector3(.42,.78,.18),Color("#85867b"))
+		slab.rotation_degrees.y=rad_to_deg(a)
+	for i in range(3):
+		var marker=box_in(r,Vector3(-.55+i*.55,.22,-.88),Vector3(.28,.24,.2),Color("#c0a66b"))
+		marker.rotation_degrees.y=rng.randf_range(-12,12)
+	cone_in(r,Vector3(.08,.82,.1),.23,.52,Color("#e27b36"))
+	cone_in(r,Vector3(.08,1.04,.1),.12,.3,Color("#ffd36b"))
+
+func make_workshop(p):
+	var w=Node3D.new()
+	w.name="Warsztat kamienny"
+	w.position=p
+	w.rotation_degrees.y=rng.randf_range(-160,160)
+	add_child(w)
+	box_in(w,Vector3(0,.08,0),Vector3(4.8,.16,3.8),Color("#65573c"))
+	for x in [-1.9,1.9]:
+		for z in [-1.45,1.45]:
+			cyl_in(w,Vector3(x,.82,z),.12,1.65,Color("#5d3d28"))
+	var roof_a=box_in(w,Vector3(-.95,1.84,0),Vector3(2.35,.2,4.2),Color("#7a3e22"))
+	roof_a.rotation_degrees.z=14
+	var roof_b=box_in(w,Vector3(.95,1.84,0),Vector3(2.35,.2,4.2),Color("#7a3e22"))
+	roof_b.rotation_degrees.z=-14
+	box_in(w,Vector3(-1.15,.38,.75),Vector3(1.6,.38,.75),Color("#755333"))
+	for i in range(5):
+		var stone=box_in(w,Vector3(.65+rng.randf_range(-.65,.65),.34,.62+rng.randf_range(-.35,.35)),Vector3(.34,.24,.26),Color("#777a72"))
+		stone.rotation_degrees=Vector3(rng.randf_range(-8,8),rng.randf_range(0,180),rng.randf_range(-8,8))
+	for i in range(4):
+		var tool=box_in(w,Vector3(-1.45+i*.38,.72,-.96),Vector3(.08,.08,.82),Color("#604027"))
+		tool.rotation_degrees=Vector3(0,rng.randf_range(-18,18),rng.randf_range(18,34))
+	box_in(w,Vector3(1.55,.72,-1.06),Vector3(.8,.5,.08),Color("#c5ae78"))
 func add_stick_source(p):
 	var root=Node3D.new()
 	root.name="Patyki"
@@ -230,6 +305,8 @@ func make_world_details(home_a,home_b):
 	make_path(Vector3.ZERO,home_a,1.05)
 	make_path(Vector3.ZERO,home_b,1.05)
 	make_path(Vector3.ZERO,Vector3(9,0,3),.7)
+	make_path(hearth_pos,STOCKPILE_POS,.72)
+	make_path(hearth_pos,RESEARCH_POS,.62)
 	for p in [Vector3(-19,0,9),Vector3(-17,0,-18),Vector3(18,0,-6),Vector3(4,0,22)]:
 		add_stick_source(p)
 	for p in [Vector3(15,0,-14),Vector3(18,0,13),Vector3(-22,0,-7),Vector3(3,0,18)]:
@@ -307,6 +384,15 @@ func make_build_site(p,kind):
 	var beam=box_in(site,Vector3(0,1.52,0),Vector3(3.7,.18,.2),Color("#7f5330"))
 	beam.name="StageBeam"
 	beam.visible=false
+	if kind=="WARSZTAT":
+		box_in(site,Vector3(1.35,.2,.95),Vector3(1.0,.22,.55),Color("#6a6d67"))
+		box_in(site,Vector3(-1.32,.24,-.86),Vector3(1.2,.18,.22),Color("#7c5430"))
+		for i in range(3):
+			var tool=box_in(site,Vector3(-.4+i*.34,.36,-.9),Vector3(.08,.08,.7),Color("#5c402a"))
+			tool.rotation_degrees.z=25
+	elif kind=="SPICHLERZ":
+		cyl_in(site,Vector3(1.2,.3,.82),.28,.36,Color("#6f4b2c"))
+		cyl_in(site,Vector3(1.62,.3,.76),.24,.34,Color("#6f4b2c"))
 	return site
 
 func find_skeleton(n:Node)->Skeleton3D:
@@ -326,25 +412,75 @@ func cache_pose_bones(sk:Skeleton3D):
 		bones[bone_name]=sk.find_bone(bone_name)
 	return bones
 
+func make_settler_gear(parent,i):
+	var gear=Node3D.new()
+	gear.name="Ubranie osadnika"
+	parent.add_child(gear)
+	var cloth_cols=[Color("#7c5b38"),Color("#6b6740"),Color("#8a6a3c"),Color("#6d5841"),Color("#7d4f35")]
+	var col=cloth_cols[i%cloth_cols.size()]
+	var belt=cyl_in(gear,Vector3(0,.66,0),.22,.08,Color("#3b2a1f"))
+	belt.rotation_degrees.y=rng.randf_range(-18,18)
+	box_in(gear,Vector3(0,.52,-.15),Vector3(.34,.35,.045),col)
+	box_in(gear,Vector3(0,.38,-.13),Vector3(.28,.28,.05),col.darkened(.12))
+	var pouch=box_in(gear,Vector3(.19,.6,-.18),Vector3(.12,.15,.055),Color("#4e3523"))
+	pouch.rotation_degrees.z=-8
+
+func make_carry_node(parent):
+	var cargo=Node3D.new()
+	cargo.name="Ładunek"
+	cargo.position=Vector3(.27,.83,-.28)
+	parent.add_child(cargo)
+	var sticks=Node3D.new()
+	sticks.name="sticks"
+	cargo.add_child(sticks)
+	for i in range(3):
+		var stick=box_in(sticks,Vector3(0,.03*i,0),Vector3(.055,.055,.58),Color("#8a5c32"))
+		stick.rotation_degrees=Vector3(0,-22+i*20,0)
+	var stone=Node3D.new()
+	stone.name="stone"
+	cargo.add_child(stone)
+	for i in range(3):
+		var rock=box_in(stone,Vector3(rng.randf_range(-.09,.09),.03*i,rng.randf_range(-.08,.08)),Vector3(.16,.11,.14),Color("#7b7d76"))
+		rock.rotation_degrees=Vector3(rng.randf_range(-8,8),rng.randf_range(0,180),rng.randf_range(-8,8))
+	var berries=Node3D.new()
+	berries.name="berries"
+	cargo.add_child(berries)
+	cyl_in(berries,Vector3(0,.02,0),.16,.12,Color("#6f4b2c"))
+	for i in range(5):
+		sphere_in(berries,Vector3(rng.randf_range(-.1,.1),.11,rng.randf_range(-.09,.09)),.035,Color("#98243d"))
+	set_carry_visual(cargo,"")
+	return cargo
+
+func set_carry_visual(cargo,kind):
+	if not cargo:
+		return
+	cargo.visible=kind!=""
+	for c in cargo.get_children():
+		c.visible=String(c.name)==kind
+
 func make_person(i):
 	var n=(FEMALE if i<5 else MALE).instantiate()
 	# Diagnostic showed source character is tiny. Correct source-to-world scale here.
 	var base_scale=Vector3(2.15,2.15,2.15)
 	n.scale=base_scale
 	var a=TAU*i/10.0; n.position=Vector3(cos(a)*rng.randf_range(5,10),0,sin(a)*rng.randf_range(5,10)); add_child(n)
+	make_settler_gear(n,i)
+	var cargo=make_carry_node(n)
 	var sk=find_skeleton(n)
-	people.append({"node":n,"skeleton":sk,"bones":cache_pose_bones(sk),"base_scale":base_scale,"phase":rng.randf_range(0,TAU),"work_timer":0.0,"rest_time":rng.randf_range(1.5,3.6),"name":names[i],"trait":traits[i],"age":rng.randi_range(18,34),"bond":rng.randf_range(.28,.62),"str":rng.randi_range(3,9),"dex":rng.randi_range(3,9),"int":rng.randi_range(3,9),"hunger":rng.randf_range(5,25),"energy":rng.randf_range(72,100),"wood":0.0,"gather":0.0,"build":0.0,"job":"IDLE","target":n.position})
+	people.append({"node":n,"skeleton":sk,"bones":cache_pose_bones(sk),"base_scale":base_scale,"phase":rng.randf_range(0,TAU),"work_timer":0.0,"rest_time":rng.randf_range(1.5,3.6),"name":names[i],"trait":traits[i],"sex":"K" if i<5 else "M","age":rng.randi_range(18,34),"bond":rng.randf_range(.28,.62),"partner":-1,"str":rng.randi_range(3,9),"dex":rng.randi_range(3,9),"int":rng.randi_range(3,9),"hunger":rng.randf_range(5,25),"energy":rng.randf_range(72,100),"wood":0.0,"gather":0.0,"build":0.0,"knowledge":0.0,"job":"IDLE","carry":"","cargo":cargo,"target":n.position})
 
 func make_ui():
 	var layer=CanvasLayer.new(); add_child(layer)
-	var bg=ColorRect.new(); bg.position=Vector2(14,14); bg.size=Vector2(548,142); bg.color=Color(0.02,0.02,0.015,.87); layer.add_child(bg)
+	var bg=ColorRect.new(); bg.position=Vector2(14,14); bg.size=Vector2(574,156); bg.color=Color(0.02,0.02,0.015,.87); layer.add_child(bg)
 	hud=Label.new(); hud.position=Vector2(29,27); hud.add_theme_font_size_override("font_size",14); layer.add_child(hud)
-	var menu=VBoxContainer.new(); menu.position=Vector2(1005,18); menu.size=Vector2(250,310); layer.add_child(menu)
+	var menu=VBoxContainer.new(); menu.position=Vector2(1005,18); menu.size=Vector2(250,360); layer.add_child(menu)
 	var title=Label.new(); title.text="ROZKAZY IDOLA"; title.add_theme_font_size_override("font_size",19); menu.add_child(title)
-	for s in ["AUTO","PATYKI","KAMIEŃ","JAGODY","ZGROMADZENIE","DOM 5/5","SPICHLERZ 5/5"]:
-		var b=Button.new(); b.text=s; b.custom_minimum_size=Vector2(240,34); b.pressed.connect(func(): set_order(s)); menu.add_child(b)
-	var ibg=ColorRect.new(); ibg.position=Vector2(14,166); ibg.size=Vector2(408,242); ibg.color=Color(0.02,0.02,0.015,.72); layer.add_child(ibg)
-	info=Label.new(); info.position=Vector2(30,178); info.add_theme_font_size_override("font_size",12); layer.add_child(info)
+	for s in ["AUTO","PATYKI","KAMIEŃ","JAGODY","ZGROMADZENIE","ODKRYCIA","DOM 5/5","SPICHLERZ 5/5","WARSZTAT 8/6"]:
+		var cmd=s
+		var b=Button.new(); b.text=cmd; b.custom_minimum_size=Vector2(240,31); b.pressed.connect(func(): set_order(cmd)); menu.add_child(b)
+	var next_btn=Button.new(); next_btn.text="OSOBA +"; next_btn.custom_minimum_size=Vector2(240,31); next_btn.pressed.connect(func(): cycle_selected()); menu.add_child(next_btn)
+	var ibg=ColorRect.new(); ibg.position=Vector2(14,176); ibg.size=Vector2(430,250); ibg.color=Color(0.02,0.02,0.015,.72); layer.add_child(ibg)
+	info=Label.new(); info.position=Vector2(30,188); info.add_theme_font_size_override("font_size",12); layer.add_child(info)
 	make_camera_sticks(layer)
 
 func make_round_panel(pos,size,fill,border):
@@ -419,6 +555,74 @@ func set_notice(msg):
 	notice=msg
 	notice_timer=3.0
 
+func cycle_selected():
+	if people.is_empty():
+		return
+	selected=(selected+1)%people.size()
+	var v=people[selected]
+	set_notice("Wybrano: %s — %s" % [v.name,v.trait])
+
+func building_cost(kind):
+	if kind=="WARSZTAT":
+		return {"sticks":WORKSHOP_COST_STICKS,"stone":WORKSHOP_COST_STONE,"work":WORKSHOP_BUILD_WORK}
+	return {"sticks":BUILD_COST_STICKS,"stone":BUILD_COST_STONE,"work":BUILD_WORK}
+
+func resource_capacity(kind):
+	var cap=34+buildings.granaries*18
+	if discoveries["MAGAZYN"]:
+		cap+=18
+	if kind=="berries":
+		cap+=10
+	return cap
+
+func add_stock(kind,amount):
+	stock[kind]=min(resource_capacity(kind),stock[kind]+amount)
+
+func discovery_text():
+	var unlocked=PackedStringArray()
+	for key in discovery_sequence:
+		if discoveries[key]:
+			unlocked.append(key)
+	if unlocked.size()==0:
+		return "brak"
+	return ", ".join(unlocked)
+
+func unlock_discovery(key,msg):
+	if discoveries[key]:
+		return
+	discoveries[key]=true
+	tech_points+=1
+	make_discovery_marker(key)
+	set_notice(msg)
+
+func make_discovery_marker(key):
+	var idx=discovery_sequence.find(key)
+	var a=TAU*float(max(idx,0))/float(discovery_sequence.size())
+	var p=RESEARCH_POS+Vector3(cos(a)*1.55,0,sin(a)*1.1)
+	var col=Color("#f2d36b")
+	if key=="NARZĘDZIA":
+		col=Color("#b8c4c8")
+	elif key=="MAGAZYN":
+		col=Color("#c99a54")
+	elif key=="WIĘZI":
+		col=Color("#d46f75")
+	elif key=="OSADA":
+		col=Color("#7fc37d")
+	cyl(p+Vector3(0,.28,0),.08,.55,Color("#4f3828"))
+	sphere(p+Vector3(0,.66,0),.18,col)
+
+func check_discoveries():
+	if not discoveries["OGIEŃ"] and social_bond>=42.0:
+		unlock_discovery("OGIEŃ","Odkrycie: wspólny ogień. Ludzie lepiej odpoczywają.")
+	if not discoveries["NARZĘDZIA"] and (insight_progress>=6.0 or buildings.workshops>0):
+		unlock_discovery("NARZĘDZIA","Odkrycie: narzędzia kamienne. Zbiory i budowa są sprawniejsze.")
+	if not discoveries["MAGAZYN"] and buildings.granaries>=1:
+		unlock_discovery("MAGAZYN","Odkrycie: magazynowanie. Skład mieści więcej zapasów.")
+	if not discoveries["WIĘZI"] and count_pairs()>=1:
+		unlock_discovery("WIĘZI","Odkrycie: pierwsze pary. Osada zaczyna mieć pamięć relacji.")
+	if not discoveries["OSADA"] and buildings.houses>=CHAPTER_HOUSES_GOAL and buildings.granaries>=CHAPTER_GRANARIES_GOAL and buildings.workshops>=CHAPTER_WORKSHOPS_GOAL:
+		unlock_discovery("OSADA","Rozdział I ustabilizowany: domy, zapas i warsztat działają.")
+
 func active_plan_number(plan):
 	var count=0
 	for p in build_plans:
@@ -448,7 +652,7 @@ func count_workers(job_name):
 	return count
 
 func worker_summary():
-	return "Prace: P %d | K %d | budowa %d | jagody %d | krąg %d" % [count_workers("PATYKI"),count_workers("KAMIEŃ"),count_workers("BUDOWA"),count_workers("JAGODY"),count_workers("WSPÓLNOTA")]
+	return "Załoga: P%d K%d J%d B%d D%d W%d O%d R%d" % [count_workers("PATYKI"),count_workers("KAMIEŃ"),count_workers("JAGODY"),count_workers("BUDOWA"),count_workers("DOSTAWA"),count_workers("WSPÓLNOTA"),count_workers("ODKRYCIA"),count_workers("ODPOCZYNEK")]
 
 func shelter_capacity():
 	return buildings.houses*HOME_CAPACITY
@@ -464,15 +668,35 @@ func average_bond():
 		total+=v.bond
 	return total/float(people.size())
 
+func count_pairs():
+	var pairs=0
+	for v in people:
+		if v.partner!=-1:
+			pairs+=1
+	return int(pairs/2)
+
+func partner_name(v):
+	if v.partner>=0 and v.partner<people.size():
+		return people[v.partner].name
+	return "brak"
+
 func chapter_goal():
 	if buildings.houses<CHAPTER_HOUSES_GOAL:
 		return "Cel: postaw 3 domy i 1 spichlerz"
 	if buildings.granaries<CHAPTER_GRANARIES_GOAL:
 		return "Cel: zbuduj pierwszy spichlerz"
-	return "Cel rozdziału: osada ma schronienie i zapas"
+	if not discoveries["NARZĘDZIA"]:
+		return "Cel: odkryj narzędzia kamienne"
+	if buildings.workshops<CHAPTER_WORKSHOPS_GOAL:
+		return "Cel: zbuduj pierwszy warsztat"
+	return "Cel rozdziału: osada ma schronienie, zapas i narzędzia"
 
 func register_build_spot(p):
 	build_spots.append(p)
+
+func register_home_spot(p):
+	home_spots.append(p)
+	register_build_spot(p)
 
 func river_x_at_z(z):
 	return 8+sin(z*.17)*5
@@ -503,6 +727,60 @@ func meeting_point(v):
 	var a=TAU*float(max(0,idx))/max(1.0,float(people.size()))
 	return hearth_pos+Vector3(cos(a)*1.8,0,sin(a)*1.45)
 
+func depot_point(v):
+	var idx=people.find(v)
+	var a=TAU*float(max(0,idx))/max(1.0,float(people.size()))
+	return STOCKPILE_POS+Vector3(cos(a)*1.45,0,sin(a)*1.05)
+
+func research_point(v):
+	var idx=people.find(v)
+	var a=TAU*float(max(0,idx))/max(1.0,float(people.size()))
+	return RESEARCH_POS+Vector3(cos(a)*1.35,0,sin(a)*.95)
+
+func rest_point(v):
+	var idx=people.find(v)
+	if not home_spots.is_empty():
+		var home=home_spots[idx%home_spots.size()]
+		var a=TAU*float(idx%4)/4.0
+		return home+Vector3(cos(a)*1.9,0,sin(a)*1.45)
+	return meeting_point(v)
+
+func find_pair_candidate(v):
+	if v.partner!=-1:
+		return -1
+	var idx=people.find(v)
+	for i in range(people.size()):
+		if i==idx:
+			continue
+		var other=people[i]
+		if other.partner==-1 and other.sex!=v.sex and other.bond>=PAIR_BOND_THRESHOLD*.88:
+			return i
+	return -1
+
+func make_pair_marker(a_name,b_name):
+	var offset=count_pairs()*.34
+	var p=hearth_pos+Vector3(-1.05+offset,.02,-2.05)
+	cyl(p+Vector3(0,.22,0),.055,.44,Color("#385c38"))
+	sphere(p+Vector3(-.11,.5,0),.11,Color("#f8f8f4"))
+	sphere(p+Vector3(.11,.5,0),.11,Color("#c92232"))
+	box(p+Vector3(0,.06,.18),Vector3(.88,.12,.18),Color("#4d3928"))
+
+func try_form_pair(v):
+	if v.partner!=-1 or v.bond<PAIR_BOND_THRESHOLD or social_bond<48.0:
+		return
+	var candidate_idx=find_pair_candidate(v)
+	if candidate_idx<0:
+		return
+	var idx=people.find(v)
+	var other=people[candidate_idx]
+	v.partner=candidate_idx
+	other.partner=idx
+	v.bond=min(1.0,v.bond+.16)
+	other.bond=min(1.0,other.bond+.16)
+	make_pair_marker(v.name,other.name)
+	set_notice("%s i %s tworzą pierwszą parę osady" % [v.name,other.name])
+	check_discoveries()
+
 func random_field_point(job_name):
 	if job_name=="PATYKI":
 		return pick_source_point(stick_sources,1.4)
@@ -515,12 +793,14 @@ func random_field_point(job_name):
 	return Vector3(cos(a)*r,0,sin(a)*r)
 
 func pick_build_pos(kind):
-	var idx=build_plans.size()+buildings.houses+buildings.granaries
+	var idx=build_plans.size()+buildings.houses+buildings.granaries+buildings.workshops
 	for attempt in range(32):
 		var a=(idx+attempt)*1.41+rng.randf_range(-.42,.42)
 		var r=rng.randf_range(10,18)
 		if kind=="SPICHLERZ":
 			r+=2
+		elif kind=="WARSZTAT":
+			r+=1
 		var p=Vector3(cos(a)*r,0,sin(a)*r)
 		if is_build_pos_clear(p):
 			return p
@@ -531,10 +811,12 @@ func queue_build_plan(kind):
 		set_notice("Kolejka budowy pełna: max %d" % MAX_BUILD_PLANS)
 		redirect_people()
 		return
+	var cost=building_cost(kind)
 	var p=pick_build_pos(kind)
-	build_plans.append({"kind":kind,"need_sticks":BUILD_COST_STICKS,"need_stone":BUILD_COST_STONE,"stored_sticks":0,"stored_stone":0,"funded":false,"done":false,"progress":0.0,"work":BUILD_WORK,"pos":p,"site":make_build_site(p,kind)})
+	build_plans.append({"kind":kind,"need_sticks":cost.sticks,"need_stone":cost.stone,"stored_sticks":0,"stored_stone":0,"funded":false,"done":false,"progress":0.0,"work":cost.work,"pos":p,"site":make_build_site(p,kind)})
 	order="BUDUJ "+kind
 	set_notice("Plan %s dodany do kolejki" % kind)
+	try_fund_plans()
 	redirect_people()
 
 func fund_plan(plan):
@@ -546,6 +828,16 @@ func fund_plan(plan):
 		plan.funded=true
 		update_build_site(plan)
 		set_notice("Materiały dla %s opłacone na budowie" % plan.kind)
+		return true
+	return false
+
+func try_fund_plans():
+	for plan in build_plans:
+		if plan.done:
+			continue
+		if not plan.funded:
+			fund_plan(plan)
+			return
 
 func update_build_site(plan):
 	if plan.done or not plan.has("site") or not is_instance_valid(plan.site):
@@ -578,11 +870,17 @@ func complete_build(plan):
 	if plan.kind=="DOM":
 		make_house(plan.pos,rng.randf_range(-180,180))
 		buildings.houses+=1
+		register_home_spot(plan.pos)
 	elif plan.kind=="SPICHLERZ":
 		make_granary(plan.pos)
 		buildings.granaries+=1
-	register_build_spot(plan.pos)
+		register_build_spot(plan.pos)
+	elif plan.kind=="WARSZTAT":
+		make_workshop(plan.pos)
+		buildings.workshops+=1
+		register_build_spot(plan.pos)
 	tech_points+=1
+	check_discoveries()
 	set_notice("%s ukończony. Tech +1" % plan.kind)
 	if open_plan_count()==0:
 		order="AUTO"
@@ -594,14 +892,56 @@ func assign_job(v,job_name,target):
 	if job_name=="IDLE":
 		v.rest_time=rng.randf_range(1.4,3.8)
 
+func start_delivery(v,kind):
+	v.carry=kind
+	set_carry_visual(v.cargo,kind)
+	v.job="DOSTAWA"
+	v.target=depot_point(v)
+	v.work_timer=0.0
+
+func carry_yield(v,kind):
+	var amount=1
+	if discoveries["NARZĘDZIA"] and kind!="berries" and rng.randf()<.34:
+		amount+=1
+	if discoveries["OGIEŃ"] and kind=="berries" and rng.randf()<.22:
+		amount+=1
+	if buildings.workshops>0 and rng.randf()<.12:
+		amount+=1
+	return amount
+
+func deposit_carry(v):
+	if v.carry=="":
+		return
+	add_stock(v.carry,carry_yield(v,v.carry))
+	v.carry=""
+	set_carry_visual(v.cargo,"")
+	try_fund_plans()
+	check_discoveries()
+
 func job_duration(v):
 	if v.job=="BUDOWA":
-		return .9
+		var build_time=.92
+		if discoveries["NARZĘDZIA"]:
+			build_time*=.86
+		if buildings.workshops>0:
+			build_time*=.9
+		return build_time
 	if v.job=="WSPÓLNOTA":
 		return 1.6
+	if v.job=="ODKRYCIA":
+		return 1.35
+	if v.job=="ODPOCZYNEK":
+		return 1.05
+	if v.job=="DOSTAWA":
+		return .22
 	if v.job=="IDLE":
 		return v.rest_time
-	return 1.15
+	var gather_time=1.15
+	if discoveries["NARZĘDZIA"] and v.job in ["PATYKI","KAMIEŃ"]:
+		gather_time*=.86
+	if discoveries["OGIEŃ"] and v.job=="JAGODY":
+		gather_time*=.92
+	return gather_time
 
 func assign_for_plan(v,plan):
 	if not plan.funded:
@@ -631,8 +971,17 @@ func assign_for_plan(v,plan):
 			assign_job(v,"JAGODY",random_field_point("JAGODY"))
 
 func choose_work(v):
+	if v.carry!="":
+		start_delivery(v,v.carry)
+		return
+	if v.energy<18.0:
+		assign_job(v,"ODPOCZYNEK",rest_point(v))
+		return
 	if order=="ZGROMADZENIE":
 		assign_job(v,"WSPÓLNOTA",meeting_point(v))
+		return
+	if order=="ODKRYCIA":
+		assign_job(v,"ODKRYCIA",research_point(v))
 		return
 	var plan=get_active_plan()
 	if plan!=null:
@@ -646,6 +995,10 @@ func choose_work(v):
 		assign_job(v,"JAGODY",random_field_point("JAGODY"))
 	elif stock.berries<18:
 		assign_job(v,"JAGODY",random_field_point("JAGODY"))
+	elif not discoveries["OGIEŃ"] and count_workers("WSPÓLNOTA")<3:
+		assign_job(v,"WSPÓLNOTA",meeting_point(v))
+	elif not discoveries["NARZĘDZIA"] and count_workers("ODKRYCIA")<2:
+		assign_job(v,"ODKRYCIA",research_point(v))
 	elif stock.sticks<8:
 		assign_job(v,"PATYKI",random_field_point("PATYKI"))
 	elif stock.stone<8:
@@ -659,18 +1012,28 @@ func redirect_people():
 
 func finish_job(v):
 	if v.job=="PATYKI":
-		stock.sticks+=1
+		start_delivery(v,"sticks")
 		v.wood+=.1
+		return true
 	elif v.job=="KAMIEŃ":
-		stock.stone+=1
+		start_delivery(v,"stone")
 		v.gather+=.1
+		return true
 	elif v.job=="JAGODY":
-		stock.berries+=1
+		start_delivery(v,"berries")
 		v.gather+=.1
+		return true
+	elif v.job=="DOSTAWA":
+		deposit_carry(v)
 	elif v.job=="BUDOWA":
 		var plan=get_active_funded_plan()
 		if plan!=null:
-			plan.progress+=.38+float(v.str+v.dex)*.018
+			var gain=.38+float(v.str+v.dex)*.018
+			if discoveries["NARZĘDZIA"]:
+				gain*=1.18
+			if buildings.workshops>0:
+				gain*=1.1
+			plan.progress+=gain
 			v.build+=.12
 			update_build_site(plan)
 			if plan.progress>=plan.work:
@@ -678,10 +1041,28 @@ func finish_job(v):
 	elif v.job=="WSPÓLNOTA":
 		v.bond=min(1.0,v.bond+.035)
 		social_bond=min(100.0,social_bond+.18+float(v.int)*.012)
-		if social_bond>=100.0:
-			social_bond=72.0
-			tech_points+=1
-			set_notice("Krąg wspólnoty przyniósł nowe odkrycie. Tech +1")
+		try_form_pair(v)
+		check_discoveries()
+	elif v.job=="ODKRYCIA":
+		insight_progress+=.34+float(v.int)*.035
+		v.knowledge+=.16
+		if insight_progress>=6.0:
+			insight_progress-=6.0
+			if not discoveries["NARZĘDZIA"]:
+				unlock_discovery("NARZĘDZIA","Odkrycie: narzędzia kamienne. Zbiory i budowa są sprawniejsze.")
+			else:
+				tech_points+=1
+				set_notice("Odkrywcy osady zebrali wiedzę. Tech +1")
+		check_discoveries()
+	elif v.job=="ODPOCZYNEK":
+		var rest_gain=10.0
+		if discoveries["OGIEŃ"]:
+			rest_gain+=4.0
+		if sheltered_people()>=people.size():
+			rest_gain+=3.0
+		v.energy=min(100.0,v.energy+rest_gain)
+		v.hunger=min(100.0,v.hunger+1.5)
+	return false
 
 func plan_brief():
 	var plan=get_active_plan()
@@ -712,9 +1093,14 @@ func set_order(s):
 	if s=="SPICHLERZ 5/5":
 		queue_build_plan("SPICHLERZ")
 		return
+	if s=="WARSZTAT 8/6":
+		queue_build_plan("WARSZTAT")
+		return
 	order=s
 	if s=="ZGROMADZENIE":
 		set_notice("Idol zwołuje mieszkańców do ogniska")
+	elif s=="ODKRYCIA":
+		set_notice("Idol kieruje ciekawych do kamieni odkryć")
 	redirect_people()
 
 func pose_bone(sk,bones,bone_name,rot):
@@ -792,6 +1178,11 @@ func apply_living_pose(v,d,moving,flat_dir):
 		look.y=0
 		if look.length()>.2:
 			n.look_at(n.position+look,Vector3.UP)
+	elif not moving and v.job=="ODKRYCIA":
+		var look=RESEARCH_POS-n.position
+		look.y=0
+		if look.length()>.2:
+			n.look_at(n.position+look,Vector3.UP)
 	var bob=0.0
 	var pitch=0.0
 	var roll=0.0
@@ -799,6 +1190,9 @@ func apply_living_pose(v,d,moving,flat_dir):
 		bob=abs(sin(v.phase))*0.09
 		pitch=sin(v.phase*2.0)*1.8
 		roll=sin(v.phase)*2.1
+		if v.carry!="":
+			pitch+=2.2
+			roll*=.55
 	elif v.job=="BUDOWA":
 		bob=max(0.0,sin(v.phase*2.4))*0.055
 		pitch=-5.0+sin(v.phase*2.4)*2.0
@@ -806,6 +1200,12 @@ func apply_living_pose(v,d,moving,flat_dir):
 	elif v.job in ["PATYKI","KAMIEŃ","JAGODY"]:
 		bob=max(0.0,sin(v.phase*2.2))*0.045
 		pitch=-7.0+sin(v.phase*2.2)*1.7
+	elif v.job=="ODKRYCIA":
+		bob=sin(v.phase*.9)*0.018
+		pitch=-2.0+sin(v.phase*.8)*.9
+	elif v.job=="ODPOCZYNEK":
+		bob=sin(v.phase*.45)*0.012
+		pitch=1.5
 	elif v.job=="WSPÓLNOTA":
 		bob=sin(v.phase*.8)*0.022
 		roll=sin(v.phase*.55)*1.2
@@ -836,6 +1236,8 @@ func _process(d):
 	for v in people:
 		var n:Node3D=v.node
 		v.hunger=min(100.0,v.hunger+d*.04); v.energy=max(0.0,v.energy-d*.017)
+		if v.hunger>92.0 and stock.berries<=0:
+			v.energy=max(0.0,v.energy-d*.08)
 		if v.hunger>82.0 and stock.berries>0:
 			stock.berries-=1
 			v.hunger=max(0.0,v.hunger-34.0)
@@ -854,9 +1256,10 @@ func _process(d):
 				if anim_ready and v.has("anim"): retargeter.play(v.anim,"work")
 				apply_living_pose(v,d,false,dir)
 				if v.work_timer>=job_duration(v):
-					finish_job(v)
-					v.job="IDLE"
-					choose_work(v)
+					var keep_job=finish_job(v)
+					if not keep_job:
+						v.job="IDLE"
+						choose_work(v)
 			else:
 				if anim_ready and v.has("anim"): retargeter.play(v.anim,"idle")
 				apply_living_pose(v,d,false,dir)
@@ -867,9 +1270,9 @@ func _process(d):
 	if notice_timer>0.0:
 		notice_timer=max(0.0,notice_timer-d)
 	var status=(notice if notice_timer>0.0 else plan_brief())
-	hud.text="IDOL — GENESIS 0.6.10 ANIMATION SAFETY\nRozdział I: epoka kamienia łupanego\nRozkaz %s | Ludzie %d | Schronienie %d/%d | Więź %.0f%%\nP %d  K %d  J %d | Domy %d  Spichlerze %d  Tech %d\n%s\n%s" % [order,people.size(),sheltered_people(),people.size(),average_bond()*100.0,stock.sticks,stock.stone,stock.berries,buildings.houses,buildings.granaries,tech_points,status,chapter_goal()]
+	hud.text="%s\nRozdział I: epoka kamienia łupanego\nRozkaz %s | Ludzie %d | Pary %d | Schronienie %d/%d | Więź %.0f%%\nP %d/%d  K %d/%d  J %d/%d | Domy %d  Spich. %d  Warszt. %d  Tech %d\n%s\n%s\nOdkrycia: %s" % [VERSION_TITLE,order,people.size(),count_pairs(),sheltered_people(),people.size(),average_bond()*100.0,stock.sticks,resource_capacity("sticks"),stock.stone,resource_capacity("stone"),stock.berries,resource_capacity("berries"),buildings.houses,buildings.granaries,buildings.workshops,tech_points,status,chapter_goal(),discovery_text()]
 	var v=people[selected]
-	info.text="%s — %s, %d lat\nPraca: %s | Więź %.0f%%\nSIŁA %d   ZRĘCZNOŚĆ %d   INT %d\nGłód %.0f   Energia %.0f\nUmiej.: drwal %.1f  zbier %.1f  bud %.1f\n\n%s\nKoszt: dom/spichlerz = 5P + 5K" % [v.name,v.trait,v.age,v.job,v.bond*100.0,v.str,v.dex,v.int,v.hunger,v.energy,v.wood,v.gather,v.build,plan_summary()]
+	info.text="%s — %s, %d lat\nPraca: %s | Para: %s | Więź %.0f%%\nSIŁA %d   ZRĘCZNOŚĆ %d   INT %d\nGłód %.0f   Energia %.0f\nUmiej.: drwal %.1f  zbier %.1f  bud %.1f  odk %.1f\n\n%s\nKoszt: dom/spichlerz 5P+5K, warsztat 8P+6K" % [v.name,v.trait,v.age,v.job,partner_name(v),v.bond*100.0,v.str,v.dex,v.int,v.hunger,v.energy,v.wood,v.gather,v.build,v.knowledge,plan_summary()]
 
 func set_camera_distance(value):
 	cam_distance=clamp(value,CAMERA_MIN_DISTANCE,CAMERA_MAX_DISTANCE)
