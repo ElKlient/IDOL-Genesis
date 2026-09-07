@@ -1,5 +1,5 @@
 [application]
-config/name="IDOL Genesis 0.6.4 Camera Sticks"
+config/name="IDOL Genesis 0.6.5 Camera Panels"
 run/main_scene="res://main.tscn"
 
 [display]
