@@ -1,10 +1,16 @@
-IDOL Genesis 0.6.9 — ŻYWA OSADA
+IDOL Genesis 0.6.10 — ANIMATION SAFETY
 
 Kierunek gry:
 - gracz jest Idolem: wolą osady i bytem z pełną kontrolą nad populacją
 - ludzie nie są wojskiem do szkolenia, tylko pierwszą społecznością
 - później mają tworzyć pary, rozmnażać się, budować relacje, dzielić się na grupy i wchodzić w konflikty
 - rozwój technologii ma wynikać z prostych zadań, które Idol zleca mieszkańcom
+
+Zmiany 0.6.10:
+- po teście z telefonu wyłączono ryzykowną warstwę proceduralnego sterowania kośćmi, bo lokalne osie szkieletu wyginały ręce zbyt mocno
+- zostaje bezpieczna animacja zastępcza całego ciała: chód, oddech, pochylenie przy pracy i ruch przy ognisku
+- HUD i panel mieszkańca są krótsze, żeby na Androidzie więcej ekranu zostawało na samą osadę
+- pełny retarget kości zostaje kolejnym osobnym etapem, już z diagnostyką skeleton/bone rest pose
 
 Zmiany 0.6.9:
 - scena dostała więcej życia: brzeg rzeki, ścieżki, krąg ogniska, trawy oraz widoczne źródła patyków, kamieni i jagód

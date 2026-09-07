@@ -23,6 +23,7 @@ const MAX_BUILD_PLANS=3
 const HOME_CAPACITY=4
 const CHAPTER_HOUSES_GOAL=3
 const CHAPTER_GRANARIES_GOAL=1
+const USE_PROCEDURAL_BONE_POSE=false
 
 var rng=RandomNumberGenerator.new()
 var people=[]
@@ -336,14 +337,14 @@ func make_person(i):
 
 func make_ui():
 	var layer=CanvasLayer.new(); add_child(layer)
-	var bg=ColorRect.new(); bg.position=Vector2(14,14); bg.size=Vector2(590,178); bg.color=Color(0.02,0.02,0.015,.87); layer.add_child(bg)
-	hud=Label.new(); hud.position=Vector2(29,27); hud.add_theme_font_size_override("font_size",15); layer.add_child(hud)
+	var bg=ColorRect.new(); bg.position=Vector2(14,14); bg.size=Vector2(548,142); bg.color=Color(0.02,0.02,0.015,.87); layer.add_child(bg)
+	hud=Label.new(); hud.position=Vector2(29,27); hud.add_theme_font_size_override("font_size",14); layer.add_child(hud)
 	var menu=VBoxContainer.new(); menu.position=Vector2(1005,18); menu.size=Vector2(250,310); layer.add_child(menu)
 	var title=Label.new(); title.text="ROZKAZY IDOLA"; title.add_theme_font_size_override("font_size",19); menu.add_child(title)
 	for s in ["AUTO","PATYKI","KAMIEŃ","JAGODY","ZGROMADZENIE","DOM 5/5","SPICHLERZ 5/5"]:
 		var b=Button.new(); b.text=s; b.custom_minimum_size=Vector2(240,34); b.pressed.connect(func(): set_order(s)); menu.add_child(b)
-	var ibg=ColorRect.new(); ibg.position=Vector2(14,198); ibg.size=Vector2(430,264); ibg.color=Color(0.02,0.02,0.015,.78); layer.add_child(ibg)
-	info=Label.new(); info.position=Vector2(32,210); info.add_theme_font_size_override("font_size",13); layer.add_child(info)
+	var ibg=ColorRect.new(); ibg.position=Vector2(14,166); ibg.size=Vector2(408,242); ibg.color=Color(0.02,0.02,0.015,.72); layer.add_child(ibg)
+	info=Label.new(); info.position=Vector2(30,178); info.add_theme_font_size_override("font_size",12); layer.add_child(info)
 	make_camera_sticks(layer)
 
 func make_round_panel(pos,size,fill,border):
@@ -816,7 +817,8 @@ func apply_living_pose(v,d,moving,flat_dir):
 	n.rotation_degrees=Vector3(pitch,yaw,roll)
 	var breath=1.0+sin(v.phase*.7)*.006
 	n.scale=Vector3(v.base_scale.x,v.base_scale.y*breath,v.base_scale.z)
-	apply_bone_pose(v,moving)
+	if USE_PROCEDURAL_BONE_POSE:
+		apply_bone_pose(v,moving)
 
 func update_world_lighting(d):
 	day_clock=fposmod(day_clock+d*.006,1.0)
@@ -865,9 +867,9 @@ func _process(d):
 	if notice_timer>0.0:
 		notice_timer=max(0.0,notice_timer-d)
 	var status=(notice if notice_timer>0.0 else plan_brief())
-	hud.text="IDOL — GENESIS 0.6.9 ŻYWA OSADA\nRozdział I: epoka kamienia łupanego\nRozkaz: %s   Ludzie %d   Schronienie %d/%d\nPatyki %d   Kamień %d   Jagody %d\nDomy %d   Spichlerze %d   Tech %d   Więź %.0f%%\n%s\n%s" % [order,people.size(),sheltered_people(),people.size(),stock.sticks,stock.stone,stock.berries,buildings.houses,buildings.granaries,tech_points,average_bond()*100.0,status,chapter_goal()]
+	hud.text="IDOL — GENESIS 0.6.10 ANIMATION SAFETY\nRozdział I: epoka kamienia łupanego\nRozkaz %s | Ludzie %d | Schronienie %d/%d | Więź %.0f%%\nP %d  K %d  J %d | Domy %d  Spichlerze %d  Tech %d\n%s\n%s" % [order,people.size(),sheltered_people(),people.size(),average_bond()*100.0,stock.sticks,stock.stone,stock.berries,buildings.houses,buildings.granaries,tech_points,status,chapter_goal()]
 	var v=people[selected]
-	info.text="%s — %s, %d lat\nPraca: %s   Więź %.0f%%\n\nSIŁA %d   ZRĘCZNOŚĆ %d   INT %d\nGłód %.0f   Energia %.0f\n\nDrwalstwo %.1f   Zbieranie %.1f   Budowanie %.1f\n\n%s\nKoszt: dom/spichlerz = 5P + 5K" % [v.name,v.trait,v.age,v.job,v.bond*100.0,v.str,v.dex,v.int,v.hunger,v.energy,v.wood,v.gather,v.build,plan_summary()]
+	info.text="%s — %s, %d lat\nPraca: %s | Więź %.0f%%\nSIŁA %d   ZRĘCZNOŚĆ %d   INT %d\nGłód %.0f   Energia %.0f\nUmiej.: drwal %.1f  zbier %.1f  bud %.1f\n\n%s\nKoszt: dom/spichlerz = 5P + 5K" % [v.name,v.trait,v.age,v.job,v.bond*100.0,v.str,v.dex,v.int,v.hunger,v.energy,v.wood,v.gather,v.build,plan_summary()]
 
 func set_camera_distance(value):
 	cam_distance=clamp(value,CAMERA_MIN_DISTANCE,CAMERA_MAX_DISTANCE)
