@@ -1,6 +1,10 @@
-IDOL Genesis 0.6.3 — CAMERA FIX
+IDOL Genesis 0.6.4 — CAMERA STICKS
 
 Zmiany:
+- dodane ekranowe gałki do kamery na Androidzie
+- lewa gałka przesuwa widok po mapie
+- prawa gałka obraca kamerę poziomo i steruje zoomem pionowo
+- sterowanie gestami nadal działa równolegle
 - naturalne przesuwanie mapy jednym palcem: palec chwyta teren i przesuwa go pod sobą
 - dwa palce: szerszy pinch zoom oraz naturalny obrót kamery wokół oglądanej osady
 - większy zakres przybliżenia i oddalenia do wygodnego oglądania całej mapy
@@ -14,6 +18,8 @@ Zmiany:
 - osada rozstawiona szerzej i czytelniej
 
 Kamera mobilna:
+- lewa gałka = przesuwanie kamery po mapie
+- prawa gałka = obrót poziomo, zoom pionowo
 - 1 palec = naturalne przesuwanie mapy
 - 2 palce rozsuń/zsuń = mocniejszy zoom
 - 2 palce obracane względem siebie = naturalny obrót kamery

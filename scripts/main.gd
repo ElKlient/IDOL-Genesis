@@ -14,6 +14,9 @@ const CAMERA_HEIGHT_RATIO=0.61
 const CAMERA_MIN_HEIGHT=4.2
 const CAMERA_MAX_HEIGHT=48.0
 const CAMERA_FOCUS_LIMIT=32.0
+const STICK_RADIUS=54.0
+const STICK_TOUCH_RADIUS=82.0
+const STICK_DEADZONE=0.14
 
 var rng=RandomNumberGenerator.new()
 var people=[]
@@ -33,6 +36,14 @@ var retargeter
 var anim_ready=false
 var hud:Label
 var info:Label
+var move_stick=Vector2.ZERO
+var orbit_stick=Vector2.ZERO
+var move_stick_touch=-1
+var orbit_stick_touch=-1
+var move_stick_center=Vector2(135,590)
+var orbit_stick_center=Vector2(800,590)
+var move_stick_thumb:Control
+var orbit_stick_thumb:Control
 var names=["Alda","Sela","Mira","Nara","Ena","Eryk","Oren","Bran","Tovan","Milan"]
 var traits=["Pracowita","Odważna","Ciekawska","Śpioch","Spokojna","Silny","Uparty","Myśliciel","Zwinny","Towarzyski"]
 
@@ -132,6 +143,47 @@ func make_ui():
 		var b=Button.new(); b.text=s; b.custom_minimum_size=Vector2(225,34); b.pressed.connect(func(): set_order(s)); menu.add_child(b)
 	var ibg=ColorRect.new(); ibg.position=Vector2(930,430); ibg.size=Vector2(325,260); ibg.color=Color(0.02,0.02,0.015,.87); layer.add_child(ibg)
 	info=Label.new(); info.position=Vector2(948,446); info.add_theme_font_size_override("font_size",15); layer.add_child(info)
+	make_camera_sticks(layer)
+
+func make_round_panel(pos,size,fill,border):
+	var p=Panel.new()
+	p.position=pos
+	p.size=size
+	p.mouse_filter=Control.MOUSE_FILTER_IGNORE
+	var st=StyleBoxFlat.new()
+	st.bg_color=fill
+	st.border_color=border
+	st.border_width_left=2
+	st.border_width_top=2
+	st.border_width_right=2
+	st.border_width_bottom=2
+	st.corner_radius_top_left=int(size.x*.5)
+	st.corner_radius_top_right=int(size.x*.5)
+	st.corner_radius_bottom_left=int(size.x*.5)
+	st.corner_radius_bottom_right=int(size.x*.5)
+	p.add_theme_stylebox_override("panel",st)
+	return p
+
+func make_stick_label(layer,center,text):
+	var l=Label.new()
+	l.text=text
+	l.position=center+Vector2(-72,66)
+	l.size=Vector2(144,24)
+	l.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER
+	l.add_theme_font_size_override("font_size",13)
+	l.modulate=Color(1,1,1,.78)
+	l.mouse_filter=Control.MOUSE_FILTER_IGNORE
+	layer.add_child(l)
+
+func make_camera_sticks(layer):
+	layer.add_child(make_round_panel(move_stick_center-Vector2(68,68),Vector2(136,136),Color(0.02,0.02,0.015,.44),Color(1,1,1,.24)))
+	move_stick_thumb=make_round_panel(move_stick_center-Vector2(25,25),Vector2(50,50),Color(1,1,1,.44),Color(1,1,1,.72))
+	layer.add_child(move_stick_thumb)
+	make_stick_label(layer,move_stick_center,"PRZESUŃ")
+	layer.add_child(make_round_panel(orbit_stick_center-Vector2(68,68),Vector2(136,136),Color(0.02,0.02,0.015,.44),Color(1,1,1,.24)))
+	orbit_stick_thumb=make_round_panel(orbit_stick_center-Vector2(25,25),Vector2(50,50),Color(1,1,1,.44),Color(1,1,1,.72))
+	layer.add_child(orbit_stick_thumb)
+	make_stick_label(layer,orbit_stick_center,"OBRÓT / ZOOM")
 
 func set_order(s):
 	order=s
@@ -164,13 +216,24 @@ func _process(d):
 			if anim_ready and v.has("anim"): retargeter.play(v.anim,"walk")
 		else:
 			if anim_ready and v.has("anim"): retargeter.play(v.anim,"idle")
-	hud.text="IDOL — GENESIS 0.6.3 CAMERA FIX\nLudzie 10   Tryb: %s\nDrewno %d   Kamień %d   Jagody %d\n10 ludzi • retarget animacji • kamera RTS 2.1" % [order,stock.wood,stock.stone,stock.berries]
+	apply_camera_sticks(d)
+	hud.text="IDOL — GENESIS 0.6.4 CAMERA STICKS\nLudzie 10   Tryb: %s\nDrewno %d   Kamień %d   Jagody %d\n10 ludzi • retarget animacji • kamera RTS 2.2" % [order,stock.wood,stock.stone,stock.berries]
 	var v=people[selected]
-	info.text="%s — %s\n\nSIŁA %d   ZRĘCZNOŚĆ %d   INT %d\nGłód %.0f   Energia %.0f\n\nDrwalstwo %.1f\nZbieranie %.1f\nBudowanie %.1f\n\nKamera: 1 palec chwyta mapę • 2 palce zoom/obrót" % [v.name,v.trait,v.str,v.dex,v.int,v.hunger,v.energy,v.wood,v.gather,v.build]
+	info.text="%s — %s\n\nSIŁA %d   ZRĘCZNOŚĆ %d   INT %d\nGłód %.0f   Energia %.0f\n\nDrwalstwo %.1f\nZbieranie %.1f\nBudowanie %.1f\n\nKamera: gesty albo gałki ekranowe" % [v.name,v.trait,v.str,v.dex,v.int,v.hunger,v.energy,v.wood,v.gather,v.build]
 
 func set_camera_distance(value):
 	cam_distance=clamp(value,CAMERA_MIN_DISTANCE,CAMERA_MAX_DISTANCE)
 	cam_height=clamp(cam_distance*CAMERA_HEIGHT_RATIO,CAMERA_MIN_HEIGHT,CAMERA_MAX_HEIGHT)
+
+func get_camera_right():
+	var right=cam.global_transform.basis.x
+	right.y=0
+	return right.normalized()
+
+func get_camera_forward():
+	var forward=-cam.global_transform.basis.z
+	forward.y=0
+	return forward.normalized()
 
 func update_camera():
 	cam_focus.x=clamp(cam_focus.x,-CAMERA_FOCUS_LIMIT,CAMERA_FOCUS_LIMIT)
@@ -179,14 +242,67 @@ func update_camera():
 	cam.position=cam_focus+horizontal+Vector3(0,cam_height,0)
 	cam.look_at(cam_focus+Vector3(0,1.2,0),Vector3.UP)
 
+func stick_strength(v):
+	var l=v.length()
+	if l<=STICK_DEADZONE:
+		return Vector2.ZERO
+	return v.normalized()*((l-STICK_DEADZONE)/(1.0-STICK_DEADZONE))
+
+func update_stick(pos,center,thumb):
+	var v=(pos-center)/STICK_RADIUS
+	if v.length()>1.0:
+		v=v.normalized()
+	thumb.position=center+v*STICK_RADIUS-Vector2(25,25)
+	return v
+
+func reset_stick(center,thumb):
+	thumb.position=center-Vector2(25,25)
+	return Vector2.ZERO
+
+func apply_camera_sticks(d):
+	if not cam:
+		return
+	var changed=false
+	var move=stick_strength(move_stick)
+	if move!=Vector2.ZERO:
+		var speed=clamp(cam_distance*.72,12.0,55.0)
+		cam_focus += (get_camera_right()*move.x-get_camera_forward()*move.y)*speed*d
+		changed=true
+	var orbit=stick_strength(orbit_stick)
+	if orbit!=Vector2.ZERO:
+		cam_yaw+=orbit.x*1.75*d
+		set_camera_distance(cam_distance+orbit.y*38.0*d)
+		changed=true
+	if changed:
+		update_camera()
+
+func is_in_stick(pos,center):
+	return pos.distance_to(center)<=STICK_TOUCH_RADIUS
+
 func _unhandled_input(e):
 	if e is InputEventScreenTouch:
 		if e.pressed:
+			if move_stick_touch==-1 and is_in_stick(e.position,move_stick_center):
+				move_stick_touch=e.index
+				move_stick=update_stick(e.position,move_stick_center,move_stick_thumb)
+				return
+			if orbit_stick_touch==-1 and is_in_stick(e.position,orbit_stick_center):
+				orbit_stick_touch=e.index
+				orbit_stick=update_stick(e.position,orbit_stick_center,orbit_stick_thumb)
+				return
 			touches[e.index]=e.position
 			if touches.size()<2:
 				last_pinch_dist=0.0
 				last_pinch_angle=0.0
 		else:
+			if e.index==move_stick_touch:
+				move_stick_touch=-1
+				move_stick=reset_stick(move_stick_center,move_stick_thumb)
+				return
+			if e.index==orbit_stick_touch:
+				orbit_stick_touch=-1
+				orbit_stick=reset_stick(orbit_stick_center,orbit_stick_thumb)
+				return
 			touches.erase(e.index)
 			last_pinch_dist=0.0
 			last_pinch_angle=0.0
@@ -194,14 +310,16 @@ func _unhandled_input(e):
 		return
 
 	if e is InputEventScreenDrag:
+		if e.index==move_stick_touch:
+			move_stick=update_stick(e.position,move_stick_center,move_stick_thumb)
+			return
+		if e.index==orbit_stick_touch:
+			orbit_stick=update_stick(e.position,orbit_stick_center,orbit_stick_thumb)
+			return
 		touches[e.index]=e.position
 		if touches.size()==1:
-			var right=cam.global_transform.basis.x
-			right.y=0
-			right=right.normalized()
-			var forward=-cam.global_transform.basis.z
-			forward.y=0
-			forward=forward.normalized()
+			var right=get_camera_right()
+			var forward=get_camera_forward()
 			var pan_speed=clamp(cam_distance*.00115,.008,.075)
 			cam_focus += (-right*e.relative.x+forward*e.relative.y)*pan_speed
 		elif touches.size()>=2:
