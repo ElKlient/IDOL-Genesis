@@ -8,7 +8,7 @@ const WALL=preload("res://assets/village/Wall_Plaster_Straight.gltf")
 const DOOR=preload("res://assets/village/Wall_Plaster_Door_Round.gltf")
 const ROOF=preload("res://assets/village/Roof_RoundTiles_6x6.gltf")
 const RETARGETER=preload("res://scripts/retargeter.gd")
-const VERSION_TITLE="IDOL — GENESIS 0.8.14 ARM AXIS"
+const VERSION_TITLE="IDOL — GENESIS 0.8.15 ARM SWING"
 const CAMERA_MIN_DISTANCE=5.5
 const CAMERA_MAX_DISTANCE=88.0
 const CAMERA_HEIGHT_RATIO=0.61
@@ -2149,10 +2149,10 @@ func pose_walk_arm(v,left:bool,arm_swing:float,elbow_swing:float,drop:float):
 	var hand_name="hand_l" if left else "hand_r"
 	var side=-1.0 if left else 1.0
 	var drop_q=Quaternion.from_euler(Vector3(0,0,side*drop))
-	var swing_q=Quaternion.from_euler(Vector3(-side*arm_swing,0,0))
+	var swing_q=Quaternion.from_euler(Vector3(0,-side*arm_swing,0))
 	pose_bone_delta_quat(v,upper_name,drop_q*swing_q)
-	pose_bone_delta(v,lower_name,Vector3(.16+side*elbow_swing,0,side*.025))
-	pose_bone_delta(v,hand_name,Vector3(side*arm_swing*.09,0,0))
+	pose_bone_delta(v,lower_name,Vector3(0,-side*(.14+elbow_swing),side*.025))
+	pose_bone_delta(v,hand_name,Vector3(0,-side*arm_swing*.08,0))
 
 func has_retarget_motion(v):
 	return USE_RETARGETED_ANIMATIONS and anim_ready and v.has("anim") and not v.anim.is_empty()
