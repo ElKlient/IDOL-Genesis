@@ -10,6 +10,24 @@ Pracujesz nad repozytorium `ElKlient/IDOL-Genesis`, gra w Godot 4.x na Androida.
 
 Aktualny cel klimatu: niskopoligonowa osada epoki kamienia / wczesnego sredniowiecza. Ma byc ziemia, ogien, patyki, kamien, jagody, skory, jelenie, suszarnie skor, prymitywne narzedzia, oszczepy i delikatna zapowiedz pozniejszej stali/mieczy. Gra ma zostac lekka na Androidzie.
 
+## Dostep do Godota w kontenerach
+
+Nie zakladaj od razu, ze w kontenerze nie ma Godota. Ten projekt byl juz testowany z binarka Godot 4.7.2 znaleziona w scratchu innego kontenera:
+
+- `/workspace/scratch/ad3cb27c6389/tools/godot/Godot_v4.7.2-stable_linux.x86_64`
+
+Jesli `command -v godot` i `command -v godot4` nic nie zwracaja, najpierw przeszukaj scratch:
+
+- `find /workspace/scratch -maxdepth 5 -type f -iname '*godot*'`
+
+Potem odpal walidacje projektu ta binarka:
+
+- `/workspace/scratch/ad3cb27c6389/tools/godot/Godot_v4.7.2-stable_linux.x86_64 --headless --path . --quit`
+
+Jezeli ta sciezka w danym kontenerze nie istnieje, dopiero wtedy raportuj brak lokalnego Godota albo pobieraj/odtwarzaj narzedzie, jesli masz do tego dostep.
+
+Godot 4.7 moze po imporcie utworzyc pliki `*.gd.uid`. Nie stage'uj ich automatem razem z naprawa gameplayu/scenerii. Najpierw zdecyduj, czy aktualny task faktycznie dotyczy migracji UID / polityki repo.
+
 ## Stan po passcie `0.8.18 Ancient Settlement`
 
 Ten kontener wdrozyl klimat jako lekka proceduralna warstwe swiata w `scripts/main.gd`. Nie byly dodawane ciezkie assety ani nowe zewnetrzne importy.
@@ -107,7 +125,7 @@ Gra dziala na Androidzie, wiec tekst ma byc czytelny, przyciski duze, bez drobny
 Minimum sprawdzen:
 
 - `git diff --check`
-- Godot headless, jesli binarka jest dostepna: `godot --headless --path . --quit`
+- Godot headless. Najpierw `command -v godot`, potem `command -v godot4`, a jesli ich nie ma, szukaj w `/workspace/scratch`. Znana dzialajaca sciezka: `/workspace/scratch/ad3cb27c6389/tools/godot/Godot_v4.7.2-stable_linux.x86_64 --headless --path . --quit`
 - Otworzyc scene i sprawdzic, czy nie ma szarego ekranu ani parse error.
 - Sprawdzic, czy ludzie dalej chodza, pracuja, omijaja przeszkody i nie gubia rak.
 - Sprawdzic na Androidzie/FPS, jesli zmiana dodaje duzo obiektow.
@@ -120,7 +138,8 @@ Minimum sprawdzen:
 - Nie importuj ogromnych paczek bez selekcji.
 - Nie zmieniaj retargetera, modelu ludzi ani kosci przy zadaniach dotyczacych samego terenu/scenerii.
 - Nie rozbijaj jednego malego taska na wielka architekture.
+- Nie commituj automatycznie plikow `*.gd.uid` wygenerowanych samym uruchomieniem edytora, jesli task nie dotyczy Godot UID.
 
 ## Gotowy prompt do wklejenia dla nowego kontenera
 
-Masz pracowac nad `ElKlient/IDOL-Genesis`, Godot 4.x Android, branch `main`. Najpierw przeczytaj `project.godot`, `main.tscn`, `scripts/main.gd`, `scripts/retargeter.gd` i `assets/third_party_model_packs/README.md`. Aktualny klimat to `0.8.18 Ancient Settlement`: lekka niskopoligonowa osada epoki kamienia / wczesnego sredniowiecza z idolem, ludzmi, patykami, kamieniem, jagodami, skorami, suszarniami skor, narzedziami kamiennymi, jeleniami i zapowiedzia pozniejszej stali. Nie zakladaj nowego projektu i nie psuj dzialajacych ludzi. Mechaniki ludzi, zasobow, budowy, rodzin, idola, kamery i UI sa glownie w `scripts/main.gd`. Jesli zadanie dotyczy scenerii, pracuj przez proceduralne helpery `make_...`; jesli ludzi, przeczytaj funkcje pozy kosci i `retargeter.gd`; jesli assetow, promuj tylko wybrane `.glb/.gltf` do wlasnych assetow gry, vendor paczki zostaw w `assets/third_party_model_packs/`. Po zmianach sprawdz `git diff --check`, a jesli masz Godota, `godot --headless --path . --quit`. Staguj tylko pliki, ktore faktycznie zmieniles.
+Masz pracowac nad `ElKlient/IDOL-Genesis`, Godot 4.x Android, branch `main`. Najpierw przeczytaj `project.godot`, `main.tscn`, `scripts/main.gd`, `scripts/retargeter.gd` i `assets/third_party_model_packs/README.md`. Aktualny klimat to `0.8.18 Ancient Settlement`: lekka niskopoligonowa osada epoki kamienia / wczesnego sredniowiecza z idolem, ludzmi, patykami, kamieniem, jagodami, skorami, suszarniami skor, narzedziami kamiennymi, jeleniami i zapowiedzia pozniejszej stali. Nie zakladaj nowego projektu i nie psuj dzialajacych ludzi. Mechaniki ludzi, zasobow, budowy, rodzin, idola, kamery i UI sa glownie w `scripts/main.gd`. Jesli zadanie dotyczy scenerii, pracuj przez proceduralne helpery `make_...`; jesli ludzi, przeczytaj funkcje pozy kosci i `retargeter.gd`; jesli assetow, promuj tylko wybrane `.glb/.gltf` do wlasnych assetow gry, vendor paczki zostaw w `assets/third_party_model_packs/`. Po zmianach sprawdz `git diff --check` oraz Godota headless. Jesli `godot` nie jest w PATH, nie koncz na tym: szukaj binarki w `/workspace/scratch`; znana sciezka to `/workspace/scratch/ad3cb27c6389/tools/godot/Godot_v4.7.2-stable_linux.x86_64 --headless --path . --quit`. Staguj tylko pliki, ktore faktycznie zmieniles.
