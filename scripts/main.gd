@@ -8,7 +8,7 @@ const WALL=preload("res://assets/village/Wall_Plaster_Straight.gltf")
 const DOOR=preload("res://assets/village/Wall_Plaster_Door_Round.gltf")
 const ROOF=preload("res://assets/village/Roof_RoundTiles_6x6.gltf")
 const RETARGETER=preload("res://scripts/retargeter.gd")
-const VERSION_TITLE="IDOL — GENESIS 0.7.9 SETTLER ARMS"
+const VERSION_TITLE="IDOL — GENESIS 0.8.0 SETTLEMENT FLOW"
 const CAMERA_MIN_DISTANCE=5.5
 const CAMERA_MAX_DISTANCE=88.0
 const CAMERA_HEIGHT_RATIO=0.61
@@ -39,6 +39,8 @@ const POPULATION_LIMIT=18
 const CHILD_FOOD_COST=12
 const LIFE_PROGRESS_GOAL=8.0
 const FAMILY_BOND_THRESHOLD=.68
+const PERSONAL_SPACE_ADULT=.86
+const PERSONAL_SPACE_CHILD=.58
 
 var rng=RandomNumberGenerator.new()
 var people=[]
@@ -1200,28 +1202,36 @@ func pick_source_point(sources,radius):
 	var r=rng.randf_range(.25,radius)
 	return source.pos+Vector3(cos(a)*r,0,sin(a)*r)
 
+func person_index(v):
+	return max(0,people.find(v))
+
+func spaced_ring_point(base,idx,rx,rz,twist=0.0):
+	var safe_idx=max(0,idx)
+	var ring=int(floor(float(safe_idx)/8.0))
+	var slot=safe_idx%8
+	var a=TAU*float(slot)/8.0+twist+float(ring)*.37
+	var ring_rx=rx+float(ring)*.78
+	var ring_rz=rz+float(ring)*.56
+	return base+Vector3(cos(a)*ring_rx,0,sin(a)*ring_rz)
+
 func meeting_point(v):
-	var idx=people.find(v)
-	var a=TAU*float(max(0,idx))/max(1.0,float(people.size()))
-	return hearth_pos+Vector3(cos(a)*1.8,0,sin(a)*1.45)
+	return spaced_ring_point(hearth_pos,person_index(v),2.65,2.05,.15)
 
 func depot_point(v):
-	var idx=people.find(v)
-	var a=TAU*float(max(0,idx))/max(1.0,float(people.size()))
-	return STOCKPILE_POS+Vector3(cos(a)*1.45,0,sin(a)*1.05)
+	return spaced_ring_point(STOCKPILE_POS,person_index(v),2.15,1.55,.55)
 
 func research_point(v):
-	var idx=people.find(v)
-	var a=TAU*float(max(0,idx))/max(1.0,float(people.size()))
-	return RESEARCH_POS+Vector3(cos(a)*1.35,0,sin(a)*.95)
+	return spaced_ring_point(RESEARCH_POS,person_index(v),1.95,1.35,.9)
 
 func rest_point(v):
-	var idx=people.find(v)
+	var idx=person_index(v)
 	if not home_spots.is_empty():
 		var home=home_spots[idx%home_spots.size()]
-		var a=TAU*float(idx%4)/4.0
-		return home+Vector3(cos(a)*1.9,0,sin(a)*1.45)
+		return spaced_ring_point(home,idx,2.3,1.65,.3)
 	return meeting_point(v)
+
+func build_work_point(v,plan):
+	return spaced_ring_point(plan.pos,person_index(v),2.15,1.55,.25)
 
 func find_pair_candidate(v):
 	if v.partner!=-1:
@@ -1443,7 +1453,7 @@ func assign_for_plan(v,plan):
 			return
 	if plan.funded:
 		if count_workers("BUDOWA")<4:
-			assign_job(v,"BUDOWA",plan.pos+Vector3(rng.randf_range(-1.7,1.7),0,rng.randf_range(-1.25,1.25)))
+			assign_job(v,"BUDOWA",build_work_point(v,plan))
 		elif stock.sticks<7:
 			assign_job(v,"PATYKI",random_field_point("PATYKI"))
 		elif stock.stone<7:
@@ -1702,6 +1712,48 @@ func apply_bone_pose(v,moving):
 			pose_bone(sk,bones,"calf_l",Vector3.ZERO)
 			pose_bone(sk,bones,"calf_r",Vector3.ZERO)
 
+func actor_space_radius(v):
+	return PERSONAL_SPACE_ADULT if is_adult(v) else PERSONAL_SPACE_CHILD
+
+func push_out_of_zone(v,center,radius):
+	var n:Node3D=v.node
+	var delta=Vector3(n.position.x-center.x,0,n.position.z-center.z)
+	var dist=delta.length()
+	if dist<.001:
+		var idx=person_index(v)
+		var a=TAU*float(idx)/max(1.0,float(people.size()))
+		delta=Vector3(cos(a),0,sin(a))
+		dist=1.0
+	if dist<radius:
+		var push=delta.normalized()*(radius-dist)
+		n.position.x+=push.x
+		n.position.z+=push.z
+
+func apply_settlement_spacing():
+	for v in people:
+		push_out_of_zone(v,Vector3.ZERO,2.25)
+		push_out_of_zone(v,hearth_pos,.95)
+	for i in range(people.size()):
+		var a=people[i]
+		var na:Node3D=a.node
+		for j in range(i+1,people.size()):
+			var b=people[j]
+			var nb:Node3D=b.node
+			var delta=Vector3(na.position.x-nb.position.x,0,na.position.z-nb.position.z)
+			var dist=delta.length()
+			var min_dist=(actor_space_radius(a)+actor_space_radius(b))*.5
+			if dist<.001:
+				var ang=TAU*float(i+j+1)/max(1.0,float(people.size()))
+				delta=Vector3(cos(ang),0,sin(ang))
+				dist=1.0
+			if dist<min_dist:
+				var strength=(min_dist-dist)*.5
+				var dir=delta.normalized()
+				na.position.x+=dir.x*strength
+				na.position.z+=dir.z*strength
+				nb.position.x-=dir.x*strength
+				nb.position.z-=dir.z*strength
+
 func apply_living_pose(v,d,moving,flat_dir):
 	v.phase+=d*(5.4 if not is_adult(v) else (6.4 if moving else (3.6 if v.job!="IDLE" else 1.05)))
 	var n:Node3D=v.node
@@ -1817,6 +1869,7 @@ func _process(d):
 				apply_living_pose(v,d,false,dir)
 				if v.work_timer>=job_duration(v):
 					choose_work(v)
+	apply_settlement_spacing()
 	update_life_growth(d)
 	update_build_sites()
 	update_selection_marker()

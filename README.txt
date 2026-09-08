@@ -1,4 +1,4 @@
-IDOL Genesis 0.7.9 - SETTLER ARMS
+IDOL Genesis 0.8.0 - SETTLEMENT FLOW
 
 Prompt roboczy tej łatki:
 Zbuduj pierwszy grywalny rdzeń osady epoki kamienia. Gracz jest Idolem: wolą osady, nie dowódcą armii. Ludzie mają samodzielnie dzielić robotę, nosić surowce, budować podstawowe budynki, odpoczywać, tworzyć pierwsze więzi i odkrywać proste technologie przez zadania.
@@ -8,6 +8,12 @@ Kierunek gry:
 - ludzie nie są wojskiem do szkolenia, tylko pierwszą społecznością
 - później mają tworzyć pary, rozmnażać się, budować relacje, dzielić się na grupy i wchodzić w konflikty
 - rozwój technologii wynika z prostych zadań, które Idol zleca mieszkańcom
+
+Zmiany 0.8.0:
+- po screenie z 0.7.9 kolejnym krokiem jest życie osady, nie menu: mieszkańcy dostają większe kręgi stanowisk
+- punkty zgromadzenia, składu, odpoczynku, odkryć i budowy są rozstawiane stabilnie wokół celu
+- dodano lekką separację między postaciami oraz wypychanie z centrum Idola i ogniska, żeby nie stali w jednej bryle
+- cel łatki: mniej zbijania ludzi w kupę, czytelniejsze zadania i bardziej wiarygodny ruch osady
 
 Zmiany 0.7.9:
 - po screenie z 0.7.8 sprawdzono w Godocie realny kierunek kości ramion zamiast zgadywania wartości
