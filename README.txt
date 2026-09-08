@@ -1,6 +1,6 @@
 START DLA KONTENEROW: najpierw przeczytaj WORKFLOW_FIRST.md.
 
-IDOL Genesis 0.8.20 - LIVING WORLD
+IDOL Genesis 0.8.21 - LIVING CAMP PROPS
 
 Prompt roboczy tej łatki:
 Zbuduj pierwszy grywalny rdzeń osady epoki kamienia. Gracz jest Idolem: wolą osady, nie dowódcą armii. Ludzie mają samodzielnie dzielić robotę, nosić surowce, budować podstawowe budynki, odpoczywać, tworzyć pierwsze więzi i odkrywać proste technologie przez zadania.
@@ -10,6 +10,13 @@ Kierunek gry:
 - ludzie nie są wojskiem do szkolenia, tylko pierwszą społecznością
 - później mają tworzyć pary, rozmnażać się, budować relacje, dzielić się na grupy i wchodzić w konflikty
 - rozwój technologii wynika z prostych zadań, które Idol zleca mieszkańcom
+
+Zmiany 0.8.21:
+- dodano aktywny, mały zestaw prawdziwych GLB z paczek Kenney do `assets/environment`, bez importowania całych ukrytych katalogów źródłowych
+- ognisko, skład, plac narzędzi, rzeka i okolice domów dostały realne rekwizyty: drewno, kamień, narzędzia, warsztat, posłania, półnamiot, canoe i wiosło
+- zachowano proceduralny klimat 0.8.20 jako tło, ale najważniejsze miejsca osady mają teraz czytelniejsze przedmioty zamiast samych pudełek
+- dodano brakującą survivalową teksturę `Textures/colormap.png`, żeby modele nie importowały się bez materiałów na telefonie
+- nie ruszano ludzi, animacji, AI, łowiectwa ani retargetera; ta łatka jest celowo pierwszym etapem assetowego klimatu sceny
 
 Zmiany 0.8.20:
 - dodano drugi pass świata: palisada na obrzeżu osady, brama przy rzece, przejście po kamieniach, wydeptane ślady, posłania, stosy drewna, pniaki i bardziej żywe obejścia domów

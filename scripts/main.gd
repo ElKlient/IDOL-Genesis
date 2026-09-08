@@ -7,8 +7,22 @@ const WAGON=preload("res://assets/village/Prop_Wagon.gltf")
 const WALL=preload("res://assets/village/Wall_Plaster_Straight.gltf")
 const DOOR=preload("res://assets/village/Wall_Plaster_Door_Round.gltf")
 const ROOF=preload("res://assets/village/Roof_RoundTiles_6x6.gltf")
+const PROP_WOOD=preload("res://assets/environment/kenney_survival/resource-wood.glb")
+const PROP_STONE=preload("res://assets/environment/kenney_survival/resource-stone.glb")
+const PROP_AXE=preload("res://assets/environment/kenney_survival/tool-axe.glb")
+const PROP_PICKAXE=preload("res://assets/environment/kenney_survival/tool-pickaxe.glb")
+const PROP_HAMMER=preload("res://assets/environment/kenney_survival/tool-hammer.glb")
+const PROP_WORKBENCH=preload("res://assets/environment/kenney_survival/workbench.glb")
+const PROP_BEDROLL=preload("res://assets/environment/kenney_survival/bedroll.glb")
+const PROP_BEDROLL_PACKED=preload("res://assets/environment/kenney_survival/bedroll-packed.glb")
+const PROP_TENT_HALF=preload("res://assets/environment/kenney_survival/tent-canvas-half.glb")
+const PROP_CAMPFIRE=preload("res://assets/environment/kenney_survival/campfire-pit.glb")
+const PROP_CANOE=preload("res://assets/environment/kenney_nature/canoe.glb")
+const PROP_PADDLE=preload("res://assets/environment/kenney_nature/canoe_paddle.glb")
+const PROP_LOG_STACK=preload("res://assets/environment/kenney_nature/log_stack.glb")
+const PROP_ROCK_LARGE=preload("res://assets/environment/kenney_nature/rock_largeA.glb")
 const RETARGETER=preload("res://scripts/retargeter.gd")
-const VERSION_TITLE="IDOL — GENESIS 0.8.20 LIVING WORLD"
+const VERSION_TITLE="IDOL — GENESIS 0.8.21 LIVING CAMP PROPS"
 const CAMERA_MIN_DISTANCE=5.5
 const CAMERA_MAX_DISTANCE=88.0
 const CAMERA_HEIGHT_RATIO=0.61
@@ -158,6 +172,17 @@ func sphere(p,r,c):
 func sphere_in(parent,p,r,c):
 	var n=MeshInstance3D.new(); var m=SphereMesh.new(); m.radius=r; m.height=r*2.0; n.mesh=m; n.position=p; n.material_override=mat(c); parent.add_child(n); return n
 
+func prop_scene(parent,scene,p,rot_y=0.0,scale_value=1.0):
+	var n=scene.instantiate()
+	n.position=p
+	n.rotation_degrees.y=rot_y
+	n.scale=Vector3(scale_value,scale_value,scale_value)
+	parent.add_child(n)
+	return n
+
+func prop_world(scene,p,rot_y=0.0,scale_value=1.0):
+	return prop_scene(self,scene,p,rot_y,scale_value)
+
 func add_obstacle(p,radius):
 	obstacle_points.append({"pos":p,"radius":radius})
 
@@ -209,6 +234,7 @@ func _ready():
 	make_camp_clutter()
 	make_ancient_settlement_scene()
 	make_world_depth_pass(home_a,home_b)
+	make_living_camp_props(home_a,home_b)
 
 	for i in range(10): make_person(i)
 	make_selection_marker()
@@ -328,6 +354,7 @@ func make_hearth():
 	for a in [0.0,90.0]:
 		var log=box_in(h,Vector3(0,.24,0),Vector3(.28,.22,1.9),Color("#6b4328"))
 		log.rotation_degrees.y=a
+	prop_scene(h,PROP_CAMPFIRE,Vector3(0,.08,0),22,.82)
 	cone_in(h,Vector3(0,.72,0),.42,.95,Color("#d96c2c"))
 	cone_in(h,Vector3(.08,.88,.04),.25,.7,Color("#ffd06a"))
 	var light=OmniLight3D.new()
@@ -345,6 +372,10 @@ func make_stockpile():
 	add_child(s)
 	add_obstacle(STOCKPILE_POS,2.2)
 	box_in(s,Vector3(0,.045,0),Vector3(4.8,.09,3.2),Color("#5f5138"))
+	prop_scene(s,PROP_WOOD,Vector3(-1.42,.08,-.55),-12,.88)
+	prop_scene(s,PROP_LOG_STACK,Vector3(-1.45,.08,.72),18,.68)
+	prop_scene(s,PROP_STONE,Vector3(.68,.08,.55),-24,.95)
+	prop_scene(s,PROP_STONE,Vector3(1.34,.08,.22),38,.78)
 	for i in range(4):
 		var rack=box_in(s,Vector3(-1.75+i*.45,.32,-.78),Vector3(.12,.25,1.55),Color("#725031"))
 		rack.rotation_degrees.y=8*i
@@ -547,6 +578,10 @@ func make_tool_yard(p,rot):
 	add_child(yard)
 	add_obstacle(p,1.65)
 	box_in(yard,Vector3(0,.05,0),Vector3(3.8,.1,2.6),Color("#65573c"))
+	prop_scene(yard,PROP_WORKBENCH,Vector3(-.86,.08,.16),-74,.62)
+	prop_scene(yard,PROP_AXE,Vector3(.62,.12,-.88),32,.72)
+	prop_scene(yard,PROP_PICKAXE,Vector3(1.04,.12,-.48),-18,.68)
+	prop_scene(yard,PROP_HAMMER,Vector3(1.26,.12,.36),68,.72)
 	box_in(yard,Vector3(-.95,.42,.25),Vector3(1.45,.32,.74),Color("#6f4d31"))
 	for i in range(8):
 		var chip=box_in(yard,Vector3(rng.randf_range(-1.55,1.45),.18,rng.randf_range(-1.0,1.0)),Vector3(rng.randf_range(.12,.25),.06,rng.randf_range(.1,.22)),Color("#85877f"))
@@ -707,6 +742,10 @@ func make_river_camp_details():
 		var x=river_x_at_z(z)
 		var pier=box(Vector3(x-4.2,.12,z),Vector3(1.35,.16,.42),Color("#604027"))
 		pier.rotation_degrees.y=rng.randf_range(-12,12)
+	var canoe_pos=Vector3(river_x_at_z(18)-1.35,.08,18.2)
+	prop_world(PROP_CANOE,canoe_pos,74,.96)
+	prop_world(PROP_PADDLE,canoe_pos+Vector3(.86,.12,-.92),108,.88)
+	add_obstacle(canoe_pos,1.55)
 	for p in [Vector3(14,0,10.2),Vector3(15.6,0,9.5),Vector3(17.4,0,9.8)]:
 		var basket=cyl(p+Vector3(0,.25,0),.24,.38,Color("#715031"))
 		basket.scale.x=1.16
@@ -865,6 +904,25 @@ func make_story_stump(p,rot):
 	for i in range(3):
 		var ring=cyl(p+Vector3(0,.68+float(i)*.025,0),.22+float(i)*.035,.02,Color("#8a6944"))
 		ring.scale.x=1.25
+
+func make_living_camp_props(home_a,home_b):
+	var camp=Node3D.new()
+	camp.name="Żywy obóz - rekwizyty"
+	add_child(camp)
+	var sleep_spots=[
+		{"pos":home_a+Vector3(-2.55,.06,3.35),"rot":24.0,"scene":PROP_BEDROLL,"scale":.74,"radius":.58},
+		{"pos":home_a+Vector3(1.95,.06,3.2),"rot":-18.0,"scene":PROP_BEDROLL_PACKED,"scale":.82,"radius":.48},
+		{"pos":home_b+Vector3(-2.45,.06,2.05),"rot":14.0,"scene":PROP_BEDROLL,"scale":.72,"radius":.58},
+		{"pos":home_b+Vector3(2.72,.06,2.35),"rot":-30.0,"scene":PROP_TENT_HALF,"scale":.82,"radius":.92},
+	]
+	for spot in sleep_spots:
+		prop_scene(camp,spot["scene"],spot["pos"],spot["rot"],spot["scale"])
+		add_obstacle(spot["pos"],spot["radius"])
+	prop_scene(camp,PROP_WOOD,hearth_pos+Vector3(-3.15,.08,-1.85),-35,.7)
+	prop_scene(camp,PROP_STONE,RESEARCH_POS+Vector3(1.55,.08,-.55),18,.82)
+	prop_scene(camp,PROP_ROCK_LARGE,Vector3(3.9,.06,-2.55),-10,.72)
+	prop_scene(camp,PROP_LOG_STACK,Vector3(-7.55,.08,5.95),42,.72)
+	add_obstacle(Vector3(-7.55,0,5.95),.75)
 
 func make_idol():
 	add_obstacle(Vector3.ZERO,2.35)

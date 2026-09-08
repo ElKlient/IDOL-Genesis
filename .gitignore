@@ -2,3 +2,4 @@
 .import/
 *.import
 *.gd.uid
+*.uid

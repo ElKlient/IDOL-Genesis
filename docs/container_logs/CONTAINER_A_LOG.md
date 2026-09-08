@@ -187,3 +187,28 @@ Validation run by Container A:
 - `"$GODOT_BIN" --headless --path . --quit` passed.
 - `timeout 8s "$GODOT_BIN" --headless --path .` ran without errors until expected timeout.
 - Godot generated `scripts/main.gd.uid` and `scripts/retargeter.gd.uid`; Container A removed them from this patch and did not stage them.
+
+## Container A Patch - 0.8.21 Living Camp Props - 2026-09-08
+
+Goal: keep the remote `0.8.20 Living World` procedural depth pass and add the first small active GLB prop set so the camp reads as a lived-in settlement on phone footage.
+
+Implemented in `scripts/main.gd`:
+
+- bumped version title to `IDOL -- GENESIS 0.8.21 LIVING CAMP PROPS`,
+- kept `make_world_depth_pass(home_a, home_b)` from `0.8.20` and added `make_living_camp_props(home_a, home_b)` after it,
+- added scene helper functions for lightweight imported props,
+- added real Kenney props around the hearth, stockpile, tool yard, riverside and home edges,
+- preserved people models, procedural walk, retargeter flag, AI orders, hunting and HUD logic.
+
+Active assets added:
+
+- `assets/environment/kenney_survival/`: wood, stone, axe, pickaxe, hammer, workbench, bedrolls, half tent, campfire pit and required `Textures/colormap.png`,
+- `assets/environment/kenney_nature/`: canoe, paddle, log stack and large rock.
+
+Validation run by Container A:
+
+- `git diff --check` passed.
+- Godot headless editor import passed after adding the missing survival colormap texture.
+- Godot headless runtime start passed.
+- 8 second headless startup ran clean until expected timeout.
+- `.import` and `.uid` files stay ignored by repo policy.
