@@ -20,7 +20,11 @@ Jesli `command -v godot` i `command -v godot4` nic nie zwracaja, najpierw przesz
 
 - `find /workspace/scratch -maxdepth 5 -type f -iname '*godot*'`
 
-Potem odpal walidacje projektu ta binarka:
+Na swiezym checkoutcie surowe `.gltf` moga jeszcze nie miec importu. Wtedy zwykle `--headless --path . --quit` moze pokazac parse error typu `has no resource loaders`. Nie koncz na tym. Najpierw wymus import w trybie edytora:
+
+- `/workspace/scratch/ad3cb27c6389/tools/godot/Godot_v4.7.2-stable_linux.x86_64 --headless --editor --path . --quit`
+
+Potem odpal walidacje runtime ta sama binarka:
 
 - `/workspace/scratch/ad3cb27c6389/tools/godot/Godot_v4.7.2-stable_linux.x86_64 --headless --path . --quit`
 
@@ -125,7 +129,7 @@ Gra dziala na Androidzie, wiec tekst ma byc czytelny, przyciski duze, bez drobny
 Minimum sprawdzen:
 
 - `git diff --check`
-- Godot headless. Najpierw `command -v godot`, potem `command -v godot4`, a jesli ich nie ma, szukaj w `/workspace/scratch`. Znana dzialajaca sciezka: `/workspace/scratch/ad3cb27c6389/tools/godot/Godot_v4.7.2-stable_linux.x86_64 --headless --path . --quit`
+- Godot headless. Najpierw `command -v godot`, potem `command -v godot4`, a jesli ich nie ma, szukaj w `/workspace/scratch`. Na swiezym checkoutcie najpierw uruchom import: `/workspace/scratch/ad3cb27c6389/tools/godot/Godot_v4.7.2-stable_linux.x86_64 --headless --editor --path . --quit`, potem runtime: `/workspace/scratch/ad3cb27c6389/tools/godot/Godot_v4.7.2-stable_linux.x86_64 --headless --path . --quit`
 - Otworzyc scene i sprawdzic, czy nie ma szarego ekranu ani parse error.
 - Sprawdzic, czy ludzie dalej chodza, pracuja, omijaja przeszkody i nie gubia rak.
 - Sprawdzic na Androidzie/FPS, jesli zmiana dodaje duzo obiektow.
@@ -142,4 +146,4 @@ Minimum sprawdzen:
 
 ## Gotowy prompt do wklejenia dla nowego kontenera
 
-Masz pracowac nad `ElKlient/IDOL-Genesis`, Godot 4.x Android, branch `main`. Najpierw przeczytaj `project.godot`, `main.tscn`, `scripts/main.gd`, `scripts/retargeter.gd` i `assets/third_party_model_packs/README.md`. Aktualny klimat to `0.8.18 Ancient Settlement`: lekka niskopoligonowa osada epoki kamienia / wczesnego sredniowiecza z idolem, ludzmi, patykami, kamieniem, jagodami, skorami, suszarniami skor, narzedziami kamiennymi, jeleniami i zapowiedzia pozniejszej stali. Nie zakladaj nowego projektu i nie psuj dzialajacych ludzi. Mechaniki ludzi, zasobow, budowy, rodzin, idola, kamery i UI sa glownie w `scripts/main.gd`. Jesli zadanie dotyczy scenerii, pracuj przez proceduralne helpery `make_...`; jesli ludzi, przeczytaj funkcje pozy kosci i `retargeter.gd`; jesli assetow, promuj tylko wybrane `.glb/.gltf` do wlasnych assetow gry, vendor paczki zostaw w `assets/third_party_model_packs/`. Po zmianach sprawdz `git diff --check` oraz Godota headless. Jesli `godot` nie jest w PATH, nie koncz na tym: szukaj binarki w `/workspace/scratch`; znana sciezka to `/workspace/scratch/ad3cb27c6389/tools/godot/Godot_v4.7.2-stable_linux.x86_64 --headless --path . --quit`. Staguj tylko pliki, ktore faktycznie zmieniles.
+Masz pracowac nad `ElKlient/IDOL-Genesis`, Godot 4.x Android, branch `main`. Najpierw przeczytaj `project.godot`, `main.tscn`, `scripts/main.gd`, `scripts/retargeter.gd` i `assets/third_party_model_packs/README.md`. Aktualny klimat to `0.8.18 Ancient Settlement`: lekka niskopoligonowa osada epoki kamienia / wczesnego sredniowiecza z idolem, ludzmi, patykami, kamieniem, jagodami, skorami, suszarniami skor, narzedziami kamiennymi, jeleniami i zapowiedzia pozniejszej stali. Nie zakladaj nowego projektu i nie psuj dzialajacych ludzi. Mechaniki ludzi, zasobow, budowy, rodzin, idola, kamery i UI sa glownie w `scripts/main.gd`. Jesli zadanie dotyczy scenerii, pracuj przez proceduralne helpery `make_...`; jesli ludzi, przeczytaj funkcje pozy kosci i `retargeter.gd`; jesli assetow, promuj tylko wybrane `.glb/.gltf` do wlasnych assetow gry, vendor paczki zostaw w `assets/third_party_model_packs/`. Po zmianach sprawdz `git diff --check` oraz Godota headless. Jesli `godot` nie jest w PATH, nie koncz na tym: szukaj binarki w `/workspace/scratch`; znana sciezka to `/workspace/scratch/ad3cb27c6389/tools/godot/Godot_v4.7.2-stable_linux.x86_64`. Na swiezym checkoutcie najpierw zrob import: `... --headless --editor --path . --quit`, potem runtime: `... --headless --path . --quit`. Staguj tylko pliki, ktore faktycznie zmieniles.
