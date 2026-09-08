@@ -1,5 +1,5 @@
 [application]
-config/name="IDOL Genesis 0.8.6 Android Model Hotfix"
+config/name="IDOL Genesis 0.8.7 Human Model Recovery"
 run/main_scene="res://main.tscn"
 
 [display]

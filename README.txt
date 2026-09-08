@@ -1,4 +1,4 @@
-IDOL Genesis 0.8.6 - ANDROID MODEL HOTFIX
+IDOL Genesis 0.8.7 - HUMAN MODEL RECOVERY
 
 Prompt roboczy tej łatki:
 Zbuduj pierwszy grywalny rdzeń osady epoki kamienia. Gracz jest Idolem: wolą osady, nie dowódcą armii. Ludzie mają samodzielnie dzielić robotę, nosić surowce, budować podstawowe budynki, odpoczywać, tworzyć pierwsze więzi i odkrywać proste technologie przez zadania.
@@ -8,6 +8,14 @@ Kierunek gry:
 - ludzie nie są wojskiem do szkolenia, tylko pierwszą społecznością
 - później mają tworzyć pary, rozmnażać się, budować relacje, dzielić się na grupy i wchodzić w konflikty
 - rozwój technologii wynika z prostych zadań, które Idol zleca mieszkańcom
+
+Zmiany 0.8.7:
+- wycofano mini/kreskówkowe modele jako domyślnych mieszkańców; klimat wraca do ludzkich, humanoidalnych postaci
+- główna baza postaci to znów modele Superhero, bo są bliżej realistycznych ludzi i lepiej pasują do strategii o osadnikach
+- zmniejszono skalę ludzi do normalniejszych proporcji względem chat, Idola i rekwizytów
+- retarget obcych animacji zostaje wyłączony, bo to on najczęściej rozrywał ręce i nogi
+- proceduralna poza wraca tylko jako kontrolowana warstwa stabilizująca ludzkie modele
+- aktywny folder mini-postaci z 0.8.6 zostaje usunięty z gry; zostawiamy go jedynie jako ślepą uliczkę referencyjną w historii projektu
 
 Zmiany 0.8.6:
 - hotfix pod Androida: używane mini-postacie przeniesione do lekkiego folderu gry `assets/characters/settlers`
