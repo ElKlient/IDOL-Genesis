@@ -1,4 +1,4 @@
-IDOL Genesis 0.8.9 - HUMAN POLISH
+IDOL Genesis 0.8.10 - SPEECH TUNING
 
 Prompt roboczy tej łatki:
 Zbuduj pierwszy grywalny rdzeń osady epoki kamienia. Gracz jest Idolem: wolą osady, nie dowódcą armii. Ludzie mają samodzielnie dzielić robotę, nosić surowce, budować podstawowe budynki, odpoczywać, tworzyć pierwsze więzi i odkrywać proste technologie przez zadania.
@@ -8,6 +8,13 @@ Kierunek gry:
 - ludzie nie są wojskiem do szkolenia, tylko pierwszą społecznością
 - później mają tworzyć pary, rozmnażać się, budować relacje, dzielić się na grupy i wchodzić w konflikty
 - rozwój technologii wynika z prostych zadań, które Idol zleca mieszkańcom
+
+Zmiany 0.8.10:
+- zmniejszono imiona i wyłączono dla nich ekranowy fixed-size, żeby nie robiły wielkich napisów przy kamerze
+- dymki rozmów są krótsze, dwuwierszowe i też skalują się w świecie zamiast zasłaniać środek ekranu
+- aktywny jest tylko ostatni dymek nad głową; historia rozmów zostaje w panelu na dole, więc teksty nie nakładają się jeden na drugi
+- panel rozmów osady jest trochę mniejszy od 0.8.9, ale zachowuje czytelny font i kontrast
+- ta łatka dotyka tylko czytelności rozmów oraz etykiet postaci
 
 Zmiany 0.8.9:
 - po filmie testowym poprawiono czytelność rozmów: dymki są stałorozmiarowe, jaśniejsze i nie rosną w ogromne czarne pasy przy kamerze

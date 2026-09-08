@@ -8,7 +8,7 @@ const WALL=preload("res://assets/village/Wall_Plaster_Straight.gltf")
 const DOOR=preload("res://assets/village/Wall_Plaster_Door_Round.gltf")
 const ROOF=preload("res://assets/village/Roof_RoundTiles_6x6.gltf")
 const RETARGETER=preload("res://scripts/retargeter.gd")
-const VERSION_TITLE="IDOL — GENESIS 0.8.9 HUMAN POLISH"
+const VERSION_TITLE="IDOL — GENESIS 0.8.10 SPEECH TUNING"
 const CAMERA_MIN_DISTANCE=5.5
 const CAMERA_MAX_DISTANCE=88.0
 const CAMERA_HEIGHT_RATIO=0.61
@@ -59,9 +59,9 @@ const CHAT_INTERVAL_MIN=5.8
 const CHAT_INTERVAL_MAX=11.2
 const CHAT_GLOBAL_COOLDOWN=2.9
 const CHAT_REPLY_COOLDOWN=4.4
-const SPEECH_TIME=4.9
+const SPEECH_TIME=4.2
 const LANGUAGE_GROWTH_PER_CHAT=.055
-const SPEECH_LINE_LIMIT=60
+const SPEECH_LINE_LIMIT=46
 
 var rng=RandomNumberGenerator.new()
 var people=[]
@@ -635,31 +635,31 @@ func cache_pose_bone_rotations(sk:Skeleton3D,bones:Dictionary):
 			rotations[bone_name]=sk.get_bone_pose_rotation(idx)
 	return rotations
 
-func make_person_label(parent,text,pos,font_size,color):
+func make_person_label(parent,text,pos,font_size,color,pixel_size=.00305,outline_size=4,fixed_size=false):
 	var l=Label3D.new()
 	l.text=text
 	l.position=pos
 	l.font_size=font_size
-	l.pixel_size=.00315
+	l.pixel_size=pixel_size
 	l.modulate=color
-	l.outline_size=6
+	l.outline_size=outline_size
 	l.outline_modulate=Color(0,0,0,.96)
 	l.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER
 	l.vertical_alignment=VERTICAL_ALIGNMENT_CENTER
 	l.billboard=BaseMaterial3D.BILLBOARD_ENABLED
 	l.no_depth_test=true
-	l.fixed_size=true
+	l.fixed_size=fixed_size
 	parent.add_child(l)
 	return l
 
 func get_speech_back_texture():
 	if speech_back_texture:
 		return speech_back_texture
-	var w=388
-	var h=86
+	var w=340
+	var h=78
 	var img=Image.create(w,h,false,Image.FORMAT_RGBA8)
-	var fill=Color(.08,.095,.09,.84)
-	var border=Color(.92,.96,.88,.46)
+	var fill=Color(.075,.085,.082,.74)
+	var border=Color(.92,.96,.88,.38)
 	for y in range(h):
 		for x in range(w):
 			var edge=x<3 or y<3 or x>=w-3 or y>=h-3
@@ -672,10 +672,10 @@ func make_speech_backdrop(parent,pos):
 	var n=Sprite3D.new()
 	n.texture=get_speech_back_texture()
 	n.position=pos+Vector3(0,0,.012)
-	n.pixel_size=.0041
+	n.pixel_size=.0043
 	n.billboard=BaseMaterial3D.BILLBOARD_ENABLED
 	n.no_depth_test=true
-	n.fixed_size=true
+	n.fixed_size=false
 	n.visible=false
 	parent.add_child(n)
 	return n
@@ -685,7 +685,7 @@ func short_speech(actor,msg):
 	var limit=SPEECH_LINE_LIMIT if is_adult(actor) else SPEECH_LINE_LIMIT-6
 	if text.length()>limit:
 		text=text.substr(0,limit-3)+"..."
-	var wrap_at=32
+	var wrap_at=24
 	if text.length()>wrap_at:
 		var cut=text.rfind(" ",wrap_at)
 		if cut>10:
@@ -695,12 +695,12 @@ func short_speech(actor,msg):
 func speech_lane_offset(seed:int):
 	var lane=seed%4
 	if lane==0:
-		return Vector3(-.34,0,0)
+		return Vector3(-.18,0,0)
 	if lane==1:
-		return Vector3(.34,.18,0)
+		return Vector3(.18,.12,0)
 	if lane==2:
-		return Vector3(-.18,.36,0)
-	return Vector3(.18,.54,0)
+		return Vector3(-.1,.24,0)
+	return Vector3(.1,.36,0)
 
 func hide_imported_visuals(root):
 	for c in root.get_children():
@@ -873,10 +873,10 @@ func make_person(i):
 	make_head_face(sk,i)
 	var lane=speech_lane_offset(i)
 	var label_y=1.88+lane.y*.25
-	var speech_y=2.16+lane.y
-	var name_label=make_person_label(n,names[i],Vector3(lane.x,label_y,0),18,Color("#fff0bc"))
+	var speech_y=2.08+lane.y
+	var name_label=make_person_label(n,names[i],Vector3(lane.x*.45,label_y,0),15,Color("#fff0bc"),.00305,4,false)
 	var speech_back=make_speech_backdrop(n,Vector3(lane.x,speech_y,0))
-	var speech_label=make_person_label(n,"",Vector3(lane.x,speech_y-.01,-.02),17,Color("#ffffff"))
+	var speech_label=make_person_label(n,"",Vector3(lane.x,speech_y-.005,-.02),14,Color("#ffffff"),.00305,5,false)
 	speech_label.visible=false
 	var cargo=make_carry_node(n)
 	var v={"node":n,"skeleton":sk,"bones":bones,"pose_bases":pose_bases,"base_scale":base_scale,"phase":rng.randf_range(0,TAU),"pose_style":rng.randf_range(-1.0,1.0),"work_timer":0.0,"rest_time":rng.randf_range(1.5,3.6),"name":names[i],"trait":traits[i],"like":settler_likes[i%settler_likes.size()],"worry":settler_worries[(i*3)%settler_worries.size()],"sex":sex,"age":rng.randi_range(18,34),"adult":true,"parent_a":-1,"parent_b":-1,"family_cd":rng.randf_range(8.0,18.0),"bond":rng.randf_range(.28,.62),"partner":-1,"str":rng.randi_range(3,9),"dex":rng.randi_range(3,9),"int":rng.randi_range(3,9),"hunger":rng.randf_range(5,25),"energy":rng.randf_range(72,100),"wood":0.0,"gather":0.0,"build":0.0,"knowledge":0.0,"language":rng.randf_range(.28,.46),"last_xz":Vector2(n.position.x,n.position.z),"stuck_time":0.0,"job":"IDLE","carry":"","cargo":cargo,"target":n.position}
@@ -940,10 +940,10 @@ func spawn_child(parent_a_idx,parent_b_idx):
 	make_head_face(sk,children_born+2)
 	var lane=speech_lane_offset(children_born+2)
 	var label_y=1.84+lane.y*.25
-	var speech_y=2.1+lane.y
-	var name_label=make_person_label(n,child_name,Vector3(lane.x,label_y,0),15,Color("#fff0bc"))
+	var speech_y=2.04+lane.y
+	var name_label=make_person_label(n,child_name,Vector3(lane.x*.45,label_y,0),13,Color("#fff0bc"),.00305,4,false)
 	var speech_back=make_speech_backdrop(n,Vector3(lane.x,speech_y,0))
-	var speech_label=make_person_label(n,"",Vector3(lane.x,speech_y-.01,-.02),15,Color("#ffffff"))
+	var speech_label=make_person_label(n,"",Vector3(lane.x,speech_y-.005,-.02),13,Color("#ffffff"),.00305,5,false)
 	speech_label.visible=false
 	var cargo=make_carry_node(n)
 	var v={"node":n,"skeleton":sk,"bones":bones,"pose_bases":pose_bases,"base_scale":base_scale,"phase":rng.randf_range(0,TAU),"pose_style":rng.randf_range(-.8,.8),"work_timer":0.0,"rest_time":rng.randf_range(1.8,3.8),"name":child_name,"trait":"Dziecko osady","like":settler_likes[(children_born+4)%settler_likes.size()],"worry":settler_worries[(children_born+5)%settler_worries.size()],"sex":sex,"age":1,"adult":false,"parent_a":parent_a_idx,"parent_b":parent_b_idx,"family_cd":0.0,"bond":rng.randf_range(.62,.78),"partner":-1,"str":rng.randi_range(1,3),"dex":rng.randi_range(2,5),"int":rng.randi_range(2,5),"hunger":rng.randf_range(0,12),"energy":rng.randf_range(82,100),"wood":0.0,"gather":0.0,"build":0.0,"knowledge":0.0,"language":rng.randf_range(.22,.38),"last_xz":Vector2(n.position.x,n.position.z),"stuck_time":0.0,"job":"DZIECKO","carry":"","cargo":cargo,"target":n.position}
@@ -1000,8 +1000,8 @@ func make_ui():
 		var b=Button.new(); b.text=action; b.custom_minimum_size=Vector2(172,24); b.pressed.connect(func(): handle_idol_action(action)); grid.add_child(b)
 	var ibg=ColorRect.new(); ibg.position=Vector2(14,158); ibg.size=Vector2(430,192); ibg.color=Color(0.02,0.02,0.015,.66); layer.add_child(ibg)
 	info=Label.new(); info.position=Vector2(28,168); info.add_theme_font_size_override("font_size",11); layer.add_child(info)
-	var chat_bg=ColorRect.new(); chat_bg.position=Vector2(float(vp.x)*.265,float(vp.y)-164.0); chat_bg.size=Vector2(float(vp.x)*.47,138); chat_bg.color=Color(0.035,0.04,0.036,.78); layer.add_child(chat_bg)
-	chat_feed=Label.new(); chat_feed.position=chat_bg.position+Vector2(13,8); chat_feed.size=chat_bg.size-Vector2(24,14); chat_feed.add_theme_font_size_override("font_size",13); chat_feed.add_theme_color_override("font_color",Color("#f4fff2")); chat_feed.add_theme_constant_override("outline_size",1); chat_feed.add_theme_color_override("font_outline_color",Color(0,0,0,.95)); chat_feed.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART; chat_feed.clip_text=true; chat_feed.text="ROZMOWY OSADY\n..."; layer.add_child(chat_feed)
+	var chat_bg=ColorRect.new(); chat_bg.position=Vector2(float(vp.x)*.29,float(vp.y)-150.0); chat_bg.size=Vector2(float(vp.x)*.42,124); chat_bg.color=Color(0.035,0.04,0.036,.74); layer.add_child(chat_bg)
+	chat_feed=Label.new(); chat_feed.position=chat_bg.position+Vector2(12,7); chat_feed.size=chat_bg.size-Vector2(22,12); chat_feed.add_theme_font_size_override("font_size",12); chat_feed.add_theme_color_override("font_color",Color("#f4fff2")); chat_feed.add_theme_constant_override("outline_size",1); chat_feed.add_theme_color_override("font_outline_color",Color(0,0,0,.95)); chat_feed.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART; chat_feed.clip_text=true; chat_feed.text="ROZMOWY OSADY\n..."; layer.add_child(chat_feed)
 	make_camera_sticks(layer)
 
 func make_round_panel(pos,size,fill,border):
@@ -1507,14 +1507,27 @@ func refresh_chat_feed():
 		packed.append(line)
 	chat_feed.text="ROZMOWY OSADY\n"+"\n".join(packed)
 
+func hide_speech_bubble(v):
+	if v.has("speech_label") and is_instance_valid(v.speech_label):
+		v.speech_label.visible=false
+	if v.has("speech_back") and is_instance_valid(v.speech_back):
+		v.speech_back.visible=false
+	v.speech_timer=0.0
+
+func clear_other_speech_bubbles(active):
+	for v in people:
+		if v!=active:
+			hide_speech_bubble(v)
+
 func post_chat(a,b,msg,positive):
 	var state="zgoda" if positive else "spór"
 	var line="%s -> %s [%s]: %s" % [a.name,b.name,state,msg]
-	if line.length()>118:
-		line=line.substr(0,115)+"..."
+	if line.length()>108:
+		line=line.substr(0,105)+"..."
 	chat_lines.insert(0,line)
-	while chat_lines.size()>6:
+	while chat_lines.size()>5:
 		chat_lines.pop_back()
+	clear_other_speech_bubbles(a)
 	if a.has("speech_label") and is_instance_valid(a.speech_label):
 		a.speech_label.text=short_speech(a,msg)
 		a.speech_label.visible=true
