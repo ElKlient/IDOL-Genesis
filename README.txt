@@ -13,6 +13,7 @@ Zmiany 0.8.16:
 - po stopklatkach z filmu 0.8.15 przebudowano chód rąk: bark nie dostaje już zgadywanego Eulera, tylko celuje kość ramienia w wyliczony kierunek dół + przód/tył
 - wymach ramion działa jako rzeczywiste wahadło w płaszczyźnie barku, więc ma ruszać ręką przez przestrzeń, a nie skręcać ją wokół własnej osi
 - wyłączono doklejane prymitywy twarzy do kości głowy, bo z kamery telefonu wyglądały jak wystające losowe przedmioty
+- poprawiono odwołania glTF do istniejących tekstur oczu i włosów, żeby import modeli nie gubił materiałów przez błędne nazwy
 - przy zwykłych poprawkach kodu nie trzeba kasować `.godot`; kasowanie cache zostaje tylko na ciężkie zmiany modeli lub assetów
 - dodano `.gitignore` dla cache Godota, żeby `.godot` nie mieszał się z aktualizacjami z Termuxa
 
