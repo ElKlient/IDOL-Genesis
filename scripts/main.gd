@@ -48,6 +48,8 @@ const USE_PROXY_SETTLER_BODY=false
 const USE_SETTLER_ROOT_GEAR=true
 const USE_FLOATING_CARGO=true
 const USE_HEAD_FACE_ATTACHMENTS=false
+const MOBILE_WORLD_DENSITY=.72
+const MOBILE_SHADOWS=false
 const HUMAN_FEMALE_ADULT_SCALE=1.16
 const HUMAN_MALE_ADULT_SCALE=1.22
 const HUMAN_CHILD_SCALE=.74
@@ -159,6 +161,14 @@ func sphere_in(parent,p,r,c):
 func add_obstacle(p,radius):
 	obstacle_points.append({"pos":p,"radius":radius})
 
+func is_mobile_runtime():
+	return OS.has_feature("mobile") or OS.has_feature("android")
+
+func world_count(count):
+	if is_mobile_runtime():
+		return max(1,int(round(float(count)*MOBILE_WORLD_DENSITY)))
+	return count
+
 func _ready():
 	rng.seed=5302026
 	process_priority=80
@@ -166,16 +176,16 @@ func _ready():
 	e.background_mode=Environment.BG_COLOR; e.background_color=Color("#9fb8bf")
 	e.ambient_light_source=Environment.AMBIENT_SOURCE_COLOR; e.ambient_light_color=Color("#fff0d5"); e.ambient_light_energy=.52
 	world_env.environment=e; add_child(world_env)
-	sun=DirectionalLight3D.new(); sun.rotation_degrees=Vector3(-55,-35,0); sun.light_energy=1.42; sun.shadow_enabled=true; add_child(sun)
+	sun=DirectionalLight3D.new(); sun.rotation_degrees=Vector3(-55,-35,0); sun.light_energy=1.42; sun.shadow_enabled=(not is_mobile_runtime()) or MOBILE_SHADOWS; add_child(sun)
 
 	var ground=MeshInstance3D.new(); var pm=PlaneMesh.new(); pm.size=Vector2(68,68); ground.mesh=pm; ground.material_override=mat(Color("#52683d")); add_child(ground)
 	make_terrain_layers()
 	make_river()
-	for i in range(42):
+	for i in range(world_count(42)):
 		var p=Vector3(rng.randf_range(-31,31),0,rng.randf_range(-31,31))
 		if p.length()<10: continue
 		make_tree(p,rng.randf_range(.85,1.22))
-	for i in range(26):
+	for i in range(world_count(26)):
 		var p=Vector3(rng.randf_range(-30,30),.25,rng.randf_range(-30,30))
 		make_rock(p,rng.randf_range(.65,1.25))
 
@@ -257,7 +267,7 @@ func make_ground_patch(p,size,c,rot=0.0):
 
 func make_terrain_layers():
 	var cols=[Color("#5d7046"),Color("#49613b"),Color("#61754b"),Color("#6b6648"),Color("#4d653c")]
-	for i in range(38):
+	for i in range(world_count(38)):
 		var p=Vector3(rng.randf_range(-31,31),0,rng.randf_range(-31,31))
 		if abs(p.x-river_x_at_z(p.z))<4.1:
 			continue
@@ -442,12 +452,12 @@ func make_world_details(home_a,home_b):
 		add_stone_source(p)
 	for p in [Vector3(-14,0,2),Vector3(15,0,8),Vector3(-5,0,-21),Vector3(21,0,18),Vector3(25,0,13)]:
 		add_berry_source(p)
-	for i in range(128):
+	for i in range(world_count(128)):
 		var p=Vector3(rng.randf_range(-31,31),.08,rng.randf_range(-31,31))
 		if p.length()<4.0 or abs(p.x-river_x_at_z(p.z))<3.9:
 			continue
 		make_grass_clump(p,rng.randf_range(.72,1.18))
-	for i in range(34):
+	for i in range(world_count(34)):
 		var p=Vector3(rng.randf_range(-28,28),.08,rng.randf_range(-28,28))
 		if p.length()<5.0 or abs(p.x-river_x_at_z(p.z))<4.2:
 			continue
@@ -496,7 +506,7 @@ func make_ancient_settlement_scene():
 	make_river_camp_details()
 
 func make_distant_ridge():
-	for i in range(7):
+	for i in range(world_count(7)):
 		var x=-30.0+float(i)*10.0+rng.randf_range(-1.0,1.0)
 		var h=rng.randf_range(1.2,2.4)
 		var hill=cone_in(self,Vector3(x,h*.5,32.4+rng.randf_range(-.8,.7)),rng.randf_range(2.4,4.5),h,Color("#3d4f3a"))
