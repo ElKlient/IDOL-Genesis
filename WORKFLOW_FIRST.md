@@ -13,6 +13,27 @@ Nie tworz nowego projektu. Pracujesz na istniejacym repo:
 
 Po kazdym waznym odkryciu o workflow dopisz je do tego pliku albo do `docs/CONTAINER_HANDOFF_PROMPT.md` i zapisz na GitHubie, zeby nastepny kontener nie odkrywal tego samego od zera.
 
+## Logi kontenerow
+
+Kazdy kontener prowadzi wlasny log w:
+
+- `docs/container_logs/CONTAINER_<LITERA>_LOG.md`
+
+Kontener A w tej sesji zapisuje:
+
+- `docs/container_logs/CONTAINER_A_LOG.md`
+
+Log aktualizuj po waznym odkryciu, zmianie workflow, tescie Godota albo wypchnieciu commita. Minimum wpisu:
+
+- rola kontenera,
+- cel pracy,
+- dotkniete pliki,
+- commity wypchniete na GitHub,
+- testy i wynik,
+- blokery,
+- nastepne kroki,
+- komenda Termux przekazana uzytkownikowi.
+
 ## Kolejnosc czytania
 
 1. `WORKFLOW_FIRST.md`
