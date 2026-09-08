@@ -1,4 +1,4 @@
-IDOL Genesis 0.8.8 - HUMAN WALK FIX
+IDOL Genesis 0.8.9 - HUMAN POLISH
 
 Prompt roboczy tej łatki:
 Zbuduj pierwszy grywalny rdzeń osady epoki kamienia. Gracz jest Idolem: wolą osady, nie dowódcą armii. Ludzie mają samodzielnie dzielić robotę, nosić surowce, budować podstawowe budynki, odpoczywać, tworzyć pierwsze więzi i odkrywać proste technologie przez zadania.
@@ -8,6 +8,13 @@ Kierunek gry:
 - ludzie nie są wojskiem do szkolenia, tylko pierwszą społecznością
 - później mają tworzyć pary, rozmnażać się, budować relacje, dzielić się na grupy i wchodzić w konflikty
 - rozwój technologii wynika z prostych zadań, które Idol zleca mieszkańcom
+
+Zmiany 0.8.9:
+- po filmie testowym poprawiono czytelność rozmów: dymki są stałorozmiarowe, jaśniejsze i nie rosną w ogromne czarne pasy przy kamerze
+- imiona i wypowiedzi nad ludźmi dostały większy font, mocniejszy outline i lekkie rozstawienie po wysokości oraz boku
+- panel rozmów osady jest większy, ma mocniejszy kontrast i mieści więcej wpisów bez tak drobnego tekstu
+- chód ludzi dostał wyraźniejszy, ale nadal bezpieczny ruch ramion i nóg względem importowanej pozy bazowej
+- łatka nadal trzyma się tylko ludzi oraz czytelności ich rozmów; logika budowy i przeszkody zostają na kolejny krok
 
 Zmiany 0.8.8:
 - naprawiono główny błąd pozy ludzkich modeli: kości nie są już ustawiane absolutnie na zero, tylko resetowane do importowanej pozy bazowej Godota

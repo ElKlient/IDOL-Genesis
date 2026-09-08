@@ -1,5 +1,5 @@
 [application]
-config/name="IDOL Genesis 0.8.8 Human Walk Fix"
+config/name="IDOL Genesis 0.8.9 Human Polish"
 run/main_scene="res://main.tscn"
 
 [display]
