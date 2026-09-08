@@ -1,6 +1,6 @@
 START DLA KONTENEROW: najpierw przeczytaj WORKFLOW_FIRST.md.
 
-IDOL Genesis 0.8.22 - TEXTURED CLIMATE
+IDOL Genesis 0.8.23 - REALISTIC VISUAL PASS
 
 Prompt roboczy tej łatki:
 Zbuduj pierwszy grywalny rdzeń osady epoki kamienia. Gracz jest Idolem: wolą osady, nie dowódcą armii. Ludzie mają samodzielnie dzielić robotę, nosić surowce, budować podstawowe budynki, odpoczywać, tworzyć pierwsze więzi i odkrywać proste technologie przez zadania.
@@ -10,6 +10,15 @@ Kierunek gry:
 - ludzie nie są wojskiem do szkolenia, tylko pierwszą społecznością
 - później mają tworzyć pary, rozmnażać się, budować relacje, dzielić się na grupy i wchodzić w konflikty
 - rozwój technologii wynika z prostych zadań, które Idol zleca mieszkańcom
+
+Zmiany 0.8.23:
+- dodano mocny pass wizualny pod referencję z telefonu: ciemniejsza trawa, cieplejsze światło, mniej wypłukane tło i bardziej ziemista baza osady
+- rzeka dostała głębszą wodę, szersze błotniste brzegi, mokre linie trawy, więcej detali przy brzegu oraz dwa drewniane przejścia
+- chaty dostały grubsze drewno, czytelniejsze czerwone połacie dachu, kalenice, listwy, kominy, dym, wejściowe światło i bardziej ubite dojścia
+- palisada jest gęstsza i cięższa, z dolnymi belkami oraz cieniem ziemi pod ogrodzeniem
+- dodano dodatkowe krzaki, drzewa brzegowe, powalone kłody, cieplejsze ogniska i światła przy domach
+- UI zachowuje układ z telefonu, ale ma ciemne szklane panele, cieplejsze obramowania, spójne przyciski i bardziej premium joysticki
+- schowano pływające ładunki przy ludziach, żeby przy kamerze strategicznej nie wyglądały jak przypadkowe przedmioty wystające z modeli
 
 Zmiany 0.8.22:
 - dodano mobilny proceduralny system teksturowania materiałów: ziemia, trawa, drewno, kamień i woda nie są już płaskimi kolorami

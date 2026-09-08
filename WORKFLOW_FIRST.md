@@ -182,8 +182,8 @@ Jesli zmieniasz kod/scenerie/importy, odpal Godota wedlug sekcji `Kontener Codex
 
 ## Aktualna baza gry
 
-Aktualny kierunek: `0.8.22 Textured Climate` - lekka niskopoligonowa osada epoki kamienia / wczesnego sredniowiecza z Idolem, ludzmi, praca, zasobami, lowami, miesem, skorami, palisada, brama osady, slady przy sciezkach, przeprawa przez rzeke, narzedziami kamiennymi, jeleniami, aktywnymi malymi GLB rekwizytami i proceduralnie teksturowanym terenem.
+Aktualny kierunek: `0.8.23 Realistic Visual Pass` - lekka niskopoligonowa osada epoki kamienia / wczesnego sredniowiecza z Idolem, ludzmi, praca, zasobami, lowami, miesem, skorami, palisada, brama osady, slady przy sciezkach, przeprawami przez rzeke, narzedziami kamiennymi, jeleniami, aktywnymi malymi GLB rekwizytami, proceduralnie teksturowanym terenem, cieplejszym swiatlem i ciemniejszym premium UI.
 
-Najnowsze passy Kontenera A polaczyly `0.8.19 Hunt and Hides`, `0.8.20 Living World`, `0.8.21 Living Camp Props` i `0.8.22 Textured Climate`: palisade/gate, podworka chat, legowiska, stosy drewna, przeprawe, slady stop, strefe obrobki skor, realne lekkie rekwizyty GLB, mgielke tła oraz teksturowane materialy ziemi, trawy, drewna, kamienia i wody. Kontenery B/C/D/E maja po pullu sprawdzic swoje pliki zadan w `docs/container_tasks/`.
+Najnowsze passy Kontenera A polaczyly `0.8.19 Hunt and Hides`, `0.8.20 Living World`, `0.8.21 Living Camp Props`, `0.8.22 Textured Climate` i `0.8.23 Realistic Visual Pass`: palisade/gate, podworka chat, legowiska, stosy drewna, przeprawy, slady stop, strefe obrobki skor, realne lekkie rekwizyty GLB, mgielke tła, teksturowane materialy ziemi/trawy/drewna/kamienia/wody, mocniejsze brzegi rzeki, kominy i dym z chat, cieplejsze ogniska oraz ciemne szklane UI. Kontenery B/C/D/E maja po pullu sprawdzic swoje pliki zadan w `docs/container_tasks/`.
 
 Ludzie sa kluczowi. Nie wymieniaj modelu, szkieletu, retargetera ani proceduralnego chodu, jesli zadanie tego wprost nie dotyczy.

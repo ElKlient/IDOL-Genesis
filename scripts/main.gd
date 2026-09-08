@@ -22,7 +22,7 @@ const PROP_PADDLE=preload("res://assets/environment/kenney_nature/canoe_paddle.g
 const PROP_LOG_STACK=preload("res://assets/environment/kenney_nature/log_stack.glb")
 const PROP_ROCK_LARGE=preload("res://assets/environment/kenney_nature/rock_largeA.glb")
 const RETARGETER=preload("res://scripts/retargeter.gd")
-const VERSION_TITLE="IDOL — GENESIS 0.8.22 TEXTURED CLIMATE"
+const VERSION_TITLE="IDOL — GENESIS 0.8.23 REALISTIC VISUAL PASS"
 const CAMERA_MIN_DISTANCE=5.5
 const CAMERA_MAX_DISTANCE=88.0
 const CAMERA_HEIGHT_RATIO=0.61
@@ -60,9 +60,9 @@ const PERSONAL_SPACE_CHILD=.42
 const USE_RETARGETED_ANIMATIONS=false
 const USE_PROXY_SETTLER_BODY=false
 const USE_SETTLER_ROOT_GEAR=true
-const USE_FLOATING_CARGO=true
+const USE_FLOATING_CARGO=false
 const USE_HEAD_FACE_ATTACHMENTS=false
-const MOBILE_WORLD_DENSITY=.72
+const MOBILE_WORLD_DENSITY=.80
 const MOBILE_SHADOWS=false
 const USE_PROCEDURAL_CLIMATE_TEXTURES=true
 const CLIMATE_TEXTURE_SIZE_DESKTOP=96
@@ -289,17 +289,17 @@ func _ready():
 	rng.seed=5302026
 	process_priority=80
 	world_env=WorldEnvironment.new(); var e=Environment.new()
-	e.background_mode=Environment.BG_COLOR; e.background_color=Color("#9fb8bf")
-	e.ambient_light_source=Environment.AMBIENT_SOURCE_COLOR; e.ambient_light_color=Color("#fff0d5"); e.ambient_light_energy=.52
+	e.background_mode=Environment.BG_COLOR; e.background_color=Color("#778777")
+	e.ambient_light_source=Environment.AMBIENT_SOURCE_COLOR; e.ambient_light_color=Color("#ffe2b6"); e.ambient_light_energy=.58
 	e.fog_enabled=true
-	e.fog_light_color=Color("#aab2a3")
-	e.fog_light_energy=.28
-	e.fog_density=(.011 if is_mobile_runtime() else .016)
-	e.fog_sun_scatter=.16
+	e.fog_light_color=Color("#8f967f")
+	e.fog_light_energy=.22
+	e.fog_density=(.008 if is_mobile_runtime() else .012)
+	e.fog_sun_scatter=.23
 	world_env.environment=e; add_child(world_env)
-	sun=DirectionalLight3D.new(); sun.rotation_degrees=Vector3(-55,-35,0); sun.light_energy=1.42; sun.shadow_enabled=(not is_mobile_runtime()) or MOBILE_SHADOWS; add_child(sun)
+	sun=DirectionalLight3D.new(); sun.rotation_degrees=Vector3(-55,-35,0); sun.light_color=Color("#ffd9a3"); sun.light_energy=1.58; sun.shadow_enabled=(not is_mobile_runtime()) or MOBILE_SHADOWS; add_child(sun)
 
-	var ground=MeshInstance3D.new(); var pm=PlaneMesh.new(); pm.size=Vector2(68,68); ground.mesh=pm; ground.material_override=mat(Color("#52683d")); add_child(ground)
+	var ground=MeshInstance3D.new(); var pm=PlaneMesh.new(); pm.size=Vector2(68,68); ground.mesh=pm; ground.material_override=mat(Color("#435d37")); add_child(ground)
 	make_terrain_layers()
 	make_river()
 	for i in range(world_count(42)):
@@ -332,6 +332,7 @@ func _ready():
 	make_world_depth_pass(home_a,home_b)
 	make_living_camp_props(home_a,home_b)
 	make_climate_surface_pass(home_a,home_b)
+	make_realistic_visual_pass(home_a,home_b)
 
 	for i in range(10): make_person(i)
 	make_selection_marker()
@@ -350,11 +351,15 @@ func _ready():
 func make_river():
 	for z in range(-30,31,3):
 		var x=river_x_at_z(z)
-		box(Vector3(x,.02,z),Vector3(6.4,.08,3.25),Color("#5798a5"))
-		box(Vector3(x-3.55,.035,z),Vector3(.72,.06,3.1),Color("#74684a"))
-		box(Vector3(x+3.55,.035,z),Vector3(.72,.06,3.1),Color("#74684a"))
+		var bend=float(z+30)/60.0
+		var water_col=Color("#346f80").lerp(Color("#5faab0"),.28+sin(bend*PI)*.22)
+		box(Vector3(x,.018,z),Vector3(6.85,.075,3.35),water_col)
+		box(Vector3(x-3.72,.04,z),Vector3(.92,.07,3.18),Color("#5f563d"))
+		box(Vector3(x+3.72,.04,z),Vector3(.92,.07,3.18),Color("#5f563d"))
+		box(Vector3(x-4.18,.063,z),Vector3(.34,.04,3.05),Color("#3f4b34"))
+		box(Vector3(x+4.18,.063,z),Vector3(.34,.04,3.05),Color("#3f4b34"))
 		if z%9==0:
-			make_river_ripple(Vector3(x+rng.randf_range(-1.65,1.65),.09,z+rng.randf_range(-1.0,1.0)),rng.randf_range(-18,18))
+			make_river_ripple(Vector3(x+rng.randf_range(-2.35,2.35),.102,z+rng.randf_range(-1.0,1.0)),rng.randf_range(-18,18))
 		if z%6==0:
 			make_rock(Vector3(x-3.95,.18,z+rng.randf_range(-.9,.9)),.45)
 			make_rock(Vector3(x+3.95,.18,z+rng.randf_range(-.9,.9)),.42)
@@ -434,6 +439,84 @@ func make_wildflower(p):
 	var colors=[Color("#e9d76a"),Color("#df6f79"),Color("#f8f2d0")]
 	sphere(p+Vector3(0,.52,0),.045,colors[rng.randi_range(0,colors.size()-1)])
 
+func make_bush_cluster(p,scale=1.0):
+	var shades=[Color("#274f2c"),Color("#315f34"),Color("#3d6a38"),Color("#496b3d")]
+	for i in range(rng.randi_range(3,5)):
+		var b=sphere(p+Vector3(rng.randf_range(-.34,.34)*scale,.34*scale,rng.randf_range(-.3,.3)*scale),rng.randf_range(.24,.42)*scale,shades[rng.randi_range(0,shades.size()-1)])
+		b.scale=Vector3(rng.randf_range(1.05,1.55),rng.randf_range(.48,.68),rng.randf_range(.9,1.25))
+	if rng.randf()<.5:
+		for i in range(rng.randi_range(3,6)):
+			sphere(p+Vector3(rng.randf_range(-.34,.34)*scale,rng.randf_range(.42,.68)*scale,rng.randf_range(-.28,.28)*scale),.045*scale,Color("#9a2d43"))
+
+func make_bank_log(p,rot,scale=1.0):
+	var root=Node3D.new()
+	root.name="Powalone drewno przy brzegu"
+	root.position=p
+	root.rotation_degrees.y=rot
+	add_child(root)
+	var log=cyl_in(root,Vector3(0,.24,0),.11*scale,1.8*scale,Color("#563a27"))
+	log.rotation_degrees.x=90
+	for x in [-.78,.78]:
+		var cut=cyl_in(root,Vector3(0,.24,x*scale),.085*scale,.022,Color("#8a6944"))
+		cut.rotation_degrees.x=90
+	for i in range(3):
+		var branch=box_in(root,Vector3(rng.randf_range(-.08,.08),.33,rng.randf_range(-.65,.65)*scale),Vector3(.055*scale,.055*scale,.55*scale),Color("#4b3120"))
+		branch.rotation_degrees=Vector3(rng.randf_range(-28,28),rng.randf_range(-22,22),rng.randf_range(-18,18))
+
+func make_wooden_crossing(z,rot=0.0):
+	var x=river_x_at_z(z)
+	var deck=box(Vector3(x,.19,z),Vector3(7.35,.14,.62),Color("#5b3b24"))
+	deck.rotation_degrees.y=rot
+	for i in range(8):
+		var offset=-3.05+float(i)*.87
+		var plank=box(Vector3(x,.29,z)+rotated_offset(offset,rng.randf_range(-.05,.05),rot),Vector3(.68,.12,.92),Color("#76512f"))
+		plank.rotation_degrees.y=rot+rng.randf_range(-3,3)
+	for side in [-1.0,1.0]:
+		var rail=box(Vector3(x,.56,z)+rotated_offset(0,.58*side,rot),Vector3(7.55,.1,.1),Color("#3f2b1c"))
+		rail.rotation_degrees.y=rot
+		for end in [-3.35,3.35]:
+			cyl(Vector3(x,.55,z)+rotated_offset(end,.58*side,rot),.065,1.02,Color("#4d3423"))
+	for end in [-3.72,3.72]:
+		make_surface_stain(Vector3(x,0,z)+rotated_offset(end,0,rot),Vector2(1.2,.76),Color("#3f4632"),rot)
+
+func make_warm_pool(p,range_value,energy):
+	var glow=OmniLight3D.new()
+	glow.position=p
+	glow.light_color=Color("#ffb46c")
+	glow.light_energy=energy
+	glow.omni_range=range_value
+	glow.shadow_enabled=false
+	add_child(glow)
+
+func make_realistic_visual_pass(home_a,home_b):
+	make_ground_patch(Vector3(-.8,0,1.2),Vector2(13.8,9.2),Color("#544930"),-4)
+	make_ground_patch(Vector3(4.5,0,5.2),Vector2(9.4,4.6),Color("#5d5136"),18)
+	make_ground_patch(Vector3(-8.3,0,-3.1),Vector2(8.0,5.6),Color("#564b33"),9)
+	make_wooden_crossing(1.8,-4)
+	make_wooden_crossing(13.8,6)
+	for z in range(-27,29,4):
+		var x=river_x_at_z(z)
+		for side in [-1.0,1.0]:
+			var bank=Vector3(x+side*rng.randf_range(4.35,5.05),.08,z+rng.randf_range(-1.25,1.25))
+			if rng.randf()<.64:
+				make_bush_cluster(bank,rng.randf_range(.74,1.08))
+			if rng.randf()<.58:
+				make_grass_clump(bank,rng.randf_range(.95,1.35))
+			if rng.randf()<.38:
+				make_rock(bank+Vector3(side*.28,.09,rng.randf_range(-.25,.25)),rng.randf_range(.32,.58))
+			if rng.randf()<.18:
+				make_bank_log(bank+Vector3(side*.24,0,rng.randf_range(-.18,.18)),rng.randf_range(-22,22),rng.randf_range(.72,1.05))
+	for p in [Vector3(-15.2,0,-2.6),Vector3(-13.8,0,4.6),Vector3(12.6,0,-2.1),Vector3(13.8,0,6.2),Vector3(-18.0,0,13.2),Vector3(20.2,0,16.4)]:
+		make_bush_cluster(p,rng.randf_range(.92,1.28))
+	for p in [Vector3(-29,0,-24),Vector3(-25,0,21),Vector3(-19,0,25),Vector3(21,0,-22),Vector3(27,0,-16),Vector3(28,0,18),Vector3(18,0,26)]:
+		make_tree(p,rng.randf_range(.92,1.34))
+	make_smoke_column(Vector3(hearth_pos.x,1.15,hearth_pos.z),1.14)
+	make_smoke_column(home_a+Vector3(-.5,3.2,-.8),.82)
+	make_smoke_column(home_b+Vector3(.45,3.15,-.9),.78)
+	make_warm_pool(hearth_pos+Vector3(0,1.2,0),7.8,.38)
+	make_warm_pool(home_a+Vector3(0,1.45,-2.9),3.4,.18)
+	make_warm_pool(home_b+Vector3(0,1.45,-2.9),3.4,.18)
+
 func make_path(a,b,width):
 	var d=b-a
 	var length=max(.1,Vector2(d.x,d.z).length())
@@ -462,8 +545,8 @@ func make_hearth():
 	var light=OmniLight3D.new()
 	light.position=Vector3(0,1.4,0)
 	light.light_color=Color("#ffb05c")
-	light.light_energy=.55
-	light.omni_range=7.0
+	light.light_energy=.78
+	light.omni_range=8.4
 	light.shadow_enabled=false
 	h.add_child(light)
 
@@ -874,23 +957,31 @@ func make_world_depth_pass(home_a,home_b):
 		make_story_stump(p,rng.randf_range(0,180))
 
 func make_settlement_palisade():
-	var angles=[-154,-137,-120,-103,-86,-69,-52,54,72,90,108,126,144,162]
+	var angles=[]
+	for a in range(-164,-43,11):
+		angles.append(a)
+	for a in range(48,166,11):
+		angles.append(a)
 	for i in range(angles.size()):
 		var a=deg_to_rad(float(angles[i]))
 		var p=Vector3(cos(a)*15.2,0,sin(a)*12.7)
-		var post=cyl(p+Vector3(0,.72,0),.075,1.42,Color("#513722"))
+		var post=cyl(p+Vector3(0,.82,0),.09,1.64,Color("#513722"))
 		post.rotation_degrees=Vector3(rng.randf_range(-3,3),0,rng.randf_range(-3,3))
-		var cap=cone_in(self,p+Vector3(0,1.55,0),.13,.3,Color("#3f2b1c"))
+		var cap=cone_in(self,p+Vector3(0,1.72,0),.15,.34,Color("#3f2b1c"))
 		cap.rotation_degrees.y=rng.randf_range(0,180)
 		if i%2==0:
 			add_obstacle(p,.38)
-		if i<angles.size()-1 and i%2==0:
+		if i<angles.size()-1 and abs(float(angles[i+1])-float(angles[i]))<18.0:
 			var next_a=deg_to_rad(float(angles[i+1]))
 			var q=Vector3(cos(next_a)*15.2,0,sin(next_a)*12.7)
 			var d=q-p
 			var length=max(.1,Vector2(d.x,d.z).length())
-			var rail=box((p+q)*.5+Vector3(0,.92,0),Vector3(.08,.09,length),Color("#604027"))
+			var rail=box((p+q)*.5+Vector3(0,1.02,0),Vector3(.09,.1,length),Color("#604027"))
 			rail.rotation_degrees.y=rad_to_deg(atan2(d.x,d.z))
+			var low_rail=box((p+q)*.5+Vector3(0,.56,0),Vector3(.07,.08,length),Color("#49301f"))
+			low_rail.rotation_degrees.y=rad_to_deg(atan2(d.x,d.z))
+			var shadow=make_surface_stain((p+q)*.5,Vector2(.34,length),Color("#383326"),rad_to_deg(atan2(d.x,d.z)))
+			shadow.position.y=.059
 
 func make_palisade_gate(p,rot):
 	var gate=Node3D.new()
@@ -1125,17 +1216,55 @@ func select_person_at_screen(pos):
 func make_house(p,rot):
 	var h=Node3D.new(); h.position=p; h.rotation_degrees.y=rot; h.scale=Vector3(1.05,1.05,1.05); add_child(h)
 	add_obstacle(p,3.15)
-	box_in(h,Vector3(0,.08,-.42),Vector3(4.9,.16,4.35),Color("#65583d"))
+	var timber=Color("#4b3120")
+	var dark_timber=Color("#342319")
+	var roof_col=Color("#954627")
+	var roof_hi=Color("#b35c32")
+	box_in(h,Vector3(0,.08,-.42),Vector3(5.15,.16,4.55),Color("#5e5138"))
 	var a=WALL.instantiate(); a.position=Vector3(-1.8,0,0); h.add_child(a)
 	var b=WALL.instantiate(); b.position=Vector3(1.8,0,0); h.add_child(b)
 	var d=DOOR.instantiate(); d.position=Vector3(0,0,-3.5); d.rotation_degrees.y=180; h.add_child(d)
 	var r=ROOF.instantiate(); r.position=Vector3(0,3,-1.5); r.scale=Vector3(.65,.65,.65); h.add_child(r)
-	box_in(h,Vector3(0,3.63,-1.5),Vector3(.16,.18,4.3),Color("#5b3924"))
+	var roof_a=box_in(h,Vector3(-1.02,2.92,-1.5),Vector3(2.45,.14,4.7),roof_col)
+	roof_a.rotation_degrees.z=16
+	var roof_b=box_in(h,Vector3(1.02,2.92,-1.5),Vector3(2.45,.14,4.7),roof_col.darkened(.08))
+	roof_b.rotation_degrees.z=-16
+	box_in(h,Vector3(0,3.63,-1.5),Vector3(.18,.2,4.55),dark_timber)
+	for zz in [-3.45,-2.55,-1.65,-.75,.15,.95]:
+		var strip_a=box_in(h,Vector3(-1.05,3.0,zz),Vector3(2.18,.08,.105),roof_hi)
+		strip_a.rotation_degrees.z=16
+		var strip_b=box_in(h,Vector3(1.05,3.0,zz),Vector3(2.18,.08,.105),roof_hi.darkened(.12))
+		strip_b.rotation_degrees.z=-16
+	for x in [-2.3,2.3]:
+		for z in [-3.0,1.22]:
+			var post=cyl_in(h,Vector3(x,1.02,z),.075,2.05,timber)
+			post.rotation_degrees.z=rng.randf_range(-2,2)
+	for y in [.62,1.52]:
+		box_in(h,Vector3(0,y,-3.34),Vector3(4.48,.12,.16),timber)
+		box_in(h,Vector3(0,y,1.26),Vector3(4.35,.11,.15),dark_timber)
 	for x in [-2.25,2.25]:
-		box_in(h,Vector3(x,1.1,-2.7),Vector3(.14,2.0,.14),Color("#5d3d28"))
-	box_in(h,Vector3(0,.16,-3.92),Vector3(1.85,.22,.72),Color("#766b54"))
-	box_in(h,Vector3(0,.5,-3.98),Vector3(1.35,.2,.18),Color("#4d3423"))
-	for i in range(4):
+		box_in(h,Vector3(x,1.1,-2.7),Vector3(.16,2.0,.16),timber)
+		box_in(h,Vector3(x*.72,1.34,-3.44),Vector3(.46,.38,.055),Color("#f0b65c"))
+	var chimney=box_in(h,Vector3(-.92,3.15,.16),Vector3(.34,.78,.34),Color("#5f615b"))
+	chimney.rotation_degrees.y=8
+	box_in(h,Vector3(-.92,3.62,.16),Vector3(.48,.12,.48),Color("#43453f"))
+	make_smoke_column(p+rotated_offset(-.92,.16,rot)+Vector3(0,3.65,0),.62)
+	box_in(h,Vector3(0,.16,-3.92),Vector3(2.05,.22,.82),Color("#766b54"))
+	box_in(h,Vector3(0,.5,-3.98),Vector3(1.45,.2,.18),dark_timber)
+	box_in(h,Vector3(0,1.18,-3.64),Vector3(1.12,.82,.08),Color("#402a1d"))
+	var porch=box_in(h,Vector3(0,.34,-4.46),Vector3(2.25,.16,1.0),Color("#68472c"))
+	porch.rotation_degrees.y=rng.randf_range(-2,2)
+	for x in [-.88,.88]:
+		cyl_in(h,Vector3(x,.82,-4.45),.055,.98,timber)
+	var light=OmniLight3D.new()
+	light.position=Vector3(0,1.18,-3.72)
+	light.light_color=Color("#ffb46c")
+	light.light_energy=.16
+	light.omni_range=3.1
+	light.shadow_enabled=false
+	h.add_child(light)
+	make_surface_stain(p+rotated_offset(0,-4.25,rot),Vector2(3.6,1.35),Color("#443928"),rot)
+	for i in range(6):
 		var pebble=box_in(h,Vector3(rng.randf_range(-2.1,2.1),.2,rng.randf_range(-2.5,1.65)),Vector3(.28,.16,.24),Color("#75776d"))
 		pebble.rotation_degrees.y=rng.randf_range(0,180)
 	return h
@@ -1591,26 +1720,79 @@ func layout_camera_sticks():
 	rotate_stick_center=rotate_stick_panel.position+rotate_stick_panel.size*.5
 	move_stick_center=move_stick_panel.position+move_stick_panel.size*.5
 
+func make_glass_panel(layer,pos,size,alpha=.72,border_alpha=.24):
+	var p=Panel.new()
+	p.position=pos
+	p.size=size
+	p.mouse_filter=Control.MOUSE_FILTER_IGNORE
+	var st=StyleBoxFlat.new()
+	st.bg_color=Color(.018,.02,.017,alpha)
+	st.border_color=Color(.88,.82,.66,border_alpha)
+	st.border_width_left=1
+	st.border_width_top=1
+	st.border_width_right=1
+	st.border_width_bottom=1
+	st.corner_radius_top_left=6
+	st.corner_radius_top_right=6
+	st.corner_radius_bottom_left=6
+	st.corner_radius_bottom_right=6
+	st.shadow_color=Color(0,0,0,.38)
+	st.shadow_size=7
+	p.add_theme_stylebox_override("panel",st)
+	layer.add_child(p)
+	return p
+
+func make_button_style(fill,border):
+	var st=StyleBoxFlat.new()
+	st.bg_color=fill
+	st.border_color=border
+	st.border_width_left=1
+	st.border_width_top=1
+	st.border_width_right=1
+	st.border_width_bottom=1
+	st.corner_radius_top_left=4
+	st.corner_radius_top_right=4
+	st.corner_radius_bottom_left=4
+	st.corner_radius_bottom_right=4
+	st.content_margin_left=6
+	st.content_margin_right=6
+	return st
+
+func apply_command_button_style(b):
+	var normal=make_button_style(Color(.105,.11,.09,.82),Color(.86,.80,.64,.18))
+	var hover=make_button_style(Color(.16,.15,.11,.9),Color(.95,.86,.62,.34))
+	var pressed=make_button_style(Color(.23,.18,.10,.94),Color(1.0,.82,.44,.46))
+	var focus=make_button_style(Color(.105,.11,.09,.82),Color(.95,.86,.62,.22))
+	b.add_theme_stylebox_override("normal",normal)
+	b.add_theme_stylebox_override("hover",hover)
+	b.add_theme_stylebox_override("pressed",pressed)
+	b.add_theme_stylebox_override("focus",focus)
+	b.add_theme_color_override("font_color",Color("#f0ead8"))
+	b.add_theme_color_override("font_hover_color",Color("#fff4c8"))
+	b.add_theme_color_override("font_pressed_color",Color("#ffd889"))
+	b.add_theme_font_size_override("font_size",14)
+
 func make_ui():
 	layout_camera_sticks()
 	var layer=CanvasLayer.new(); add_child(layer)
-	var bg=ColorRect.new(); bg.position=Vector2(14,14); bg.size=Vector2(620,148); bg.color=Color(0.02,0.02,0.015,.82); layer.add_child(bg)
-	hud=Label.new(); hud.position=Vector2(27,25); hud.add_theme_font_size_override("font_size",12); layer.add_child(hud)
+	make_glass_panel(layer,Vector2(14,14),Vector2(620,148),.78,.24)
+	hud=Label.new(); hud.position=Vector2(27,25); hud.add_theme_font_size_override("font_size",12); hud.add_theme_color_override("font_color",Color("#f7f0dc")); hud.add_theme_constant_override("outline_size",1); hud.add_theme_color_override("font_outline_color",Color(0,0,0,.9)); layer.add_child(hud)
 	var vp=get_viewport().get_visible_rect().size
 	var menu_w=356.0
-	var menu=VBoxContainer.new(); menu.position=Vector2(float(vp.x)-menu_w-22.0,16); menu.size=Vector2(menu_w,258); menu.add_theme_constant_override("separation",3); layer.add_child(menu)
-	var title=Label.new(); title.text="ROZKAZY I MOCE IDOLA"; title.add_theme_font_size_override("font_size",15); menu.add_child(title)
+	make_glass_panel(layer,Vector2(float(vp.x)-menu_w-34.0,12),Vector2(menu_w+24.0,272),.42,.18)
+	var menu=VBoxContainer.new(); menu.position=Vector2(float(vp.x)-menu_w-22.0,16); menu.size=Vector2(menu_w,258); menu.add_theme_constant_override("separation",4); layer.add_child(menu)
+	var title=Label.new(); title.text="ROZKAZY I MOCE IDOLA"; title.add_theme_font_size_override("font_size",15); title.add_theme_color_override("font_color",Color("#f2ead6")); menu.add_child(title)
 	var grid=GridContainer.new(); grid.columns=2; grid.add_theme_constant_override("h_separation",5); grid.add_theme_constant_override("v_separation",2); menu.add_child(grid)
 	for s in ["AUTO","PATYKI","KAMIEŃ","JAGODY","ŁOWY","ZGROMADZENIE","ODKRYCIA","DOM 5/5","SPICHLERZ 5/5","WARSZTAT 8/6"]:
 		var cmd=s
-		var b=Button.new(); b.text=cmd; b.custom_minimum_size=Vector2(172,24); b.pressed.connect(func(): set_order(cmd)); grid.add_child(b)
-	var next_btn=Button.new(); next_btn.text="OSOBA +"; next_btn.custom_minimum_size=Vector2(172,24); next_btn.pressed.connect(func(): cycle_selected()); grid.add_child(next_btn)
+		var b=Button.new(); b.text=cmd; b.custom_minimum_size=Vector2(172,25); apply_command_button_style(b); b.pressed.connect(func(): set_order(cmd)); grid.add_child(b)
+	var next_btn=Button.new(); next_btn.text="OSOBA +"; next_btn.custom_minimum_size=Vector2(172,25); apply_command_button_style(next_btn); next_btn.pressed.connect(func(): cycle_selected()); grid.add_child(next_btn)
 	for s in ["KAMERA OS.","PRZYWOŁAJ","BŁOGOSŁAW","WIĘŹ +","KRĄG ŻYCIA"]:
 		var action=s
-		var b=Button.new(); b.text=action; b.custom_minimum_size=Vector2(172,24); b.pressed.connect(func(): handle_idol_action(action)); grid.add_child(b)
-	var ibg=ColorRect.new(); ibg.position=Vector2(14,172); ibg.size=Vector2(430,192); ibg.color=Color(0.02,0.02,0.015,.66); layer.add_child(ibg)
-	info=Label.new(); info.position=Vector2(28,182); info.add_theme_font_size_override("font_size",11); layer.add_child(info)
-	var chat_bg=ColorRect.new(); chat_bg.position=Vector2(float(vp.x)*.282,float(vp.y)-156.0); chat_bg.size=Vector2(float(vp.x)*.436,130); chat_bg.color=Color(0.035,0.04,0.036,.76); layer.add_child(chat_bg)
+		var b=Button.new(); b.text=action; b.custom_minimum_size=Vector2(172,25); apply_command_button_style(b); b.pressed.connect(func(): handle_idol_action(action)); grid.add_child(b)
+	make_glass_panel(layer,Vector2(14,172),Vector2(430,192),.68,.18)
+	info=Label.new(); info.position=Vector2(28,182); info.add_theme_font_size_override("font_size",11); info.add_theme_color_override("font_color",Color("#efe8d4")); info.add_theme_constant_override("outline_size",1); info.add_theme_color_override("font_outline_color",Color(0,0,0,.88)); layer.add_child(info)
+	var chat_bg=make_glass_panel(layer,Vector2(float(vp.x)*.282,float(vp.y)-156.0),Vector2(float(vp.x)*.436,130),.72,.24)
 	chat_feed=Label.new(); chat_feed.position=chat_bg.position+Vector2(12,7); chat_feed.size=chat_bg.size-Vector2(22,12); chat_feed.add_theme_font_size_override("font_size",13); chat_feed.add_theme_color_override("font_color",Color("#f7fff6")); chat_feed.add_theme_constant_override("outline_size",1); chat_feed.add_theme_color_override("font_outline_color",Color(0,0,0,.96)); chat_feed.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART; chat_feed.clip_text=true; chat_feed.text="ROZMOWY OSADY\n..."; layer.add_child(chat_feed)
 	make_camera_sticks(layer)
 
@@ -1639,16 +1821,18 @@ func make_touch_panel(pos,size):
 	p.size=size
 	p.mouse_filter=Control.MOUSE_FILTER_IGNORE
 	var st=StyleBoxFlat.new()
-	st.bg_color=Color(0.02,0.02,0.015,.34)
-	st.border_color=Color(1,1,1,.24)
+	st.bg_color=Color(.018,.02,.017,.32)
+	st.border_color=Color(.88,.82,.66,.28)
 	st.border_width_left=2
 	st.border_width_top=2
 	st.border_width_right=2
 	st.border_width_bottom=2
-	st.corner_radius_top_left=18
-	st.corner_radius_top_right=18
-	st.corner_radius_bottom_left=18
-	st.corner_radius_bottom_right=18
+	st.corner_radius_top_left=10
+	st.corner_radius_top_right=10
+	st.corner_radius_bottom_left=10
+	st.corner_radius_bottom_right=10
+	st.shadow_color=Color(0,0,0,.34)
+	st.shadow_size=6
 	p.add_theme_stylebox_override("panel",st)
 	return p
 
@@ -1665,13 +1849,13 @@ func make_stick_label(layer,center,text):
 
 func make_camera_sticks(layer):
 	layer.add_child(make_touch_panel(rotate_stick_panel.position,rotate_stick_panel.size))
-	layer.add_child(make_round_panel(rotate_stick_center-Vector2(62,62),Vector2(124,124),Color(0.02,0.02,0.015,.23),Color(1,1,1,.22)))
-	rotate_stick_thumb=make_round_panel(rotate_stick_center-Vector2(STICK_THUMB_RADIUS,STICK_THUMB_RADIUS),Vector2(STICK_THUMB_RADIUS*2.0,STICK_THUMB_RADIUS*2.0),Color(1,1,1,.42),Color(1,1,1,.68))
+	layer.add_child(make_round_panel(rotate_stick_center-Vector2(62,62),Vector2(124,124),Color(.018,.02,.017,.24),Color(.88,.82,.66,.24)))
+	rotate_stick_thumb=make_round_panel(rotate_stick_center-Vector2(STICK_THUMB_RADIUS,STICK_THUMB_RADIUS),Vector2(STICK_THUMB_RADIUS*2.0,STICK_THUMB_RADIUS*2.0),Color(.86,.88,.80,.46),Color(.98,.92,.76,.7))
 	layer.add_child(rotate_stick_thumb)
 	make_stick_label(layer,rotate_stick_center,"OBRÓT KAMERY")
 	layer.add_child(make_touch_panel(move_stick_panel.position,move_stick_panel.size))
-	layer.add_child(make_round_panel(move_stick_center-Vector2(62,62),Vector2(124,124),Color(0.02,0.02,0.015,.23),Color(1,1,1,.22)))
-	move_stick_thumb=make_round_panel(move_stick_center-Vector2(STICK_THUMB_RADIUS,STICK_THUMB_RADIUS),Vector2(STICK_THUMB_RADIUS*2.0,STICK_THUMB_RADIUS*2.0),Color(1,1,1,.42),Color(1,1,1,.68))
+	layer.add_child(make_round_panel(move_stick_center-Vector2(62,62),Vector2(124,124),Color(.018,.02,.017,.24),Color(.88,.82,.66,.24)))
+	move_stick_thumb=make_round_panel(move_stick_center-Vector2(STICK_THUMB_RADIUS,STICK_THUMB_RADIUS),Vector2(STICK_THUMB_RADIUS*2.0,STICK_THUMB_RADIUS*2.0),Color(.86,.88,.80,.46),Color(.98,.92,.76,.7))
 	layer.add_child(move_stick_thumb)
 	make_stick_label(layer,move_stick_center,"PORUSZANIE")
 
@@ -3371,8 +3555,8 @@ func update_world_lighting(d):
 		sun.rotation_degrees=Vector3(-48.0+arc*8.0,-60.0+day_clock*120.0,0)
 		sun.light_energy=1.05+warm*.28
 	if world_env and world_env.environment:
-		world_env.environment.background_color=Color("#8199a3").lerp(Color("#a9c1c7"),warm)
-		world_env.environment.ambient_light_energy=.56+warm*.18
+		world_env.environment.background_color=Color("#687567").lerp(Color("#98a68e"),warm)
+		world_env.environment.ambient_light_energy=.50+warm*.18
 
 func _process(d):
 	update_world_lighting(d)

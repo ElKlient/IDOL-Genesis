@@ -10,6 +10,8 @@ Pracujesz nad repozytorium `ElKlient/IDOL-Genesis`, gra w Godot 4.x na Androida.
 
 Aktualny cel klimatu: niskopoligonowa osada epoki kamienia / wczesnego sredniowiecza. Ma byc ziemia, ogien, patyki, kamien, jagody, skory, jelenie, suszarnie skor, prymitywne narzedzia, oszczepy i delikatna zapowiedz pozniejszej stali/mieczy. Gra ma zostac lekka na Androidzie.
 
+Aktualna baza po Kontenerze A: `0.8.23 Realistic Visual Pass`. Scena ma mocniejszy kierunek referencyjny z telefonu: ciemniejsza trawa, cieplejsze swiatlo, bardziej konkretne brzegi rzeki, dwa drewniane przejscia, bogatsze chaty z kominami/dymem/swiatlem, gestsza palisada, schowane pływające ladunki ludzi i ciemniejsze premium UI. Nastepne kontenery maja oceniac przede wszystkim czy to na Androidzie czyta sie jako osada z klimatem, a nie plaska makieta.
+
 ## Biezace zadania B/C/D/E
 
 Kontener A zostawia konkretne zadania w `docs/container_tasks/`. Kazdy kontener pomocniczy ma po starcie przeczytac odpowiedni plik:

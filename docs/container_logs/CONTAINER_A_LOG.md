@@ -248,3 +248,31 @@ Validation completed in this local pass:
 - Godot headless editor import: clean
 - Godot headless runtime startup: clean
 - 8 second headless startup: clean
+
+## Container A Patch - 0.8.23 Realistic Visual Pass - 2026-09-08
+
+Goal: move the running Android scene closer to the visual concept from the user's phone screenshot without replacing the human model, adding heavy assets, or forcing a slow `.godot` cache reset.
+
+Implemented in `scripts/main.gd`:
+
+- bumped version title to `IDOL -- GENESIS 0.8.23 REALISTIC VISUAL PASS`,
+- changed the base atmosphere toward darker grass, warmer sunlight, lower washed-out fog and a more earthy settlement palette,
+- deepened the river colors and added heavier muddy banks plus wet grass lips,
+- added a new `make_realistic_visual_pass(home_a, home_b)` with two wooden crossings, bank bushes, reeds/grass/rocks, fallen logs, extra edge trees, stronger smoke and warm light pools,
+- rebuilt the visual weight of houses with heavier timber, visible roof planes, roof strips, chimney blocks, smoke columns, warm door/window accents and trampled entrance soil,
+- made the palisade denser and heavier with lower rails and ground shadow stains while preserving the gate gap,
+- changed mobile UI panels from plain `ColorRect` overlays to dark glass `Panel` styles with warm borders, styled command buttons and matching joystick panels,
+- disabled floating carried-resource visuals on settlers so strategic-camera footage no longer shows random objects sticking out of people.
+
+Preserved:
+
+- existing human model, skeleton, procedural walk and retargeter flag,
+- AI orders, hunting/meat/hides loop, building flow and resource logic,
+- Android-oriented procedural texture cache and `world_count()` density scaling.
+
+Validation completed in this local pass:
+
+- `git diff --check`: clean
+- Godot headless editor import: clean
+- Godot headless runtime startup: clean
+- 8 second headless startup: clean until expected timeout
