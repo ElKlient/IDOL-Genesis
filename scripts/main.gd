@@ -8,7 +8,7 @@ const WALL=preload("res://assets/village/Wall_Plaster_Straight.gltf")
 const DOOR=preload("res://assets/village/Wall_Plaster_Door_Round.gltf")
 const ROOF=preload("res://assets/village/Roof_RoundTiles_6x6.gltf")
 const RETARGETER=preload("res://scripts/retargeter.gd")
-const VERSION_TITLE="IDOL — GENESIS 0.8.2 QUIET SETTLERS"
+const VERSION_TITLE="IDOL — GENESIS 0.8.3 HUMAN VOICES"
 const CAMERA_MIN_DISTANCE=5.5
 const CAMERA_MAX_DISTANCE=88.0
 const CAMERA_HEIGHT_RATIO=0.61
@@ -29,7 +29,7 @@ const HOME_CAPACITY=4
 const CHAPTER_HOUSES_GOAL=3
 const CHAPTER_GRANARIES_GOAL=1
 const CHAPTER_WORKSHOPS_GOAL=1
-const USE_PROCEDURAL_BONE_POSE=false
+const USE_PROCEDURAL_BONE_POSE=true
 const STOCKPILE_POS=Vector3(-5.8,0,3.6)
 const RESEARCH_POS=Vector3(2.75,0,2.25)
 const PAIR_BOND_THRESHOLD=.62
@@ -41,14 +41,22 @@ const LIFE_PROGRESS_GOAL=8.0
 const FAMILY_BOND_THRESHOLD=.68
 const PERSONAL_SPACE_ADULT=.86
 const PERSONAL_SPACE_CHILD=.58
-const USE_RETARGETED_ANIMATIONS=false
+const USE_RETARGETED_ANIMATIONS=true
+const USE_PROXY_SETTLER_BODY=false
 const WALK_TURN_SPEED=7.5
-const OBSTACLE_CLEARANCE=.72
-const CHAT_INTERVAL_MIN=9.0
-const CHAT_INTERVAL_MAX=17.0
-const CHAT_GLOBAL_COOLDOWN=4.5
-const CHAT_REPLY_COOLDOWN=8.0
-const SPEECH_TIME=4.6
+const OBSTACLE_CLEARANCE=.46
+const CROWD_AVOID_WEIGHT=.52
+const OBSTACLE_AVOID_WEIGHT=.62
+const OBSTACLE_PUSH_STRENGTH=.34
+const STUCK_REPATH_TIME=1.35
+const STUCK_MOVE_EPS=.018
+const CHAT_INTERVAL_MIN=6.5
+const CHAT_INTERVAL_MAX=13.0
+const CHAT_GLOBAL_COOLDOWN=3.2
+const CHAT_REPLY_COOLDOWN=5.2
+const SPEECH_TIME=4.8
+const LANGUAGE_GROWTH_PER_CHAT=.04
+const SPEECH_LINE_LIMIT=38
 
 var rng=RandomNumberGenerator.new()
 var people=[]
@@ -614,10 +622,10 @@ func make_person_label(parent,text,pos,font_size,color):
 	l.text=text
 	l.position=pos
 	l.font_size=font_size
-	l.pixel_size=.0019
+	l.pixel_size=.00255
 	l.modulate=color
-	l.outline_size=2
-	l.outline_modulate=Color(0,0,0,.86)
+	l.outline_size=3
+	l.outline_modulate=Color(0,0,0,.92)
 	l.billboard=BaseMaterial3D.BILLBOARD_ENABLED
 	l.no_depth_test=true
 	l.fixed_size=false
@@ -627,11 +635,11 @@ func make_person_label(parent,text,pos,font_size,color):
 func make_speech_backdrop(parent,pos):
 	var n=MeshInstance3D.new()
 	var q=QuadMesh.new()
-	q.size=Vector2(.95,.18)
+	q.size=Vector2(1.35,.3)
 	n.mesh=q
 	n.position=pos+Vector3(0,0,.018)
 	var m=StandardMaterial3D.new()
-	m.albedo_color=Color(.08,.08,.075,.68)
+	m.albedo_color=Color(.045,.045,.04,.78)
 	m.roughness=1.0
 	m.transparency=BaseMaterial3D.TRANSPARENCY_ALPHA
 	m.billboard_mode=BaseMaterial3D.BILLBOARD_ENABLED
@@ -643,8 +651,9 @@ func make_speech_backdrop(parent,pos):
 
 func short_speech(actor,msg):
 	var text="%s: %s" % [actor.name,msg]
-	if text.length()>28:
-		text=text.substr(0,25)+"..."
+	var limit=SPEECH_LINE_LIMIT if is_adult(actor) else SPEECH_LINE_LIMIT-5
+	if text.length()>limit:
+		text=text.substr(0,limit-3)+"..."
 	return text
 
 func hide_imported_visuals(root):
@@ -781,16 +790,18 @@ func make_person(i):
 	var base_scale=Vector3(2.15,2.15,2.15)
 	n.scale=base_scale
 	var a=TAU*i/10.0; n.position=Vector3(cos(a)*rng.randf_range(5,10),0,sin(a)*rng.randf_range(5,10)); add_child(n)
-	hide_imported_visuals(n)
-	var body_parts=make_settler_body(n,i,false)
+	var body_parts={}
+	if USE_PROXY_SETTLER_BODY:
+		hide_imported_visuals(n)
+		body_parts=make_settler_body(n,i,false)
 	make_settler_gear(n,i)
-	var name_label=make_person_label(n,names[i],Vector3(0,1.78,0),9,Color("#f8e9b4"))
-	var speech_back=make_speech_backdrop(n,Vector3(0,1.97,0))
-	var speech_label=make_person_label(n,"",Vector3(0,1.965,-.02),8,Color("#f4fbff"))
+	var name_label=make_person_label(n,names[i],Vector3(0,1.84,0),12,Color("#fff0bc"))
+	var speech_back=make_speech_backdrop(n,Vector3(0,2.04,0))
+	var speech_label=make_person_label(n,"",Vector3(0,2.035,-.02),11,Color("#f8fbff"))
 	speech_label.visible=false
 	var cargo=make_carry_node(n)
 	var sk=find_skeleton(n)
-	var v={"node":n,"skeleton":sk,"bones":cache_pose_bones(sk),"base_scale":base_scale,"phase":rng.randf_range(0,TAU),"pose_style":rng.randf_range(-1.0,1.0),"work_timer":0.0,"rest_time":rng.randf_range(1.5,3.6),"name":names[i],"trait":traits[i],"sex":"K" if i<5 else "M","age":rng.randi_range(18,34),"adult":true,"parent_a":-1,"parent_b":-1,"family_cd":rng.randf_range(8.0,18.0),"bond":rng.randf_range(.28,.62),"partner":-1,"str":rng.randi_range(3,9),"dex":rng.randi_range(3,9),"int":rng.randi_range(3,9),"hunger":rng.randf_range(5,25),"energy":rng.randf_range(72,100),"wood":0.0,"gather":0.0,"build":0.0,"knowledge":0.0,"job":"IDLE","carry":"","cargo":cargo,"target":n.position}
+	var v={"node":n,"skeleton":sk,"bones":cache_pose_bones(sk),"base_scale":base_scale,"phase":rng.randf_range(0,TAU),"pose_style":rng.randf_range(-1.0,1.0),"work_timer":0.0,"rest_time":rng.randf_range(1.5,3.6),"name":names[i],"trait":traits[i],"sex":"K" if i<5 else "M","age":rng.randi_range(18,34),"adult":true,"parent_a":-1,"parent_b":-1,"family_cd":rng.randf_range(8.0,18.0),"bond":rng.randf_range(.28,.62),"partner":-1,"str":rng.randi_range(3,9),"dex":rng.randi_range(3,9),"int":rng.randi_range(3,9),"hunger":rng.randf_range(5,25),"energy":rng.randf_range(72,100),"wood":0.0,"gather":0.0,"build":0.0,"knowledge":0.0,"language":rng.randf_range(.08,.24),"last_xz":Vector2(n.position.x,n.position.z),"stuck_time":0.0,"job":"IDLE","carry":"","cargo":cargo,"target":n.position}
 	v["body_parts"]=body_parts
 	v["name_label"]=name_label
 	v["speech_back"]=speech_back
@@ -838,17 +849,19 @@ func spawn_child(parent_a_idx,parent_b_idx):
 	var center=(parent_a.node.position+parent_b.node.position)*.5
 	n.position=center+Vector3(rng.randf_range(-.75,.75),0,rng.randf_range(-.75,.75))
 	add_child(n)
-	hide_imported_visuals(n)
-	var body_parts=make_settler_body(n,children_born+2,true)
+	var body_parts={}
+	if USE_PROXY_SETTLER_BODY:
+		hide_imported_visuals(n)
+		body_parts=make_settler_body(n,children_born+2,true)
 	make_settler_gear(n,children_born+2)
 	var child_name=next_child_name()
-	var name_label=make_person_label(n,child_name,Vector3(0,1.78,0),8,Color("#f8e9b4"))
-	var speech_back=make_speech_backdrop(n,Vector3(0,1.96,0))
-	var speech_label=make_person_label(n,"",Vector3(0,1.955,-.02),7,Color("#f4fbff"))
+	var name_label=make_person_label(n,child_name,Vector3(0,1.82,0),11,Color("#fff0bc"))
+	var speech_back=make_speech_backdrop(n,Vector3(0,2.02,0))
+	var speech_label=make_person_label(n,"",Vector3(0,2.015,-.02),10,Color("#f8fbff"))
 	speech_label.visible=false
 	var cargo=make_carry_node(n)
 	var sk=find_skeleton(n)
-	var v={"node":n,"skeleton":sk,"bones":cache_pose_bones(sk),"base_scale":base_scale,"phase":rng.randf_range(0,TAU),"pose_style":rng.randf_range(-.8,.8),"work_timer":0.0,"rest_time":rng.randf_range(1.8,3.8),"name":child_name,"trait":"Dziecko osady","sex":sex,"age":1,"adult":false,"parent_a":parent_a_idx,"parent_b":parent_b_idx,"family_cd":0.0,"bond":rng.randf_range(.62,.78),"partner":-1,"str":rng.randi_range(1,3),"dex":rng.randi_range(2,5),"int":rng.randi_range(2,5),"hunger":rng.randf_range(0,12),"energy":rng.randf_range(82,100),"wood":0.0,"gather":0.0,"build":0.0,"knowledge":0.0,"job":"DZIECKO","carry":"","cargo":cargo,"target":n.position}
+	var v={"node":n,"skeleton":sk,"bones":cache_pose_bones(sk),"base_scale":base_scale,"phase":rng.randf_range(0,TAU),"pose_style":rng.randf_range(-.8,.8),"work_timer":0.0,"rest_time":rng.randf_range(1.8,3.8),"name":child_name,"trait":"Dziecko osady","sex":sex,"age":1,"adult":false,"parent_a":parent_a_idx,"parent_b":parent_b_idx,"family_cd":0.0,"bond":rng.randf_range(.62,.78),"partner":-1,"str":rng.randi_range(1,3),"dex":rng.randi_range(2,5),"int":rng.randi_range(2,5),"hunger":rng.randf_range(0,12),"energy":rng.randf_range(82,100),"wood":0.0,"gather":0.0,"build":0.0,"knowledge":0.0,"language":rng.randf_range(.12,.28),"last_xz":Vector2(n.position.x,n.position.z),"stuck_time":0.0,"job":"DZIECKO","carry":"","cargo":cargo,"target":n.position}
 	v["body_parts"]=body_parts
 	v["name_label"]=name_label
 	v["speech_back"]=speech_back
@@ -902,8 +915,8 @@ func make_ui():
 		var b=Button.new(); b.text=action; b.custom_minimum_size=Vector2(172,24); b.pressed.connect(func(): handle_idol_action(action)); grid.add_child(b)
 	var ibg=ColorRect.new(); ibg.position=Vector2(14,158); ibg.size=Vector2(402,178); ibg.color=Color(0.02,0.02,0.015,.66); layer.add_child(ibg)
 	info=Label.new(); info.position=Vector2(28,168); info.add_theme_font_size_override("font_size",11); layer.add_child(info)
-	var chat_bg=ColorRect.new(); chat_bg.position=Vector2(float(vp.x)*.39,float(vp.y)-104.0); chat_bg.size=Vector2(float(vp.x)*.24,78); chat_bg.color=Color(0.02,0.02,0.015,.48); layer.add_child(chat_bg)
-	chat_feed=Label.new(); chat_feed.position=chat_bg.position+Vector2(8,5); chat_feed.size=chat_bg.size-Vector2(14,8); chat_feed.add_theme_font_size_override("font_size",8); chat_feed.text="ROZMOWY OSADY\n..."; layer.add_child(chat_feed)
+	var chat_bg=ColorRect.new(); chat_bg.position=Vector2(float(vp.x)*.35,float(vp.y)-118.0); chat_bg.size=Vector2(float(vp.x)*.3,92); chat_bg.color=Color(0.02,0.02,0.015,.52); layer.add_child(chat_bg)
+	chat_feed=Label.new(); chat_feed.position=chat_bg.position+Vector2(10,6); chat_feed.size=chat_bg.size-Vector2(18,10); chat_feed.add_theme_font_size_override("font_size",9); chat_feed.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART; chat_feed.clip_text=true; chat_feed.text="ROZMOWY OSADY\n..."; layer.add_child(chat_feed)
 	make_camera_sticks(layer)
 
 func make_round_panel(pos,size,fill,border):
@@ -1238,6 +1251,23 @@ func flat_actor_distance(a,b):
 	var pb:Vector3=b.node.position
 	return Vector2(pa.x,pa.z).distance_to(Vector2(pb.x,pb.z))
 
+func actor_language(v):
+	return clamp(float(v.get("language",.1)),0.0,1.0)
+
+func language_stage(a,b):
+	var speech=(actor_language(a)+actor_language(b))*.5
+	if speech<.28:
+		return 0
+	if speech<.58:
+		return 1
+	return 2
+
+func improve_language(a,b,positive):
+	var relation_boost=.65+average_bond()*.55
+	var gain=LANGUAGE_GROWTH_PER_CHAT*(1.0 if positive else .38)*relation_boost
+	a.language=clamp(actor_language(a)+gain*(.78+float(a.int)*.025),0.0,1.0)
+	b.language=clamp(actor_language(b)+gain*(.64+float(b.int)*.02),0.0,1.0)
+
 func chat_partner_for(v):
 	if v.partner>=0 and v.partner<people.size():
 		var partner=people[v.partner]
@@ -1255,25 +1285,46 @@ func chat_partner_for(v):
 	return best
 
 func chat_line_for(a,b,positive):
+	var stage=language_stage(a,b)
 	if not positive:
-		var friction=["Nie tak. Zróbmy inaczej.","Za ciasno tu, odsuń się.","Nie rozumiem tego zadania.","Idol patrzy, ale ja mam wątpliwość."]
+		var friction=[]
+		if stage==0:
+			friction=["Nie tędy.","Stop. Za blisko.","Nie rozum.","Kamień boli."]
+		elif stage==1:
+			friction=["Nie tak. Zróbmy inaczej.","Za ciasno tu, odsuń się.","Nie rozumiem tego zadania.","Idol patrzy, ale ja mam wątpliwość."]
+		else:
+			friction=["Jeśli wszyscy idą w środek, nikt nie kończy pracy.","Najpierw zróbmy miejsce, potem nośmy zapas.","Nie zgadzam się: ten plan blokuje drogę.","Rozkaz Idola dobry, ale kolejność pracy zła."]
 		return friction[rng.randi_range(0,friction.size()-1)]
 	if a.job==b.job and a.job!="IDLE":
 		if a.job=="BUDOWA":
-			return "Ty trzymaj belki, ja układam kamień."
+			if stage==0:
+				return "Ty belka. Ja kamień."
+			if stage==1:
+				return "Ty trzymaj belki, ja układam kamień."
+			return "Najpierw fundament, potem ściana. Tak dom stanie mocniej."
 		if a.job in ["PATYKI","KAMIEŃ","JAGODY"]:
-			return "Zbierzmy to razem i zanieśmy do składu."
+			if stage==0:
+				return "Bierz. Do składu."
+			if stage==1:
+				return "Zbierzmy to razem i zanieśmy do składu."
+			return "Zrobimy dwa kursy: ty bliżej rzeki, ja przy drzewach."
 		if a.job=="WSPÓLNOTA":
-			return "Przy ogniu łatwiej się dogadać."
+			return "Ogień trzyma ludzi razem." if stage<2 else "Przy ogniu ustalimy, kto buduje, a kto niesie zapas."
 		if a.job=="ODKRYCIA":
-			return "Patrz na znaki, może coś odkryjemy."
+			return "Patrz na znaki." if stage==0 else ("Może kamień pomaga patykom." if stage==1 else "Jeśli kamień ostrzy patyk, praca będzie szybsza.")
 	if a.carry!="":
-		return "Niosę %s. Zrób mi przejście." % carry_label(a.carry)
+		return "%s do składu." % carry_label(a.carry).capitalize() if stage==0 else "Niosę %s. Zrób mi przejście." % carry_label(a.carry)
 	if not is_adult(a):
-		return "Patrzę i uczę się osady."
+		return "Uczę się." if stage==0 else "Patrzę i uczę się osady."
 	if a.partner==people.find(b):
-		return "Trzymajmy się razem."
-	var lines=["Ja biorę jedną robotę, ty drugą.","Osada rośnie, musimy się dzielić pracą.","Najpierw zapas, potem domy.","Słyszałeś rozkaz Idola?"]
+		return "Razem." if stage==0 else ("Trzymajmy się razem." if stage==1 else "Ty i ja mamy dom do zbudowania, ale najpierw zapas.")
+	var lines=[]
+	if stage==0:
+		lines=["Ja tu. Ty tam.","Patyk. Kamień. Dom.","Idol mówi.","Razem łatwiej."]
+	elif stage==1:
+		lines=["Ja biorę jedną robotę, ty drugą.","Osada rośnie, musimy się dzielić pracą.","Najpierw zapas, potem domy.","Słyszałeś rozkaz Idola?"]
+	else:
+		lines=["Jeśli rozdzielimy pracę, dom powstanie przed nocą.","Najpierw nakarmimy głodnych, potem ruszymy z budową.","Widzę dobrą drogę obok rzeki, tam będzie mniej tłoku.","Uczymy się mówić prościej, żeby praca szła szybciej."]
 	return lines[rng.randi_range(0,lines.size()-1)]
 
 func refresh_chat_feed():
@@ -1290,10 +1341,10 @@ func refresh_chat_feed():
 func post_chat(a,b,msg,positive):
 	var state="zgoda" if positive else "spór"
 	var line="%s -> %s [%s]: %s" % [a.name,b.name,state,msg]
-	if line.length()>62:
-		line=line.substr(0,59)+"..."
+	if line.length()>78:
+		line=line.substr(0,75)+"..."
 	chat_lines.insert(0,line)
-	while chat_lines.size()>3:
+	while chat_lines.size()>4:
 		chat_lines.pop_back()
 	if a.has("speech_label") and is_instance_valid(a.speech_label):
 		a.speech_label.text=short_speech(a,msg)
@@ -1308,6 +1359,7 @@ func post_chat(a,b,msg,positive):
 		social_bond=min(100.0,social_bond+.08)
 	else:
 		social_bond=max(0.0,social_bond-.035)
+	improve_language(a,b,positive)
 	refresh_chat_feed()
 
 func update_settler_chat(d):
@@ -1990,7 +2042,7 @@ func apply_bone_pose(v,moving):
 func actor_space_radius(v):
 	return PERSONAL_SPACE_ADULT if is_adult(v) else PERSONAL_SPACE_CHILD
 
-func push_out_of_zone(v,center,radius):
+func push_out_of_zone(v,center,radius,strength=1.0):
 	var n:Node3D=v.node
 	var delta=Vector3(n.position.x-center.x,0,n.position.z-center.z)
 	var dist=delta.length()
@@ -2000,7 +2052,7 @@ func push_out_of_zone(v,center,radius):
 		delta=Vector3(cos(a),0,sin(a))
 		dist=1.0
 	if dist<radius:
-		var push=delta.normalized()*(radius-dist)
+		var push=delta.normalized()*(radius-dist)*strength
 		n.position.x+=push.x
 		n.position.z+=push.z
 
@@ -2038,10 +2090,37 @@ func desired_move_direction(v,dir):
 	if dir.length()<.001:
 		return Vector3.ZERO
 	var desired=dir.normalized()
-	var steer=desired+crowd_avoidance(v)*.85+obstacle_avoidance(v)*1.25
+	var steer=desired+crowd_avoidance(v)*CROWD_AVOID_WEIGHT+obstacle_avoidance(v)*OBSTACLE_AVOID_WEIGHT
 	if steer.length()<.05:
 		return desired
 	return steer.normalized()
+
+func update_stuck_escape(v,d,moving,desired):
+	var n:Node3D=v.node
+	var current=Vector2(n.position.x,n.position.z)
+	if not v.has("last_xz"):
+		v.last_xz=current
+		v.stuck_time=0.0
+		return
+	if moving:
+		var moved=current.distance_to(v.last_xz)
+		if moved<STUCK_MOVE_EPS:
+			v.stuck_time=float(v.get("stuck_time",0.0))+d
+		else:
+			v.stuck_time=max(0.0,float(v.get("stuck_time",0.0))-d*1.2)
+		if v.stuck_time>STUCK_REPATH_TIME:
+			var forward=desired.normalized() if desired.length()>.05 else Vector3.ZERO
+			var side=Vector3(-forward.z,0,forward.x)
+			if side.length()<.05:
+				var ang=rng.randf_range(0,TAU)
+				side=Vector3(cos(ang),0,sin(ang))
+			if rng.randf()<.5:
+				side=-side
+			v.target=keep_point_outside_obstacles(n.position+forward*rng.randf_range(1.0,1.8)+side.normalized()*rng.randf_range(1.5,2.7),.25)
+			v.stuck_time=0.0
+	else:
+		v.stuck_time=0.0
+	v.last_xz=current
 
 func smooth_face_direction(n,dir,d):
 	if dir.length()<.05:
@@ -2052,7 +2131,7 @@ func smooth_face_direction(n,dir,d):
 func apply_settlement_spacing():
 	for v in people:
 		for ob in obstacle_points:
-			push_out_of_zone(v,ob.pos,float(ob.radius)+actor_space_radius(v)*.28)
+			push_out_of_zone(v,ob.pos,float(ob.radius)+actor_space_radius(v)*.12,OBSTACLE_PUSH_STRENGTH)
 	for i in range(people.size()):
 		var a=people[i]
 		var na:Node3D=a.node
@@ -2061,13 +2140,13 @@ func apply_settlement_spacing():
 			var nb:Node3D=b.node
 			var delta=Vector3(na.position.x-nb.position.x,0,na.position.z-nb.position.z)
 			var dist=delta.length()
-			var min_dist=(actor_space_radius(a)+actor_space_radius(b))*.86
+			var min_dist=(actor_space_radius(a)+actor_space_radius(b))*.72
 			if dist<.001:
 				var ang=TAU*float(i+j+1)/max(1.0,float(people.size()))
 				delta=Vector3(cos(ang),0,sin(ang))
 				dist=1.0
 			if dist<min_dist:
-				var strength=(min_dist-dist)*.5
+				var strength=(min_dist-dist)*.35
 				var dir=delta.normalized()
 				na.position.x+=dir.x*strength
 				na.position.z+=dir.z*strength
@@ -2222,9 +2301,11 @@ func _process(d):
 			var move_dir=desired_move_direction(v,dir)
 			n.position+=move_dir*d*speed
 			smooth_face_direction(n,move_dir,d)
+			update_stuck_escape(v,d,true,dir)
 			if anim_ready and v.has("anim"): retargeter.play(v.anim,animation_state_for(v,true),d)
 			apply_living_pose(v,d,true,move_dir)
 		else:
+			update_stuck_escape(v,d,false,dir)
 			v.work_timer+=d
 			if v.job!="IDLE":
 				if anim_ready and v.has("anim"): retargeter.play(v.anim,animation_state_for(v,false),d)
@@ -2250,7 +2331,7 @@ func _process(d):
 	var status=(notice if notice_timer>0.0 else plan_brief())
 	hud.text="%s\nEpoka kamienia | Wola %.0f%% | Życie %d%% | Tech %d\n%s | Ludzie %d (D%d Dz%d) | Pary %d | Schron. %d/%d | Więź %.0f%%\nP %d/%d  K %d/%d  J %d/%d | D %d  S %d  W %d\n%s\n%s" % [VERSION_TITLE,idol_will,life_progress_percent(),tech_points,order,people.size(),count_adults(),count_children(),count_pairs(),sheltered_people(),people.size(),average_bond()*100.0,stock.sticks,resource_capacity("sticks"),stock.stone,resource_capacity("stone"),stock.berries,resource_capacity("berries"),buildings.houses,buildings.granaries,buildings.workshops,status,chapter_goal()]
 	var v=people[selected]
-	info.text="%s — %s, %d lat | %s\nPraca: %s | %s | Więź %.0f%%\nGłód %.0f  Energia %.0f | S%d Z%d I%d\nUmiej.: drw %.1f  zb %.1f  bud %.1f  odk %.1f\n%s\n%s" % [v.name,v.trait,v.age,family_label(v),v.job,carry_label(v.carry),v.bond*100.0,v.hunger,v.energy,v.str,v.dex,v.int,v.wood,v.gather,v.build,v.knowledge,plan_brief(),worker_summary()]
+	info.text="%s — %s, %d lat | %s\nPraca: %s | %s | Więź %.0f%% | Mowa %.0f%%\nGłód %.0f  Energia %.0f | S%d Z%d I%d\nUmiej.: drw %.1f  zb %.1f  bud %.1f  odk %.1f\n%s\n%s" % [v.name,v.trait,v.age,family_label(v),v.job,carry_label(v.carry),v.bond*100.0,actor_language(v)*100.0,v.hunger,v.energy,v.str,v.dex,v.int,v.wood,v.gather,v.build,v.knowledge,plan_brief(),worker_summary()]
 
 func set_camera_distance(value):
 	cam_distance=clamp(value,CAMERA_MIN_DISTANCE,CAMERA_MAX_DISTANCE)

@@ -1,5 +1,5 @@
 [application]
-config/name="IDOL Genesis 0.8.2 Quiet Settlers"
+config/name="IDOL Genesis 0.8.3 Human Voices"
 run/main_scene="res://main.tscn"
 
 [display]
