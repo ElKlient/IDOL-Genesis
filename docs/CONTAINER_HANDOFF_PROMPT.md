@@ -10,6 +10,23 @@ Pracujesz nad repozytorium `ElKlient/IDOL-Genesis`, gra w Godot 4.x na Androida.
 
 Aktualny cel klimatu: niskopoligonowa osada epoki kamienia / wczesnego sredniowiecza. Ma byc ziemia, ogien, patyki, kamien, jagody, skory, jelenie, suszarnie skor, prymitywne narzedzia, oszczepy i delikatna zapowiedz pozniejszej stali/mieczy. Gra ma zostac lekka na Androidzie.
 
+## Termux na telefonie uzytkownika
+
+Nie myl terminala kontenera Codex z Termuxem na telefonie. Uzytkownik ma projekt na Androidzie w pamieci wspoldzielonej. Aktywna sciezka robocza ustalona wczesniej:
+
+- `/storage/emulated/0/IDOL-Genesis/IDOL-Genesis`
+- w Termuxie to zwykle takze: `~/storage/shared/IDOL-Genesis/IDOL-Genesis`
+
+Jednolinijkowa komenda dla uzytkownika do wklejenia w Termux przy zwyklym update z GitHuba:
+
+```bash
+cd /storage/emulated/0/IDOL-Genesis/IDOL-Genesis && git config --global --add safe.directory /storage/emulated/0/IDOL-Genesis/IDOL-Genesis && git stash push -m "backup przed update" && git pull origin main && git --no-pager log -5 --oneline
+```
+
+Nie podawaj uzytkownikowi `cd ~/IDOL-Genesis`, bo to juz wczesniej dawalo `No such file or directory` / `not a git repository`. Nie dodawaj `rm -rf .godot` przy zwyklym update, bo spowalnia Godota. Nie dodawaj `git stash -u`, bo moze schowac lokalny cache/importy.
+
+Po `git pull` uzytkownik otwiera projekt z aplikacji Godot na Androidzie, z folderu zawierajacego `project.godot`, `main.tscn`, `assets`, `scripts`, `README.txt`. Godot Android nie odpala binarki linuxowej z `/workspace/...`.
+
 ## Dostep do Godota w kontenerach
 
 Nie zakladaj od razu, ze w kontenerze nie ma Godota. Ten projekt byl juz testowany z binarka Godot 4.7.2 znaleziona w scratchu innego kontenera:
@@ -146,4 +163,4 @@ Minimum sprawdzen:
 
 ## Gotowy prompt do wklejenia dla nowego kontenera
 
-Masz pracowac nad `ElKlient/IDOL-Genesis`, Godot 4.x Android, branch `main`. Najpierw przeczytaj `project.godot`, `main.tscn`, `scripts/main.gd`, `scripts/retargeter.gd` i `assets/third_party_model_packs/README.md`. Aktualny klimat to `0.8.18 Ancient Settlement`: lekka niskopoligonowa osada epoki kamienia / wczesnego sredniowiecza z idolem, ludzmi, patykami, kamieniem, jagodami, skorami, suszarniami skor, narzedziami kamiennymi, jeleniami i zapowiedzia pozniejszej stali. Nie zakladaj nowego projektu i nie psuj dzialajacych ludzi. Mechaniki ludzi, zasobow, budowy, rodzin, idola, kamery i UI sa glownie w `scripts/main.gd`. Jesli zadanie dotyczy scenerii, pracuj przez proceduralne helpery `make_...`; jesli ludzi, przeczytaj funkcje pozy kosci i `retargeter.gd`; jesli assetow, promuj tylko wybrane `.glb/.gltf` do wlasnych assetow gry, vendor paczki zostaw w `assets/third_party_model_packs/`. Po zmianach sprawdz `git diff --check` oraz Godota headless. Jesli `godot` nie jest w PATH, nie koncz na tym: szukaj binarki w `/workspace/scratch`; znana sciezka to `/workspace/scratch/ad3cb27c6389/tools/godot/Godot_v4.7.2-stable_linux.x86_64`. Na swiezym checkoutcie najpierw zrob import: `... --headless --editor --path . --quit`, potem runtime: `... --headless --path . --quit`. Staguj tylko pliki, ktore faktycznie zmieniles.
+Masz pracowac nad `ElKlient/IDOL-Genesis`, Godot 4.x Android, branch `main`. Najpierw przeczytaj `project.godot`, `main.tscn`, `scripts/main.gd`, `scripts/retargeter.gd` i `assets/third_party_model_packs/README.md`. Aktualny klimat to `0.8.18 Ancient Settlement`: lekka niskopoligonowa osada epoki kamienia / wczesnego sredniowiecza z idolem, ludzmi, patykami, kamieniem, jagodami, skorami, suszarniami skor, narzedziami kamiennymi, jeleniami i zapowiedzia pozniejszej stali. Nie zakladaj nowego projektu i nie psuj dzialajacych ludzi. Mechaniki ludzi, zasobow, budowy, rodzin, idola, kamery i UI sa glownie w `scripts/main.gd`. Jesli uzytkownik pyta co wkleic w Termux, podaj aktywna sciezke `/storage/emulated/0/IDOL-Genesis/IDOL-Genesis` i komende: `cd /storage/emulated/0/IDOL-Genesis/IDOL-Genesis && git config --global --add safe.directory /storage/emulated/0/IDOL-Genesis/IDOL-Genesis && git stash push -m "backup przed update" && git pull origin main && git --no-pager log -5 --oneline`. Jesli zadanie dotyczy scenerii, pracuj przez proceduralne helpery `make_...`; jesli ludzi, przeczytaj funkcje pozy kosci i `retargeter.gd`; jesli assetow, promuj tylko wybrane `.glb/.gltf` do wlasnych assetow gry, vendor paczki zostaw w `assets/third_party_model_packs/`. Po zmianach sprawdz `git diff --check` oraz Godota headless. Jesli `godot` nie jest w PATH, nie koncz na tym: szukaj binarki w `/workspace/scratch`; znana sciezka to `/workspace/scratch/ad3cb27c6389/tools/godot/Godot_v4.7.2-stable_linux.x86_64`. Na swiezym checkoutcie najpierw zrob import: `... --headless --editor --path . --quit`, potem runtime: `... --headless --path . --quit`. Staguj tylko pliki, ktore faktycznie zmieniles.
