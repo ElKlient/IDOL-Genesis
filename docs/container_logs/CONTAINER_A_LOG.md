@@ -131,3 +131,20 @@ New rule for helper containers:
 - after analysis, each container must write its own log under `docs/container_logs/`,
 - the log must include checked scope, important files/functions, changed files or no-code status, commit SHA, risks/tests, and the integration decision for Container A,
 - Container A integrates in order D -> B -> C -> E and never merges blindly.
+
+## Instruction Update - Container Tasks And 35 Minute Checks - 2026-09-08
+
+Container A added dedicated task files for helper containers:
+
+- `docs/container_tasks/README.md`
+- `docs/container_tasks/CONTAINER_B_TASK.md`
+- `docs/container_tasks/CONTAINER_C_TASK.md`
+- `docs/container_tasks/CONTAINER_D_TASK.md`
+- `docs/container_tasks/CONTAINER_E_TASK.md`
+
+New standing instruction:
+
+- active/waiting helper containers must check every 35 minutes for new Container A instructions,
+- they must read `WORKFLOW_FIRST.md`, their own task file, and their own log,
+- they may spawn subagents inside their lane,
+- subagents do not own independent pushes to `main`; the parent container owns log/commit/push.
