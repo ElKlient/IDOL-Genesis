@@ -1,4 +1,4 @@
-IDOL Genesis 0.8.16 - ARM AIM
+IDOL Genesis 0.8.17 - NATURAL WALK
 
 Prompt roboczy tej łatki:
 Zbuduj pierwszy grywalny rdzeń osady epoki kamienia. Gracz jest Idolem: wolą osady, nie dowódcą armii. Ludzie mają samodzielnie dzielić robotę, nosić surowce, budować podstawowe budynki, odpoczywać, tworzyć pierwsze więzi i odkrywać proste technologie przez zadania.
@@ -8,6 +8,12 @@ Kierunek gry:
 - ludzie nie są wojskiem do szkolenia, tylko pierwszą społecznością
 - później mają tworzyć pary, rozmnażać się, budować relacje, dzielić się na grupy i wchodzić w konflikty
 - rozwój technologii wynika z prostych zadań, które Idol zleca mieszkańcom
+
+Zmiany 0.8.17:
+- po filmie 0.8.16 poprawiono pełny cykl chodu dorosłych: nogi nie są już prostym sinusem, tylko mają fazę wymachu, podparcia, wybicia palcami i stawiania pięty
+- dodano pracę miednicy i kręgosłupa podczas marszu, żeby człowiek przenosił ciężar ciała zamiast sunąć jak sztywna figurka
+- stopy i palce stóp dostały osobną pozę w kroku, więc kontakt z ziemią ma wyglądać bardziej naturalnie przy chodzeniu po osadzie
+- ręce zostają na mechanice 0.8.16, bo kierunek wymachu działał; ta łatka skupia się na masie ciała, nogach i rytmie chodu
 
 Zmiany 0.8.16:
 - po stopklatkach z filmu 0.8.15 przebudowano chód rąk: bark nie dostaje już zgadywanego Eulera, tylko celuje kość ramienia w wyliczony kierunek dół + przód/tył

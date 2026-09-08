@@ -8,7 +8,7 @@ const WALL=preload("res://assets/village/Wall_Plaster_Straight.gltf")
 const DOOR=preload("res://assets/village/Wall_Plaster_Door_Round.gltf")
 const ROOF=preload("res://assets/village/Roof_RoundTiles_6x6.gltf")
 const RETARGETER=preload("res://scripts/retargeter.gd")
-const VERSION_TITLE="IDOL — GENESIS 0.8.16 ARM AIM"
+const VERSION_TITLE="IDOL — GENESIS 0.8.17 NATURAL WALK"
 const CAMERA_MIN_DISTANCE=5.5
 const CAMERA_MAX_DISTANCE=88.0
 const CAMERA_HEIGHT_RATIO=0.61
@@ -622,7 +622,7 @@ func cache_pose_bones(sk:Skeleton3D):
 	var bones={}
 	if not sk:
 		return bones
-	for bone_name in ["spine_01","spine_02","spine_03","neck_01","Head","clavicle_l","clavicle_r","upperarm_l","upperarm_r","lowerarm_l","lowerarm_r","hand_l","hand_r","thigh_l","thigh_r","calf_l","calf_r","foot_l","foot_r","ball_l","ball_r"]:
+	for bone_name in ["pelvis","spine_01","spine_02","spine_03","neck_01","Head","clavicle_l","clavicle_r","upperarm_l","upperarm_r","lowerarm_l","lowerarm_r","hand_l","hand_r","thigh_l","thigh_r","calf_l","calf_r","foot_l","foot_r","ball_l","ball_r"]:
 		bones[bone_name]=sk.find_bone(bone_name)
 	return bones
 
@@ -2216,6 +2216,37 @@ func pose_walk_arm(v,left:bool,arm_swing:float,elbow_swing:float,drop:float):
 	pose_bone_delta(v,lower_name,Vector3(0,0,side*(.035+abs(elbow_swing)*.05)))
 	pose_bone_delta(v,hand_name,Vector3.ZERO)
 
+func soft01(x:float):
+	x=clamp(x,0.0,1.0)
+	return x*x*(3.0-2.0*x)
+
+func pulse01(x:float):
+	return soft01(max(0.0,x))
+
+func pose_walk_leg(v,left:bool,leg_phase:float,stride:float,knee_amount:float,foot_amount:float,side_amount:float):
+	var thigh_name="thigh_l" if left else "thigh_r"
+	var calf_name="calf_l" if left else "calf_r"
+	var foot_name="foot_l" if left else "foot_r"
+	var ball_name="ball_l" if left else "ball_r"
+	var side=-1.0 if left else 1.0
+	var forward=sin(leg_phase)
+	var swing=pulse01(forward)
+	var stance=pulse01(-forward)
+	var toe_push=pulse01(sin(leg_phase-1.05))
+	var heel_set=pulse01(sin(leg_phase+1.15))
+	var recovery=pulse01(sin(leg_phase+.45))
+	var thigh_pitch=-forward*stride-swing*.055+stance*.018
+	var thigh_yaw=side*(stance*side_amount*.75-swing*side_amount*.45)
+	var thigh_roll=side*(stance*side_amount-swing*side_amount*.58)
+	var knee=swing*knee_amount+toe_push*knee_amount*.22+recovery*knee_amount*.1
+	var foot_pitch=-swing*foot_amount+toe_push*foot_amount*.42-heel_set*foot_amount*.18
+	var foot_roll=side*(stance*side_amount*.72-heel_set*side_amount*.55)
+	var toe=toe_push*.22-swing*.055
+	pose_bone_delta(v,thigh_name,Vector3(thigh_pitch,thigh_yaw,thigh_roll))
+	pose_bone_delta(v,calf_name,Vector3(knee,0,side*(swing*.012)))
+	pose_bone_delta(v,foot_name,Vector3(foot_pitch,0,foot_roll))
+	pose_bone_delta(v,ball_name,Vector3(toe,0,0))
+
 func has_retarget_motion(v):
 	return USE_RETARGETED_ANIMATIONS and anim_ready and v.has("anim") and not v.anim.is_empty()
 
@@ -2236,6 +2267,7 @@ func apply_bone_pose(v,moving):
 		return
 	var step=sin(v.phase)
 	var arm_step=sin(v.phase+.22)
+	var step2=sin(v.phase*2.0+.28)
 	var work=sin(v.phase*2.4)
 	var style=float(v.get("pose_style",0.0))
 	var use_anim_lower=has_retarget_motion(v)
@@ -2267,18 +2299,29 @@ func apply_bone_pose(v,moving):
 	if moving:
 		var arm_swing=arm_step*.82
 		var elbow_swing=arm_step*.24
-		pose_bone_delta(v,"spine_01",Vector3(-.012,0,0))
-		pose_bone_delta(v,"clavicle_l",Vector3(-.01+arm_step*.055,0,-shoulder_drop-arm_step*.018))
-		pose_bone_delta(v,"clavicle_r",Vector3(-.01-arm_step*.055,0,shoulder_drop-arm_step*.018))
-		pose_walk_arm(v,true,arm_swing,elbow_swing,arm_drop-abs(arm_step)*.035)
-		pose_walk_arm(v,false,arm_swing,elbow_swing,arm_drop-abs(arm_step)*.035)
+		var weight=sin(v.phase)
+		var pelvis_roll=weight*(.055+style*.004)
+		var pelvis_yaw=-weight*.028
+		pose_bone_delta(v,"pelvis",Vector3(step2*.018,pelvis_yaw,pelvis_roll))
+		pose_bone_delta(v,"spine_01",Vector3(-.038+step2*.018,-pelvis_yaw*.45,-pelvis_roll*.34))
+		pose_bone_delta(v,"spine_02",Vector3(.018-step2*.01,pelvis_yaw*.28,pelvis_roll*.18))
+		pose_bone_delta(v,"spine_03",Vector3(.01, -pelvis_yaw*.18, -pelvis_roll*.14))
+		pose_bone_delta(v,"clavicle_l",Vector3(-.012+arm_step*.04,0,-shoulder_drop-arm_step*.016))
+		pose_bone_delta(v,"clavicle_r",Vector3(-.012-arm_step*.04,0,shoulder_drop-arm_step*.016))
+		pose_walk_arm(v,true,arm_swing,elbow_swing,arm_drop-abs(arm_step)*.028)
+		pose_walk_arm(v,false,arm_swing,elbow_swing,arm_drop-abs(arm_step)*.028)
 		if not use_anim_lower:
-			pose_bone_delta(v,"thigh_l",Vector3(-step*.46,0,0))
-			pose_bone_delta(v,"thigh_r",Vector3(step*.46,0,0))
-			pose_bone_delta(v,"calf_l",Vector3(max(0.0,step)*.42,0,0))
-			pose_bone_delta(v,"calf_r",Vector3(max(0.0,-step)*.42,0,0))
-			pose_bone_delta(v,"foot_l",Vector3(-max(0.0,step)*.16,0,0))
-			pose_bone_delta(v,"foot_r",Vector3(-max(0.0,-step)*.16,0,0))
+			var stride=.39+style*.018
+			var knee_amount=.48+style*.018
+			var foot_amount=.2
+			var side_amount=.035
+			if v.carry!="":
+				stride*=.82
+				knee_amount*=.86
+				foot_amount*=.82
+				side_amount*=.7
+			pose_walk_leg(v,true,v.phase,stride,knee_amount,foot_amount,side_amount)
+			pose_walk_leg(v,false,v.phase+PI,stride,knee_amount,foot_amount,side_amount)
 	elif v.job=="BUDOWA":
 		pose_bone_delta(v,"spine_01",Vector3(-.055+work*.018,0,0))
 		pose_bone_delta(v,"upperarm_l",Vector3(-.08+work*.045,0,-1.12))
@@ -2478,7 +2521,15 @@ func apply_body_proxy_pose(v,moving):
 	set_body_part_rotation(parts,"head",Vector3(sin(v.phase*.55)*1.8,sin(v.phase*.35)*2.0,0))
 
 func apply_living_pose(v,d,moving,flat_dir):
-	v.phase+=d*(4.6 if not is_adult(v) else (5.25 if moving else (2.45 if v.job!="IDLE" else .92)))
+	var adult=is_adult(v)
+	var phase_rate=.92
+	if moving:
+		phase_rate=4.65 if not adult else 4.9+float(v.dex)*.07
+		if v.carry!="":
+			phase_rate*=.9
+	elif v.job!="IDLE":
+		phase_rate=2.45
+	v.phase+=d*phase_rate
 	var n:Node3D=v.node
 	if not moving and v.job=="DZIECKO":
 		var look=family_point(v)-n.position
@@ -2499,11 +2550,13 @@ func apply_living_pose(v,d,moving,flat_dir):
 	var pitch=0.0
 	var roll=0.0
 	if moving:
-		bob=abs(sin(v.phase))*0.045
-		pitch=sin(v.phase*2.0)*.55
-		roll=sin(v.phase)*.55
+		var stride_bob=abs(sin(v.phase))
+		var heel_bob=max(0.0,sin(v.phase*2.0+.35))
+		bob=stride_bob*0.033+heel_bob*0.008
+		pitch=-1.15+sin(v.phase*2.0+.25)*.38
+		roll=sin(v.phase)*(1.08+float(v.get("pose_style",0.0))*.08)
 		if v.carry!="":
-			pitch+=.35
+			pitch+=.25
 			roll*=.72
 		if not is_adult(v):
 			bob*=.72
