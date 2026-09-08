@@ -10,6 +10,26 @@ Pracujesz nad repozytorium `ElKlient/IDOL-Genesis`, gra w Godot 4.x na Androida.
 
 Aktualny cel klimatu: niskopoligonowa osada epoki kamienia / wczesnego sredniowiecza. Ma byc ziemia, ogien, patyki, kamien, jagody, skory, jelenie, suszarnie skor, prymitywne narzedzia, oszczepy i delikatna zapowiedz pozniejszej stali/mieczy. Gra ma zostac lekka na Androidzie.
 
+## Raporty kontenerow do Kontenera A
+
+Kazdy kontener pomocniczy po analizie ma zapisac raport w swoim logu pod `docs/container_logs/` i wypchnac go na GitHub. Format raportu:
+
+1. co sprawdzilem,
+2. jakie pliki/funkcje sa wazne,
+3. czy zmienilem kod albo tylko analizowalem,
+4. commit SHA, jesli cos wypchnalem,
+5. ryzyka i brakujace testy,
+6. decyzja dla Kontenera A: integrowac / odrzucic / poczekac / wymaga testu na Androidzie.
+
+Przypisane logi:
+
+- B: `docs/container_logs/CONTAINER_B_LOG.md`
+- C: `docs/container_logs/CONTAINER_C_LOG.md`
+- D: `docs/container_logs/CONTAINER_D_LOG.md`
+- E: `docs/container_logs/CONTAINER_E_LOG.md`
+
+Priorytet integracji dla Kontenera A: D -> B -> C -> E. Najpierw stabilnosc i import Androida, potem ludzie/animacje, potem swiat/assets, potem gameplay. Nie lacz zmian w ciemno tylko dlatego, ze sa nowe.
+
 ## Termux na telefonie uzytkownika
 
 Nie myl terminala kontenera Codex z Termuxem na telefonie. Uzytkownik ma projekt na Androidzie w pamieci wspoldzielonej. Aktywna sciezka robocza ustalona wczesniej:
