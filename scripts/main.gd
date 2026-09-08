@@ -8,7 +8,7 @@ const WALL=preload("res://assets/village/Wall_Plaster_Straight.gltf")
 const DOOR=preload("res://assets/village/Wall_Plaster_Door_Round.gltf")
 const ROOF=preload("res://assets/village/Roof_RoundTiles_6x6.gltf")
 const RETARGETER=preload("res://scripts/retargeter.gd")
-const VERSION_TITLE="IDOL — GENESIS 0.8.15 ARM SWING"
+const VERSION_TITLE="IDOL — GENESIS 0.8.16 ARM AIM"
 const CAMERA_MIN_DISTANCE=5.5
 const CAMERA_MAX_DISTANCE=88.0
 const CAMERA_HEIGHT_RATIO=0.61
@@ -45,6 +45,7 @@ const USE_RETARGETED_ANIMATIONS=false
 const USE_PROXY_SETTLER_BODY=false
 const USE_SETTLER_ROOT_GEAR=false
 const USE_FLOATING_CARGO=false
+const USE_HEAD_FACE_ATTACHMENTS=false
 const HUMAN_FEMALE_ADULT_SCALE=1.16
 const HUMAN_MALE_ADULT_SCALE=1.22
 const HUMAN_CHILD_SCALE=.74
@@ -870,7 +871,8 @@ func make_person(i):
 	var sk=find_skeleton(n)
 	var bones=cache_pose_bones(sk)
 	var pose_bases=cache_pose_bone_rotations(sk,bones)
-	make_head_face(sk,i)
+	if USE_HEAD_FACE_ATTACHMENTS:
+		make_head_face(sk,i)
 	var lane=speech_lane_offset(i)
 	var label_y=1.88+lane.y*.25
 	var speech_y=2.08+lane.y
@@ -937,7 +939,8 @@ func spawn_child(parent_a_idx,parent_b_idx):
 	var sk=find_skeleton(n)
 	var bones=cache_pose_bones(sk)
 	var pose_bases=cache_pose_bone_rotations(sk,bones)
-	make_head_face(sk,children_born+2)
+	if USE_HEAD_FACE_ATTACHMENTS:
+		make_head_face(sk,children_born+2)
 	var lane=speech_lane_offset(children_born+2)
 	var label_y=1.84+lane.y*.25
 	var speech_y=2.04+lane.y
@@ -2143,16 +2146,75 @@ func pose_bone_delta_quat(v,bone_name,q:Quaternion):
 		base=v.pose_bases[bone_name]
 	sk.set_bone_pose_rotation(idx,base*q)
 
+func quat_xform(q:Quaternion,vec:Vector3):
+	return Basis(q)*vec
+
+func pose_bone_base_rotation(v,bone_name):
+	var sk=v.skeleton
+	if not sk:
+		return Quaternion(0,0,0,1)
+	var bones=v.bones
+	var idx=bones.get(bone_name,-1)
+	if idx<0:
+		return Quaternion(0,0,0,1)
+	var base=sk.get_bone_pose_rotation(idx)
+	if v.has("pose_bases") and v.pose_bases.has(bone_name):
+		base=v.pose_bases[bone_name]
+	return base
+
+func bone_child_axis(v,child_name):
+	var sk=v.skeleton
+	if not sk:
+		return Vector3(0,1,0)
+	var bones=v.bones
+	var child_idx=bones.get(child_name,-1)
+	if child_idx<0:
+		return Vector3(0,1,0)
+	var axis=sk.get_bone_rest(child_idx).origin
+	if axis.length()<.001:
+		return Vector3(0,1,0)
+	return axis.normalized()
+
+func pose_bone_aim_child(v,bone_name,child_name,target_dir:Vector3):
+	var sk=v.skeleton
+	if not sk or target_dir.length()<.001:
+		return
+	var bones=v.bones
+	var idx=bones.get(bone_name,-1)
+	if idx<0:
+		return
+	var base=pose_bone_base_rotation(v,bone_name)
+	var axis=bone_child_axis(v,child_name)
+	var base_dir=quat_xform(base,axis)
+	if base_dir.length()<.001:
+		return
+	var aim_q=Quaternion(base_dir.normalized(),target_dir.normalized())
+	sk.set_bone_pose_rotation(idx,aim_q*base)
+
 func pose_walk_arm(v,left:bool,arm_swing:float,elbow_swing:float,drop:float):
 	var upper_name="upperarm_l" if left else "upperarm_r"
 	var lower_name="lowerarm_l" if left else "lowerarm_r"
 	var hand_name="hand_l" if left else "hand_r"
 	var side=-1.0 if left else 1.0
+	var upper_base=pose_bone_base_rotation(v,upper_name)
+	var upper_axis=bone_child_axis(v,lower_name)
 	var drop_q=Quaternion.from_euler(Vector3(0,0,side*drop))
-	var swing_q=Quaternion.from_euler(Vector3(0,-side*arm_swing,0))
-	pose_bone_delta_quat(v,upper_name,drop_q*swing_q)
-	pose_bone_delta(v,lower_name,Vector3(0,-side*(.14+elbow_swing),side*.025))
-	pose_bone_delta(v,hand_name,Vector3(0,-side*arm_swing*.08,0))
+	var side_dir=quat_xform(upper_base,upper_axis)
+	var down_dir=quat_xform(upper_base*drop_q,upper_axis)
+	if side_dir.length()<.001 or down_dir.length()<.001:
+		pose_bone_delta_quat(v,upper_name,drop_q)
+		return
+	side_dir=side_dir.normalized()
+	down_dir=down_dir.normalized()
+	var forward_dir=side_dir.cross(down_dir)
+	if forward_dir.length()<.001:
+		forward_dir=Vector3(0,0,1)
+	else:
+		forward_dir=forward_dir.normalized()
+	var target_dir=(down_dir+forward_dir*arm_swing).normalized()
+	pose_bone_aim_child(v,upper_name,lower_name,target_dir)
+	pose_bone_delta(v,lower_name,Vector3(0,0,side*(.035+abs(elbow_swing)*.05)))
+	pose_bone_delta(v,hand_name,Vector3.ZERO)
 
 func has_retarget_motion(v):
 	return USE_RETARGETED_ANIMATIONS and anim_ready and v.has("anim") and not v.anim.is_empty()
