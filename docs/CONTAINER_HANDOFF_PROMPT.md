@@ -10,6 +10,19 @@ Pracujesz nad repozytorium `ElKlient/IDOL-Genesis`, gra w Godot 4.x na Androida.
 
 Aktualny cel klimatu: niskopoligonowa osada epoki kamienia / wczesnego sredniowiecza. Ma byc ziemia, ogien, patyki, kamien, jagody, skory, jelenie, suszarnie skor, prymitywne narzedzia, oszczepy i delikatna zapowiedz pozniejszej stali/mieczy. Gra ma zostac lekka na Androidzie.
 
+## Biezace zadania B/C/D/E
+
+Kontener A zostawia konkretne zadania w `docs/container_tasks/`. Kazdy kontener pomocniczy ma po starcie przeczytac odpowiedni plik:
+
+- B: `docs/container_tasks/CONTAINER_B_TASK.md`
+- C: `docs/container_tasks/CONTAINER_C_TASK.md`
+- D: `docs/container_tasks/CONTAINER_D_TASK.md`
+- E: `docs/container_tasks/CONTAINER_E_TASK.md`
+
+Jesli kontener jest aktywny albo czeka, ma co 35 minut sprawdzac `WORKFLOW_FIRST.md`, swoj task file i swoj log. Jesli host nie pozwala na samodzielne wybudzanie, kontener ma to powiedziec uzytkownikowi w statusie.
+
+Kontenery B/C/D/E moga uruchamiac swoich subagentow do waskich analiz albo malych rozlacznych zadan w swojej dziedzinie. Subagenci nie sa osobnymi wlascicielami integracji. Za log, commit, push i decyzje odpowiada glowny kontener.
+
 ## Raporty kontenerow do Kontenera A
 
 Kazdy kontener pomocniczy po analizie ma zapisac raport w swoim logu pod `docs/container_logs/` i wypchnac go na GitHub. Format raportu:
