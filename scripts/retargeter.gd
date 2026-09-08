@@ -66,11 +66,11 @@ func attach(character:Node)->Dictionary:
 		var src=source_player.get_animation(src_name)
 		if not src: continue
 		var anim=src.duplicate(true)
-		# Redirect skeleton bone tracks. Keep :BoneName subname unchanged.
+		# Redirect skeleton bone tracks. Upper body stays procedural, so source clips cannot fight the pose layer.
 		for ti in range(anim.get_track_count()-1,-1,-1):
 			var path=anim.track_get_path(ti)
 			var subs=String(path.get_concatenated_subnames())
-			var low=subs.to_lower()
+			var low=(String(path)+" "+subs).to_lower()
 			var procedural=false
 			for key in procedural_upper_body:
 				if low.contains(key):

@@ -1,5 +1,5 @@
 [application]
-config/name="IDOL Genesis 0.7.6 Living Settlement"
+config/name="IDOL Genesis 0.7.7 Animation Polish"
 run/main_scene="res://main.tscn"
 
 [display]

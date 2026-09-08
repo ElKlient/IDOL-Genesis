@@ -1,4 +1,4 @@
-IDOL Genesis 0.7.6 - LIVING SETTLEMENT
+IDOL Genesis 0.7.7 - ANIMATION POLISH
 
 Prompt roboczy tej łatki:
 Zbuduj pierwszy grywalny rdzeń osady epoki kamienia. Gracz jest Idolem: wolą osady, nie dowódcą armii. Ludzie mają samodzielnie dzielić robotę, nosić surowce, budować podstawowe budynki, odpoczywać, tworzyć pierwsze więzi i odkrywać proste technologie przez zadania.
@@ -8,6 +8,13 @@ Kierunek gry:
 - ludzie nie są wojskiem do szkolenia, tylko pierwszą społecznością
 - później mają tworzyć pary, rozmnażać się, budować relacje, dzielić się na grupy i wchodzić w konflikty
 - rozwój technologii wynika z prostych zadań, które Idol zleca mieszkańcom
+
+Zmiany 0.7.7:
+- po teście wideo z telefonu zmniejszono HUD i panele informacji, żeby kamera i animacje były lepiej widoczne na Androidzie
+- gałki kamery są dalej wyraźne, ale mają dynamiczne pozycje zależne od viewportu i zajmują mniej sceny
+- retargeter filtruje górę ciała po pełnej ścieżce tracka animacji, nie tylko po subnazwie kości
+- mocniej uspokojono barki, ramiona i przedramiona przy chodzeniu, pracy, zbieraniu i bezczynności
+- cel łatki: mniej manekinów z rękami w bok, więcej czytelnej osady pod palcami
 
 Zmiany 0.7.6:
 - retargeter wybiera teraz konkretne klipy: Walk_Carry, Farm_Harvest i TreeChopping zamiast pierwszej losowej animacji po fragmencie nazwy

@@ -8,14 +8,15 @@ const WALL=preload("res://assets/village/Wall_Plaster_Straight.gltf")
 const DOOR=preload("res://assets/village/Wall_Plaster_Door_Round.gltf")
 const ROOF=preload("res://assets/village/Roof_RoundTiles_6x6.gltf")
 const RETARGETER=preload("res://scripts/retargeter.gd")
-const VERSION_TITLE="IDOL — GENESIS 0.7.6 LIVING SETTLEMENT"
+const VERSION_TITLE="IDOL — GENESIS 0.7.7 ANIMATION POLISH"
 const CAMERA_MIN_DISTANCE=5.5
 const CAMERA_MAX_DISTANCE=88.0
 const CAMERA_HEIGHT_RATIO=0.61
 const CAMERA_MIN_HEIGHT=4.2
 const CAMERA_MAX_HEIGHT=48.0
 const CAMERA_FOCUS_LIMIT=32.0
-const STICK_RADIUS=62.0
+const STICK_RADIUS=54.0
+const STICK_THUMB_RADIUS=27.0
 const STICK_DEADZONE=0.14
 const BUILD_COST_STICKS=5
 const BUILD_COST_STONE=5
@@ -86,10 +87,10 @@ var move_stick=Vector2.ZERO
 var rotate_stick=Vector2.ZERO
 var move_stick_touch=-1
 var rotate_stick_touch=-1
-var rotate_stick_panel=Rect2(Vector2(24,470),Vector2(260,220))
-var move_stick_panel=Rect2(Vector2(996,470),Vector2(260,220))
-var rotate_stick_center=Vector2(155,585)
-var move_stick_center=Vector2(1125,585)
+var rotate_stick_panel=Rect2(Vector2(22,520),Vector2(220,176))
+var move_stick_panel=Rect2(Vector2(1038,520),Vector2(220,176))
+var rotate_stick_center=Vector2(132,608)
+var move_stick_center=Vector2(1148,608)
 var move_stick_thumb:Control
 var rotate_stick_thumb:Control
 var names=["Alda","Sela","Mira","Nara","Ena","Eryk","Oren","Bran","Tovan","Milan"]
@@ -712,22 +713,36 @@ func spawn_child(parent_a_idx,parent_b_idx):
 	set_notice("Narodziny: %s. Osada ma nowe pokolenie." % child_name)
 	return v
 
+func layout_camera_sticks():
+	var vp=get_viewport().get_visible_rect().size
+	var panel_w=clamp(float(vp.x)*.172,206.0,224.0)
+	var panel_h=clamp(float(vp.y)*.244,164.0,182.0)
+	var margin=22.0
+	var y=float(vp.y)-panel_h-18.0
+	rotate_stick_panel=Rect2(Vector2(margin,y),Vector2(panel_w,panel_h))
+	move_stick_panel=Rect2(Vector2(float(vp.x)-panel_w-margin,y),Vector2(panel_w,panel_h))
+	rotate_stick_center=rotate_stick_panel.position+rotate_stick_panel.size*.5
+	move_stick_center=move_stick_panel.position+move_stick_panel.size*.5
+
 func make_ui():
+	layout_camera_sticks()
 	var layer=CanvasLayer.new(); add_child(layer)
-	var bg=ColorRect.new(); bg.position=Vector2(14,14); bg.size=Vector2(574,174); bg.color=Color(0.02,0.02,0.015,.87); layer.add_child(bg)
-	hud=Label.new(); hud.position=Vector2(29,27); hud.add_theme_font_size_override("font_size",14); layer.add_child(hud)
-	var menu=VBoxContainer.new(); menu.position=Vector2(846,18); menu.size=Vector2(410,300); menu.add_theme_constant_override("separation",4); layer.add_child(menu)
-	var title=Label.new(); title.text="ROZKAZY I MOCE IDOLA"; title.add_theme_font_size_override("font_size",17); menu.add_child(title)
-	var grid=GridContainer.new(); grid.columns=2; grid.add_theme_constant_override("h_separation",5); grid.add_theme_constant_override("v_separation",3); menu.add_child(grid)
+	var bg=ColorRect.new(); bg.position=Vector2(14,14); bg.size=Vector2(520,132); bg.color=Color(0.02,0.02,0.015,.82); layer.add_child(bg)
+	hud=Label.new(); hud.position=Vector2(27,25); hud.add_theme_font_size_override("font_size",12); layer.add_child(hud)
+	var vp=get_viewport().get_visible_rect().size
+	var menu_w=356.0
+	var menu=VBoxContainer.new(); menu.position=Vector2(float(vp.x)-menu_w-22.0,16); menu.size=Vector2(menu_w,258); menu.add_theme_constant_override("separation",3); layer.add_child(menu)
+	var title=Label.new(); title.text="ROZKAZY I MOCE IDOLA"; title.add_theme_font_size_override("font_size",15); menu.add_child(title)
+	var grid=GridContainer.new(); grid.columns=2; grid.add_theme_constant_override("h_separation",5); grid.add_theme_constant_override("v_separation",2); menu.add_child(grid)
 	for s in ["AUTO","PATYKI","KAMIEŃ","JAGODY","ZGROMADZENIE","ODKRYCIA","DOM 5/5","SPICHLERZ 5/5","WARSZTAT 8/6"]:
 		var cmd=s
-		var b=Button.new(); b.text=cmd; b.custom_minimum_size=Vector2(198,27); b.pressed.connect(func(): set_order(cmd)); grid.add_child(b)
-	var next_btn=Button.new(); next_btn.text="OSOBA +"; next_btn.custom_minimum_size=Vector2(198,27); next_btn.pressed.connect(func(): cycle_selected()); grid.add_child(next_btn)
+		var b=Button.new(); b.text=cmd; b.custom_minimum_size=Vector2(172,24); b.pressed.connect(func(): set_order(cmd)); grid.add_child(b)
+	var next_btn=Button.new(); next_btn.text="OSOBA +"; next_btn.custom_minimum_size=Vector2(172,24); next_btn.pressed.connect(func(): cycle_selected()); grid.add_child(next_btn)
 	for s in ["KAMERA OS.","PRZYWOŁAJ","BŁOGOSŁAW","WIĘŹ +","KRĄG ŻYCIA"]:
 		var action=s
-		var b=Button.new(); b.text=action; b.custom_minimum_size=Vector2(198,27); b.pressed.connect(func(): handle_idol_action(action)); grid.add_child(b)
-	var ibg=ColorRect.new(); ibg.position=Vector2(14,194); ibg.size=Vector2(430,262); ibg.color=Color(0.02,0.02,0.015,.72); layer.add_child(ibg)
-	info=Label.new(); info.position=Vector2(30,206); info.add_theme_font_size_override("font_size",12); layer.add_child(info)
+		var b=Button.new(); b.text=action; b.custom_minimum_size=Vector2(172,24); b.pressed.connect(func(): handle_idol_action(action)); grid.add_child(b)
+	var ibg=ColorRect.new(); ibg.position=Vector2(14,158); ibg.size=Vector2(402,178); ibg.color=Color(0.02,0.02,0.015,.66); layer.add_child(ibg)
+	info=Label.new(); info.position=Vector2(28,168); info.add_theme_font_size_override("font_size",11); layer.add_child(info)
 	make_camera_sticks(layer)
 
 func make_round_panel(pos,size,fill,border):
@@ -771,23 +786,23 @@ func make_touch_panel(pos,size):
 func make_stick_label(layer,center,text):
 	var l=Label.new()
 	l.text=text
-	l.position=center+Vector2(-96,73)
-	l.size=Vector2(192,24)
+	l.position=center+Vector2(-88,59)
+	l.size=Vector2(176,22)
 	l.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER
-	l.add_theme_font_size_override("font_size",15)
+	l.add_theme_font_size_override("font_size",13)
 	l.modulate=Color(1,1,1,.86)
 	l.mouse_filter=Control.MOUSE_FILTER_IGNORE
 	layer.add_child(l)
 
 func make_camera_sticks(layer):
 	layer.add_child(make_touch_panel(rotate_stick_panel.position,rotate_stick_panel.size))
-	layer.add_child(make_round_panel(rotate_stick_center-Vector2(72,72),Vector2(144,144),Color(0.02,0.02,0.015,.23),Color(1,1,1,.22)))
-	rotate_stick_thumb=make_round_panel(rotate_stick_center-Vector2(29,29),Vector2(58,58),Color(1,1,1,.42),Color(1,1,1,.68))
+	layer.add_child(make_round_panel(rotate_stick_center-Vector2(62,62),Vector2(124,124),Color(0.02,0.02,0.015,.23),Color(1,1,1,.22)))
+	rotate_stick_thumb=make_round_panel(rotate_stick_center-Vector2(STICK_THUMB_RADIUS,STICK_THUMB_RADIUS),Vector2(STICK_THUMB_RADIUS*2.0,STICK_THUMB_RADIUS*2.0),Color(1,1,1,.42),Color(1,1,1,.68))
 	layer.add_child(rotate_stick_thumb)
 	make_stick_label(layer,rotate_stick_center,"OBRÓT KAMERY")
 	layer.add_child(make_touch_panel(move_stick_panel.position,move_stick_panel.size))
-	layer.add_child(make_round_panel(move_stick_center-Vector2(72,72),Vector2(144,144),Color(0.02,0.02,0.015,.23),Color(1,1,1,.22)))
-	move_stick_thumb=make_round_panel(move_stick_center-Vector2(29,29),Vector2(58,58),Color(1,1,1,.42),Color(1,1,1,.68))
+	layer.add_child(make_round_panel(move_stick_center-Vector2(62,62),Vector2(124,124),Color(0.02,0.02,0.015,.23),Color(1,1,1,.22)))
+	move_stick_thumb=make_round_panel(move_stick_center-Vector2(STICK_THUMB_RADIUS,STICK_THUMB_RADIUS),Vector2(STICK_THUMB_RADIUS*2.0,STICK_THUMB_RADIUS*2.0),Color(1,1,1,.42),Color(1,1,1,.68))
 	layer.add_child(move_stick_thumb)
 	make_stick_label(layer,move_stick_center,"PORUSZANIE")
 
@@ -1612,16 +1627,19 @@ func apply_bone_pose(v,moving):
 	var work=sin(v.phase*2.4)
 	var style=float(v.get("pose_style",0.0))
 	var use_anim_lower=has_retarget_motion(v)
-	var arm_drop=1.5+style*.08
+	var arm_drop=1.72+style*.045
+	var shoulder_drop=.12+style*.015
 	reset_pose_frame(sk,bones)
 	pose_bone(sk,bones,"neck_01",Vector3(.015+sin(v.phase*.42)*.012,0,0))
 	pose_bone(sk,bones,"Head",Vector3(.01,sin(v.phase*.35+style)*.035,0))
+	pose_bone(sk,bones,"clavicle_l",Vector3(-.015,0,-shoulder_drop))
+	pose_bone(sk,bones,"clavicle_r",Vector3(-.015,0,shoulder_drop))
 	if not is_adult(v):
 		pose_bone(sk,bones,"spine_01",Vector3(.04+sin(v.phase*.7)*.018,0,0))
-		pose_bone(sk,bones,"upperarm_l",Vector3(.03,0,-1.54))
-		pose_bone(sk,bones,"upperarm_r",Vector3(.03,0,1.54))
-		pose_bone(sk,bones,"lowerarm_l",Vector3(.2+step*.05,0,-.16))
-		pose_bone(sk,bones,"lowerarm_r",Vector3(.2-step*.05,0,.16))
+		pose_bone(sk,bones,"upperarm_l",Vector3(.02,0,-1.68))
+		pose_bone(sk,bones,"upperarm_r",Vector3(.02,0,1.68))
+		pose_bone(sk,bones,"lowerarm_l",Vector3(.26+step*.04,0,-.12))
+		pose_bone(sk,bones,"lowerarm_r",Vector3(.26-step*.04,0,.12))
 		if not use_anim_lower:
 			pose_bone(sk,bones,"thigh_l",Vector3.ZERO)
 			pose_bone(sk,bones,"thigh_r",Vector3.ZERO)
@@ -1637,10 +1655,10 @@ func apply_bone_pose(v,moving):
 		pose_bone(sk,bones,"foot_r",Vector3.ZERO)
 	if moving:
 		pose_bone(sk,bones,"spine_01",Vector3(-.04,0,0))
-		pose_bone(sk,bones,"upperarm_l",Vector3(step*.08,0,-arm_drop))
-		pose_bone(sk,bones,"upperarm_r",Vector3(-step*.08,0,arm_drop))
-		pose_bone(sk,bones,"lowerarm_l",Vector3(.2+max(0.0,-step)*.18,0,-.08))
-		pose_bone(sk,bones,"lowerarm_r",Vector3(.2+max(0.0,step)*.18,0,.08))
+		pose_bone(sk,bones,"upperarm_l",Vector3(step*.045,0,-arm_drop))
+		pose_bone(sk,bones,"upperarm_r",Vector3(-step*.045,0,arm_drop))
+		pose_bone(sk,bones,"lowerarm_l",Vector3(.28+max(0.0,-step)*.12,0,-.06))
+		pose_bone(sk,bones,"lowerarm_r",Vector3(.28+max(0.0,step)*.12,0,.06))
 		if not use_anim_lower:
 			pose_bone(sk,bones,"thigh_l",Vector3(-step*.38,0,0))
 			pose_bone(sk,bones,"thigh_r",Vector3(step*.38,0,0))
@@ -1650,34 +1668,34 @@ func apply_bone_pose(v,moving):
 			pose_bone(sk,bones,"foot_r",Vector3(-max(0.0,-step)*.18,0,0))
 	elif v.job=="BUDOWA":
 		pose_bone(sk,bones,"spine_01",Vector3(-.18+work*.05,0,0))
-		pose_bone(sk,bones,"upperarm_l",Vector3(-.16+work*.1,0,-1.43))
-		pose_bone(sk,bones,"upperarm_r",Vector3(-.13-work*.1,0,1.43))
-		pose_bone(sk,bones,"lowerarm_l",Vector3(.58,0,-.08))
-		pose_bone(sk,bones,"lowerarm_r",Vector3(.58,0,.08))
+		pose_bone(sk,bones,"upperarm_l",Vector3(-.20+work*.055,0,-1.64))
+		pose_bone(sk,bones,"upperarm_r",Vector3(-.18-work*.055,0,1.64))
+		pose_bone(sk,bones,"lowerarm_l",Vector3(.66,0,-.05))
+		pose_bone(sk,bones,"lowerarm_r",Vector3(.66,0,.05))
 		if not use_anim_lower:
 			pose_bone(sk,bones,"thigh_l",Vector3(.08,0,0))
 			pose_bone(sk,bones,"thigh_r",Vector3(-.08,0,0))
 	elif v.job in ["PATYKI","KAMIEŃ","JAGODY"]:
 		pose_bone(sk,bones,"spine_01",Vector3(-.23+work*.04,0,0))
-		pose_bone(sk,bones,"upperarm_l",Vector3(-.1+work*.08,0,-1.52))
-		pose_bone(sk,bones,"upperarm_r",Vector3(-.08-work*.08,0,1.52))
-		pose_bone(sk,bones,"lowerarm_l",Vector3(.44,0,-.1))
-		pose_bone(sk,bones,"lowerarm_r",Vector3(.44,0,.1))
+		pose_bone(sk,bones,"upperarm_l",Vector3(-.16+work*.05,0,-1.68))
+		pose_bone(sk,bones,"upperarm_r",Vector3(-.14-work*.05,0,1.68))
+		pose_bone(sk,bones,"lowerarm_l",Vector3(.54,0,-.08))
+		pose_bone(sk,bones,"lowerarm_r",Vector3(.54,0,.08))
 		if not use_anim_lower:
 			pose_bone(sk,bones,"thigh_l",Vector3(.12,0,0))
 			pose_bone(sk,bones,"thigh_r",Vector3(-.05,0,0))
 	elif v.job=="WSPÓLNOTA":
 		pose_bone(sk,bones,"spine_01",Vector3(.02+work*.025,0,0))
-		pose_bone(sk,bones,"upperarm_l",Vector3(.02,0,-1.52))
-		pose_bone(sk,bones,"upperarm_r",Vector3(.02,0,1.52))
-		pose_bone(sk,bones,"lowerarm_l",Vector3(.16+work*.05,0,-.14))
-		pose_bone(sk,bones,"lowerarm_r",Vector3(.16-work*.05,0,.14))
+		pose_bone(sk,bones,"upperarm_l",Vector3(.015,0,-1.70))
+		pose_bone(sk,bones,"upperarm_r",Vector3(.015,0,1.70))
+		pose_bone(sk,bones,"lowerarm_l",Vector3(.24+work*.04,0,-.1))
+		pose_bone(sk,bones,"lowerarm_r",Vector3(.24-work*.04,0,.1))
 	else:
 		pose_bone(sk,bones,"spine_01",Vector3(sin(v.phase*.7)*.018,0,0))
-		pose_bone(sk,bones,"upperarm_l",Vector3(.02,0,-1.58))
-		pose_bone(sk,bones,"upperarm_r",Vector3(.02,0,1.58))
-		pose_bone(sk,bones,"lowerarm_l",Vector3(.1,0,-.12))
-		pose_bone(sk,bones,"lowerarm_r",Vector3(.1,0,.12))
+		pose_bone(sk,bones,"upperarm_l",Vector3(.02,0,-1.74))
+		pose_bone(sk,bones,"upperarm_r",Vector3(.02,0,1.74))
+		pose_bone(sk,bones,"lowerarm_l",Vector3(.18,0,-.09))
+		pose_bone(sk,bones,"lowerarm_r",Vector3(.18,0,.09))
 		if not use_anim_lower:
 			pose_bone(sk,bones,"thigh_l",Vector3.ZERO)
 			pose_bone(sk,bones,"thigh_r",Vector3.ZERO)
@@ -1806,9 +1824,9 @@ func _process(d):
 	if notice_timer>0.0:
 		notice_timer=max(0.0,notice_timer-d)
 	var status=(notice if notice_timer>0.0 else plan_brief())
-	hud.text="%s\nRozdział I: epoka kamienia łupanego | Wola %.0f%% | Życie %d%%\nRozkaz %s | Ludzie %d (D%d Dz%d) | Pary %d | Schronienie %d/%d | Więź %.0f%%\nP %d/%d  K %d/%d  J %d/%d | Domy %d  Spich. %d  Warszt. %d  Tech %d\n%s\n%s\n%s\nOdkrycia: %s" % [VERSION_TITLE,idol_will,life_progress_percent(),order,people.size(),count_adults(),count_children(),count_pairs(),sheltered_people(),people.size(),average_bond()*100.0,stock.sticks,resource_capacity("sticks"),stock.stone,resource_capacity("stone"),stock.berries,resource_capacity("berries"),buildings.houses,buildings.granaries,buildings.workshops,tech_points,status,chapter_goal(),family_summary(),discovery_text()]
+	hud.text="%s\nEpoka kamienia | Wola %.0f%% | Życie %d%% | Tech %d\n%s | Ludzie %d (D%d Dz%d) | Pary %d | Schron. %d/%d | Więź %.0f%%\nP %d/%d  K %d/%d  J %d/%d | D %d  S %d  W %d\n%s\n%s" % [VERSION_TITLE,idol_will,life_progress_percent(),tech_points,order,people.size(),count_adults(),count_children(),count_pairs(),sheltered_people(),people.size(),average_bond()*100.0,stock.sticks,resource_capacity("sticks"),stock.stone,resource_capacity("stone"),stock.berries,resource_capacity("berries"),buildings.houses,buildings.granaries,buildings.workshops,status,chapter_goal()]
 	var v=people[selected]
-	info.text="%s — %s, %d lat\n%s | Praca: %s | Ładunek: %s\nWięź %.0f%% | Głód %.0f | Energia %.0f\nSIŁA %d   ZRĘCZNOŚĆ %d   INT %d\nUmiej.: drwal %.1f  zbier %.1f  bud %.1f  odk %.1f\n\n%s\n%s\nMoce: kamera, przywołaj, błogosław, więź +, krąg życia" % [v.name,v.trait,v.age,family_label(v),v.job,carry_label(v.carry),v.bond*100.0,v.hunger,v.energy,v.str,v.dex,v.int,v.wood,v.gather,v.build,v.knowledge,plan_summary(),family_summary()]
+	info.text="%s — %s, %d lat | %s\nPraca: %s | %s | Więź %.0f%%\nGłód %.0f  Energia %.0f | S%d Z%d I%d\nUmiej.: drw %.1f  zb %.1f  bud %.1f  odk %.1f\n%s\n%s" % [v.name,v.trait,v.age,family_label(v),v.job,carry_label(v.carry),v.bond*100.0,v.hunger,v.energy,v.str,v.dex,v.int,v.wood,v.gather,v.build,v.knowledge,plan_brief(),worker_summary()]
 
 func set_camera_distance(value):
 	cam_distance=clamp(value,CAMERA_MIN_DISTANCE,CAMERA_MAX_DISTANCE)
@@ -1841,11 +1859,11 @@ func update_stick(pos,center,thumb):
 	var v=(pos-center)/STICK_RADIUS
 	if v.length()>1.0:
 		v=v.normalized()
-	thumb.position=center+v*STICK_RADIUS-Vector2(29,29)
+	thumb.position=center+v*STICK_RADIUS-Vector2(STICK_THUMB_RADIUS,STICK_THUMB_RADIUS)
 	return v
 
 func reset_stick(center,thumb):
-	thumb.position=center-Vector2(29,29)
+	thumb.position=center-Vector2(STICK_THUMB_RADIUS,STICK_THUMB_RADIUS)
 	return Vector2.ZERO
 
 func apply_camera_sticks(d):
