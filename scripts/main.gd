@@ -8,7 +8,7 @@ const WALL=preload("res://assets/village/Wall_Plaster_Straight.gltf")
 const DOOR=preload("res://assets/village/Wall_Plaster_Door_Round.gltf")
 const ROOF=preload("res://assets/village/Roof_RoundTiles_6x6.gltf")
 const RETARGETER=preload("res://scripts/retargeter.gd")
-const VERSION_TITLE="IDOL — GENESIS 0.7.5 ANIM PATH FIX"
+const VERSION_TITLE="IDOL — GENESIS 0.7.6 LIVING SETTLEMENT"
 const CAMERA_MIN_DISTANCE=5.5
 const CAMERA_MAX_DISTANCE=88.0
 const CAMERA_HEIGHT_RATIO=0.61
@@ -101,6 +101,8 @@ func mat(c):
 	if material_cache.has(key):
 		return material_cache[key]
 	var m=StandardMaterial3D.new(); m.albedo_color=c; m.roughness=.95
+	if c.a<1.0:
+		m.transparency=BaseMaterial3D.TRANSPARENCY_ALPHA
 	material_cache[key]=m
 	return m
 func box(p,s,c):
@@ -122,19 +124,20 @@ func _ready():
 	rng.seed=5302026
 	process_priority=80
 	world_env=WorldEnvironment.new(); var e=Environment.new()
-	e.background_mode=Environment.BG_COLOR; e.background_color=Color("#8fa9b3")
-	e.ambient_light_source=Environment.AMBIENT_SOURCE_COLOR; e.ambient_light_color=Color("#fff0d5"); e.ambient_light_energy=.68
+	e.background_mode=Environment.BG_COLOR; e.background_color=Color("#9fb8bf")
+	e.ambient_light_source=Environment.AMBIENT_SOURCE_COLOR; e.ambient_light_color=Color("#fff0d5"); e.ambient_light_energy=.52
 	world_env.environment=e; add_child(world_env)
-	sun=DirectionalLight3D.new(); sun.rotation_degrees=Vector3(-55,-35,0); sun.light_energy=1.35; sun.shadow_enabled=false; add_child(sun)
+	sun=DirectionalLight3D.new(); sun.rotation_degrees=Vector3(-55,-35,0); sun.light_energy=1.42; sun.shadow_enabled=true; add_child(sun)
 
-	var ground=MeshInstance3D.new(); var pm=PlaneMesh.new(); pm.size=Vector2(55,55); ground.mesh=pm; ground.material_override=mat(Color("#5b7045")); add_child(ground)
+	var ground=MeshInstance3D.new(); var pm=PlaneMesh.new(); pm.size=Vector2(68,68); ground.mesh=pm; ground.material_override=mat(Color("#52683d")); add_child(ground)
+	make_terrain_layers()
 	make_river()
-	for i in range(30):
-		var p=Vector3(rng.randf_range(-25,25),0,rng.randf_range(-25,25))
+	for i in range(42):
+		var p=Vector3(rng.randf_range(-31,31),0,rng.randf_range(-31,31))
 		if p.length()<10: continue
 		make_tree(p,rng.randf_range(.85,1.22))
-	for i in range(16):
-		var p=Vector3(rng.randf_range(-24,24),.25,rng.randf_range(-24,24))
+	for i in range(26):
+		var p=Vector3(rng.randf_range(-30,30),.25,rng.randf_range(-30,30))
 		make_rock(p,rng.randf_range(.65,1.25))
 
 	make_idol()
@@ -154,6 +157,7 @@ func _ready():
 	for i in range(7):
 		var f=FENCE.instantiate(); f.position=Vector3(-9+i*2.4,0,10); add_child(f)
 	make_world_details(home_a,home_b)
+	make_camp_clutter()
 
 	for i in range(10): make_person(i)
 	make_selection_marker()
@@ -172,23 +176,77 @@ func _ready():
 func make_river():
 	for z in range(-30,31,3):
 		var x=river_x_at_z(z)
-		box(Vector3(x,.02,z),Vector3(6.4,.08,3.25),Color("#4f8d9a"))
-		box(Vector3(x-3.55,.035,z),Vector3(.58,.06,3.1),Color("#746f4d"))
-		box(Vector3(x+3.55,.035,z),Vector3(.58,.06,3.1),Color("#746f4d"))
+		box(Vector3(x,.02,z),Vector3(6.4,.08,3.25),Color("#5798a5"))
+		box(Vector3(x-3.55,.035,z),Vector3(.72,.06,3.1),Color("#74684a"))
+		box(Vector3(x+3.55,.035,z),Vector3(.72,.06,3.1),Color("#74684a"))
+		if z%9==0:
+			make_river_ripple(Vector3(x+rng.randf_range(-1.65,1.65),.09,z+rng.randf_range(-1.0,1.0)),rng.randf_range(-18,18))
 		if z%6==0:
 			make_rock(Vector3(x-3.95,.18,z+rng.randf_range(-.9,.9)),.45)
 			make_rock(Vector3(x+3.95,.18,z+rng.randf_range(-.9,.9)),.42)
+		if z%3==0:
+			make_reeds(Vector3(x-3.8,.08,z+rng.randf_range(-1.1,1.1)))
+			make_reeds(Vector3(x+3.8,.08,z+rng.randf_range(-1.1,1.1)))
 
 func make_tree(p,scale):
-	cyl(p+Vector3(0,1.35*scale,0),.18*scale,2.7*scale,Color("#65472f"))
-	cyl(p+Vector3(0,2.9*scale,0),.78*scale,1.45*scale,Color("#244b29"))
-	var top=cyl(p+Vector3(0,3.55*scale,0),.55*scale,.75*scale,Color("#2f6134"))
+	var trunk=cyl(p+Vector3(0,1.35*scale,0),.18*scale,2.7*scale,Color("#5f422c"))
+	trunk.rotation_degrees=Vector3(rng.randf_range(-3,3),rng.randf_range(0,180),rng.randf_range(-4,4))
+	var crown=sphere(p+Vector3(0,3.0*scale,0),.88*scale,Color("#274f2c"))
+	crown.scale=Vector3(1.1,.72,1.05)
+	var side=sphere(p+Vector3(.32*scale,3.34*scale,-.18*scale),.6*scale,Color("#326238"))
+	side.scale=Vector3(.95,.68,.95)
+	var top=sphere(p+Vector3(-.2*scale,3.72*scale,.18*scale),.5*scale,Color("#3a743f"))
+	top.scale=Vector3(.9,.68,.9)
 	top.rotation_degrees.y=rng.randf_range(0,180)
+	for a in [0.0,120.0,240.0]:
+		var root=box(p+Vector3(cos(deg_to_rad(a))*.28*scale,.12,sin(deg_to_rad(a))*.28*scale),Vector3(.11*scale,.12*scale,.72*scale),Color("#563a27"))
+		root.rotation_degrees.y=a+rng.randf_range(-12,12)
 
 func make_rock(p,scale):
-	var r=box(p,Vector3(.75*scale,.38*scale,.62*scale),Color("#777a72"))
+	var rock_cols=[Color("#777a72"),Color("#696d68"),Color("#858277"),Color("#6d7069")]
+	var r=box(p,Vector3(.75*scale,.38*scale,.62*scale),rock_cols[rng.randi_range(0,rock_cols.size()-1)])
 	r.rotation_degrees=Vector3(rng.randf_range(-6,6),rng.randf_range(0,180),rng.randf_range(-5,5))
 	return r
+
+func make_ground_patch(p,size,c,rot=0.0):
+	var patch=box(Vector3(p.x,.032,p.z),Vector3(size.x,.035,size.y),c)
+	patch.rotation_degrees.y=rot
+	return patch
+
+func make_terrain_layers():
+	var cols=[Color("#5d7046"),Color("#49613b"),Color("#61754b"),Color("#6b6648"),Color("#4d653c")]
+	for i in range(38):
+		var p=Vector3(rng.randf_range(-31,31),0,rng.randf_range(-31,31))
+		if abs(p.x-river_x_at_z(p.z))<4.1:
+			continue
+		make_ground_patch(p,Vector2(rng.randf_range(4.5,10.0),rng.randf_range(2.8,7.6)),cols[i%cols.size()],rng.randf_range(0,180))
+	make_ground_patch(Vector3(-2,0,2),Vector2(11.0,8.0),Color("#665d3f"),8)
+	make_ground_patch(Vector3(-6,0,4),Vector2(7.5,5.0),Color("#5d5339"),-13)
+	make_ground_patch(Vector3(7,0,-7),Vector2(8.4,5.2),Color("#6a6042"),17)
+
+func make_river_ripple(p,rot):
+	var ripple=box(p,Vector3(rng.randf_range(.85,1.7),.018,.045),Color("#b8d8d8"))
+	ripple.rotation_degrees.y=rot
+
+func make_reeds(p):
+	for i in range(4):
+		var blade=cyl(p+Vector3(rng.randf_range(-.18,.18),.36,rng.randf_range(-.18,.18)),.015,.72,Color("#4f6f37"))
+		blade.rotation_degrees=Vector3(rng.randf_range(-9,9),rng.randf_range(0,180),rng.randf_range(-7,7))
+	if rng.randf()<.45:
+		var seed=cyl(p+Vector3(rng.randf_range(-.12,.12),.72,rng.randf_range(-.12,.12)),.028,.18,Color("#6e4d2e"))
+		seed.rotation_degrees.x=90
+
+func make_grass_clump(p,scale=1.0):
+	var shades=[Color("#6f8a4f"),Color("#78935a"),Color("#5f7c45"),Color("#7f9460")]
+	for i in range(rng.randi_range(3,5)):
+		var blade=box(p+Vector3(rng.randf_range(-.16,.16),.16*scale,rng.randf_range(-.16,.16)),Vector3(.045*scale,rng.randf_range(.22,.42)*scale,.045*scale),shades[rng.randi_range(0,shades.size()-1)])
+		blade.rotation_degrees=Vector3(rng.randf_range(-16,16),rng.randf_range(0,180),rng.randf_range(-16,16))
+
+func make_wildflower(p):
+	var stem=cyl(p+Vector3(0,.24,0),.018,.48,Color("#2f7d3d"))
+	stem.rotation_degrees.z=rng.randf_range(-5,5)
+	var colors=[Color("#e9d76a"),Color("#df6f79"),Color("#f8f2d0")]
+	sphere(p+Vector3(0,.52,0),.045,colors[rng.randi_range(0,colors.size()-1)])
 
 func make_path(a,b,width):
 	var d=b-a
@@ -328,17 +386,63 @@ func make_world_details(home_a,home_b):
 		add_stone_source(p)
 	for p in [Vector3(-14,0,2),Vector3(15,0,8),Vector3(-5,0,-21),Vector3(21,0,18)]:
 		add_berry_source(p)
-	for i in range(52):
-		var p=Vector3(rng.randf_range(-26,26),.16,rng.randf_range(-26,26))
-		if p.length()<4.0 or abs(p.x-river_x_at_z(p.z))<3.6:
+	for i in range(128):
+		var p=Vector3(rng.randf_range(-31,31),.08,rng.randf_range(-31,31))
+		if p.length()<4.0 or abs(p.x-river_x_at_z(p.z))<3.9:
 			continue
-		var grass=box(p,Vector3(.07,.34,.07),Color("#6f8a4f"))
-		grass.rotation_degrees=Vector3(rng.randf_range(-14,14),rng.randf_range(0,180),rng.randf_range(-14,14))
+		make_grass_clump(p,rng.randf_range(.72,1.18))
+	for i in range(34):
+		var p=Vector3(rng.randf_range(-28,28),.08,rng.randf_range(-28,28))
+		if p.length()<5.0 or abs(p.x-river_x_at_z(p.z))<4.2:
+			continue
+		make_wildflower(p)
+
+func make_camp_clutter():
+	for i in range(8):
+		var a=TAU*float(i)/8.0
+		var seat=box(hearth_pos+Vector3(cos(a)*2.45,.18,sin(a)*2.05),Vector3(.72,.28,.28),Color("#68472c"))
+		seat.rotation_degrees.y=rad_to_deg(a)+90
+	for i in range(7):
+		var p=STOCKPILE_POS+Vector3(rng.randf_range(-2.1,2.1),.14,rng.randf_range(-1.55,1.55))
+		var scrap=box(p,Vector3(rng.randf_range(.45,.95),.11,.13),Color("#7a5634"))
+		scrap.rotation_degrees.y=rng.randf_range(0,180)
+	var rack=Node3D.new()
+	rack.name="Suszarnia skór"
+	rack.position=Vector3(-6.8,0,7.0)
+	rack.rotation_degrees.y=-18
+	add_child(rack)
+	for x in [-.85,.85]:
+		var post=box_in(rack,Vector3(x,.75,0),Vector3(.13,1.5,.13),Color("#5b3d28"))
+		post.rotation_degrees.z=6*x
+	box_in(rack,Vector3(0,1.45,0),Vector3(1.95,.12,.12),Color("#62422b"))
+	var hide=box_in(rack,Vector3(0,.86,.03),Vector3(1.35,.8,.055),Color("#7c5b3d"))
+	hide.rotation_degrees.z=4
+	for p in [Vector3(-4.0,0,6.5),Vector3(-5.2,0,1.1),Vector3(2.4,0,3.0)]:
+		cyl(p+Vector3(0,.34,0),.035,.68,Color("#4d3625"))
+		cone_in(self,p+Vector3(0,.86,0),.16,.36,Color("#d56a2c"))
 
 func make_idol():
-	box(Vector3(0,2,0),Vector3(1.7,4,1.25),Color("#77776f"))
-	box(Vector3(-.38,2.45,-.66),Vector3(.18,.18,.08),Color("#242620"))
-	box(Vector3(.38,2.45,-.66),Vector3(.18,.18,.08),Color("#242620"))
+	box(Vector3(0,.18,0),Vector3(3.0,.36,2.35),Color("#5f615b"))
+	box(Vector3(0,.58,0),Vector3(2.35,.42,1.75),Color("#707167"))
+	box(Vector3(0,2.05,0),Vector3(1.45,3.0,1.05),Color("#77786f"))
+	box(Vector3(0,3.78,0),Vector3(1.12,.82,.9),Color("#85867b"))
+	box(Vector3(-.38,3.88,-.49),Vector3(.18,.16,.08),Color("#20231e"))
+	box(Vector3(.38,3.88,-.49),Vector3(.18,.16,.08),Color("#20231e"))
+	box(Vector3(0,3.54,-.5),Vector3(.58,.08,.06),Color("#34352f"))
+	for y in [1.15,1.75,2.35]:
+		var scar=box(Vector3(rng.randf_range(-.42,.42),y,-.54),Vector3(.08,.55,.055),Color("#575951"))
+		scar.rotation_degrees.z=rng.randf_range(-22,22)
+	for i in range(12):
+		var a=TAU*float(i)/12.0
+		var stone=box(Vector3(cos(a)*2.15,.12,sin(a)*1.72),Vector3(.42,.24,.34),Color("#686b64"))
+		stone.rotation_degrees.y=rad_to_deg(a)
+	var glow=OmniLight3D.new()
+	glow.position=Vector3(0,2.8,-.7)
+	glow.light_color=Color("#f0d28a")
+	glow.light_energy=.22
+	glow.omni_range=4.4
+	glow.shadow_enabled=false
+	add_child(glow)
 
 func make_memory_flower():
 	var root=Vector3(1.55,0,-1.25)
@@ -395,10 +499,20 @@ func select_person_at_screen(pos):
 
 func make_house(p,rot):
 	var h=Node3D.new(); h.position=p; h.rotation_degrees.y=rot; h.scale=Vector3(1.05,1.05,1.05); add_child(h)
+	box_in(h,Vector3(0,.08,-.42),Vector3(4.9,.16,4.35),Color("#65583d"))
 	var a=WALL.instantiate(); a.position=Vector3(-1.8,0,0); h.add_child(a)
 	var b=WALL.instantiate(); b.position=Vector3(1.8,0,0); h.add_child(b)
 	var d=DOOR.instantiate(); d.position=Vector3(0,0,-3.5); d.rotation_degrees.y=180; h.add_child(d)
 	var r=ROOF.instantiate(); r.position=Vector3(0,3,-1.5); r.scale=Vector3(.65,.65,.65); h.add_child(r)
+	box_in(h,Vector3(0,3.63,-1.5),Vector3(.16,.18,4.3),Color("#5b3924"))
+	for x in [-2.25,2.25]:
+		box_in(h,Vector3(x,1.1,-2.7),Vector3(.14,2.0,.14),Color("#5d3d28"))
+	box_in(h,Vector3(0,.16,-3.92),Vector3(1.85,.22,.72),Color("#766b54"))
+	box_in(h,Vector3(0,.5,-3.98),Vector3(1.35,.2,.18),Color("#4d3423"))
+	for i in range(4):
+		var pebble=box_in(h,Vector3(rng.randf_range(-2.1,2.1),.2,rng.randf_range(-2.5,1.65)),Vector3(.28,.16,.24),Color("#75776d"))
+		pebble.rotation_degrees.y=rng.randf_range(0,180)
+	return h
 
 func make_granary(p):
 	box(p+Vector3(0,.18,0),Vector3(4.4,.35,3.4),Color("#6b5034"))
@@ -464,7 +578,7 @@ func cache_pose_bones(sk:Skeleton3D):
 	var bones={}
 	if not sk:
 		return bones
-	for bone_name in ["spine_01","spine_02","spine_03","clavicle_l","clavicle_r","upperarm_l","upperarm_r","lowerarm_l","lowerarm_r","thigh_l","thigh_r","calf_l","calf_r","foot_l","foot_r"]:
+	for bone_name in ["spine_01","spine_02","spine_03","neck_01","Head","clavicle_l","clavicle_r","upperarm_l","upperarm_r","lowerarm_l","lowerarm_r","hand_l","hand_r","thigh_l","thigh_r","calf_l","calf_r","foot_l","foot_r","ball_l","ball_r"]:
 		bones[bone_name]=sk.find_bone(bone_name)
 	return bones
 
@@ -474,12 +588,23 @@ func make_settler_gear(parent,i):
 	parent.add_child(gear)
 	var cloth_cols=[Color("#7c5b38"),Color("#6b6740"),Color("#8a6a3c"),Color("#6d5841"),Color("#7d4f35")]
 	var col=cloth_cols[i%cloth_cols.size()]
+	var hair_cols=[Color("#2d211a"),Color("#4a2f1e"),Color("#6b4628"),Color("#1f1b18")]
+	var hair=hair_cols[i%hair_cols.size()]
 	var belt=cyl_in(gear,Vector3(0,.66,0),.22,.08,Color("#3b2a1f"))
 	belt.rotation_degrees.y=rng.randf_range(-18,18)
+	var strap=box_in(gear,Vector3(.05,.96,-.18),Vector3(.075,.72,.055),Color("#3f2b1d"))
+	strap.rotation_degrees.z=-23 if i%2==0 else 23
 	box_in(gear,Vector3(0,.52,-.15),Vector3(.34,.35,.045),col)
 	box_in(gear,Vector3(0,.38,-.13),Vector3(.28,.28,.05),col.darkened(.12))
 	var pouch=box_in(gear,Vector3(.19,.6,-.18),Vector3(.12,.15,.055),Color("#4e3523"))
 	pouch.rotation_degrees.z=-8
+	var hair_cap=sphere_in(gear,Vector3(0,1.58,-.03),.16,hair)
+	hair_cap.scale=Vector3(1.05,.56,.9)
+	if i%3==0:
+		var tail=sphere_in(gear,Vector3(0,1.42,.12),.09,hair)
+		tail.scale=Vector3(.72,1.1,.72)
+	if i%4==0:
+		cyl_in(gear,Vector3(0,1.37,-.18),.13,.035,Color("#d5c083"))
 
 func make_carry_node(parent):
 	var cargo=Node3D.new()
@@ -523,7 +648,7 @@ func make_person(i):
 	make_settler_gear(n,i)
 	var cargo=make_carry_node(n)
 	var sk=find_skeleton(n)
-	var v={"node":n,"skeleton":sk,"bones":cache_pose_bones(sk),"base_scale":base_scale,"phase":rng.randf_range(0,TAU),"work_timer":0.0,"rest_time":rng.randf_range(1.5,3.6),"name":names[i],"trait":traits[i],"sex":"K" if i<5 else "M","age":rng.randi_range(18,34),"adult":true,"parent_a":-1,"parent_b":-1,"family_cd":rng.randf_range(8.0,18.0),"bond":rng.randf_range(.28,.62),"partner":-1,"str":rng.randi_range(3,9),"dex":rng.randi_range(3,9),"int":rng.randi_range(3,9),"hunger":rng.randf_range(5,25),"energy":rng.randf_range(72,100),"wood":0.0,"gather":0.0,"build":0.0,"knowledge":0.0,"job":"IDLE","carry":"","cargo":cargo,"target":n.position}
+	var v={"node":n,"skeleton":sk,"bones":cache_pose_bones(sk),"base_scale":base_scale,"phase":rng.randf_range(0,TAU),"pose_style":rng.randf_range(-1.0,1.0),"work_timer":0.0,"rest_time":rng.randf_range(1.5,3.6),"name":names[i],"trait":traits[i],"sex":"K" if i<5 else "M","age":rng.randi_range(18,34),"adult":true,"parent_a":-1,"parent_b":-1,"family_cd":rng.randf_range(8.0,18.0),"bond":rng.randf_range(.28,.62),"partner":-1,"str":rng.randi_range(3,9),"dex":rng.randi_range(3,9),"int":rng.randi_range(3,9),"hunger":rng.randf_range(5,25),"energy":rng.randf_range(72,100),"wood":0.0,"gather":0.0,"build":0.0,"knowledge":0.0,"job":"IDLE","carry":"","cargo":cargo,"target":n.position}
 	people.append(v)
 	return v
 
@@ -569,7 +694,7 @@ func spawn_child(parent_a_idx,parent_b_idx):
 	var cargo=make_carry_node(n)
 	var sk=find_skeleton(n)
 	var child_name=next_child_name()
-	var v={"node":n,"skeleton":sk,"bones":cache_pose_bones(sk),"base_scale":base_scale,"phase":rng.randf_range(0,TAU),"work_timer":0.0,"rest_time":rng.randf_range(1.8,3.8),"name":child_name,"trait":"Dziecko osady","sex":sex,"age":1,"adult":false,"parent_a":parent_a_idx,"parent_b":parent_b_idx,"family_cd":0.0,"bond":rng.randf_range(.62,.78),"partner":-1,"str":rng.randi_range(1,3),"dex":rng.randi_range(2,5),"int":rng.randi_range(2,5),"hunger":rng.randf_range(0,12),"energy":rng.randf_range(82,100),"wood":0.0,"gather":0.0,"build":0.0,"knowledge":0.0,"job":"DZIECKO","carry":"","cargo":cargo,"target":n.position}
+	var v={"node":n,"skeleton":sk,"bones":cache_pose_bones(sk),"base_scale":base_scale,"phase":rng.randf_range(0,TAU),"pose_style":rng.randf_range(-.8,.8),"work_timer":0.0,"rest_time":rng.randf_range(1.8,3.8),"name":child_name,"trait":"Dziecko osady","sex":sex,"age":1,"adult":false,"parent_a":parent_a_idx,"parent_b":parent_b_idx,"family_cd":0.0,"bond":rng.randf_range(.62,.78),"partner":-1,"str":rng.randi_range(1,3),"dex":rng.randi_range(2,5),"int":rng.randi_range(2,5),"hunger":rng.randf_range(0,12),"energy":rng.randf_range(82,100),"wood":0.0,"gather":0.0,"build":0.0,"knowledge":0.0,"job":"DZIECKO","carry":"","cargo":cargo,"target":n.position}
 	people.append(v)
 	children_born+=1
 	stock.berries=max(0,stock.berries-CHILD_FOOD_COST)
@@ -1461,8 +1586,22 @@ func pose_bone(sk,bones,bone_name,rot):
 		sk.set_bone_pose_rotation(idx,Quaternion.from_euler(rot))
 
 func reset_pose_frame(sk,bones):
-	for bone_name in ["spine_02","spine_03","clavicle_l","clavicle_r"]:
+	for bone_name in ["spine_02","spine_03","neck_01","Head","clavicle_l","clavicle_r","hand_l","hand_r"]:
 		pose_bone(sk,bones,bone_name,Vector3.ZERO)
+
+func has_retarget_motion(v):
+	return anim_ready and v.has("anim") and not v.anim.is_empty()
+
+func animation_state_for(v,moving):
+	if moving:
+		return "walk"
+	if v.job=="PATYKI":
+		return "chop"
+	if v.job in ["KAMIEŃ","JAGODY"]:
+		return "gather"
+	if v.job=="BUDOWA":
+		return "work"
+	return "idle"
 
 func apply_bone_pose(v,moving):
 	var sk=v.skeleton
@@ -1471,20 +1610,25 @@ func apply_bone_pose(v,moving):
 	var bones=v.bones
 	var step=sin(v.phase)
 	var work=sin(v.phase*2.4)
-	var arm_drop=1.56
+	var style=float(v.get("pose_style",0.0))
+	var use_anim_lower=has_retarget_motion(v)
+	var arm_drop=1.5+style*.08
 	reset_pose_frame(sk,bones)
+	pose_bone(sk,bones,"neck_01",Vector3(.015+sin(v.phase*.42)*.012,0,0))
+	pose_bone(sk,bones,"Head",Vector3(.01,sin(v.phase*.35+style)*.035,0))
 	if not is_adult(v):
 		pose_bone(sk,bones,"spine_01",Vector3(.04+sin(v.phase*.7)*.018,0,0))
-		pose_bone(sk,bones,"upperarm_l",Vector3(.04,0,-1.48))
-		pose_bone(sk,bones,"upperarm_r",Vector3(.04,0,1.48))
+		pose_bone(sk,bones,"upperarm_l",Vector3(.03,0,-1.54))
+		pose_bone(sk,bones,"upperarm_r",Vector3(.03,0,1.54))
 		pose_bone(sk,bones,"lowerarm_l",Vector3(.2+step*.05,0,-.16))
 		pose_bone(sk,bones,"lowerarm_r",Vector3(.2-step*.05,0,.16))
-		pose_bone(sk,bones,"thigh_l",Vector3.ZERO)
-		pose_bone(sk,bones,"thigh_r",Vector3.ZERO)
-		pose_bone(sk,bones,"calf_l",Vector3.ZERO)
-		pose_bone(sk,bones,"calf_r",Vector3.ZERO)
+		if not use_anim_lower:
+			pose_bone(sk,bones,"thigh_l",Vector3.ZERO)
+			pose_bone(sk,bones,"thigh_r",Vector3.ZERO)
+			pose_bone(sk,bones,"calf_l",Vector3.ZERO)
+			pose_bone(sk,bones,"calf_r",Vector3.ZERO)
 		return
-	if not moving:
+	if not moving and not use_anim_lower:
 		pose_bone(sk,bones,"thigh_l",Vector3.ZERO)
 		pose_bone(sk,bones,"thigh_r",Vector3.ZERO)
 		pose_bone(sk,bones,"calf_l",Vector3.ZERO)
@@ -1493,32 +1637,35 @@ func apply_bone_pose(v,moving):
 		pose_bone(sk,bones,"foot_r",Vector3.ZERO)
 	if moving:
 		pose_bone(sk,bones,"spine_01",Vector3(-.04,0,0))
-		pose_bone(sk,bones,"upperarm_l",Vector3(step*.14,0,-arm_drop))
-		pose_bone(sk,bones,"upperarm_r",Vector3(-step*.14,0,arm_drop))
+		pose_bone(sk,bones,"upperarm_l",Vector3(step*.08,0,-arm_drop))
+		pose_bone(sk,bones,"upperarm_r",Vector3(-step*.08,0,arm_drop))
 		pose_bone(sk,bones,"lowerarm_l",Vector3(.2+max(0.0,-step)*.18,0,-.08))
 		pose_bone(sk,bones,"lowerarm_r",Vector3(.2+max(0.0,step)*.18,0,.08))
-		pose_bone(sk,bones,"thigh_l",Vector3(-step*.38,0,0))
-		pose_bone(sk,bones,"thigh_r",Vector3(step*.38,0,0))
-		pose_bone(sk,bones,"calf_l",Vector3(max(0.0,step)*.42,0,0))
-		pose_bone(sk,bones,"calf_r",Vector3(max(0.0,-step)*.42,0,0))
-		pose_bone(sk,bones,"foot_l",Vector3(-max(0.0,step)*.18,0,0))
-		pose_bone(sk,bones,"foot_r",Vector3(-max(0.0,-step)*.18,0,0))
+		if not use_anim_lower:
+			pose_bone(sk,bones,"thigh_l",Vector3(-step*.38,0,0))
+			pose_bone(sk,bones,"thigh_r",Vector3(step*.38,0,0))
+			pose_bone(sk,bones,"calf_l",Vector3(max(0.0,step)*.42,0,0))
+			pose_bone(sk,bones,"calf_r",Vector3(max(0.0,-step)*.42,0,0))
+			pose_bone(sk,bones,"foot_l",Vector3(-max(0.0,step)*.18,0,0))
+			pose_bone(sk,bones,"foot_r",Vector3(-max(0.0,-step)*.18,0,0))
 	elif v.job=="BUDOWA":
 		pose_bone(sk,bones,"spine_01",Vector3(-.18+work*.05,0,0))
-		pose_bone(sk,bones,"upperarm_l",Vector3(-.2+work*.12,0,-1.42))
-		pose_bone(sk,bones,"upperarm_r",Vector3(-.16-work*.12,0,1.42))
+		pose_bone(sk,bones,"upperarm_l",Vector3(-.16+work*.1,0,-1.43))
+		pose_bone(sk,bones,"upperarm_r",Vector3(-.13-work*.1,0,1.43))
 		pose_bone(sk,bones,"lowerarm_l",Vector3(.58,0,-.08))
 		pose_bone(sk,bones,"lowerarm_r",Vector3(.58,0,.08))
-		pose_bone(sk,bones,"thigh_l",Vector3(.08,0,0))
-		pose_bone(sk,bones,"thigh_r",Vector3(-.08,0,0))
+		if not use_anim_lower:
+			pose_bone(sk,bones,"thigh_l",Vector3(.08,0,0))
+			pose_bone(sk,bones,"thigh_r",Vector3(-.08,0,0))
 	elif v.job in ["PATYKI","KAMIEŃ","JAGODY"]:
 		pose_bone(sk,bones,"spine_01",Vector3(-.23+work*.04,0,0))
-		pose_bone(sk,bones,"upperarm_l",Vector3(-.14+work*.1,0,-1.48))
-		pose_bone(sk,bones,"upperarm_r",Vector3(-.1-work*.1,0,1.48))
+		pose_bone(sk,bones,"upperarm_l",Vector3(-.1+work*.08,0,-1.52))
+		pose_bone(sk,bones,"upperarm_r",Vector3(-.08-work*.08,0,1.52))
 		pose_bone(sk,bones,"lowerarm_l",Vector3(.44,0,-.1))
 		pose_bone(sk,bones,"lowerarm_r",Vector3(.44,0,.1))
-		pose_bone(sk,bones,"thigh_l",Vector3(.12,0,0))
-		pose_bone(sk,bones,"thigh_r",Vector3(-.05,0,0))
+		if not use_anim_lower:
+			pose_bone(sk,bones,"thigh_l",Vector3(.12,0,0))
+			pose_bone(sk,bones,"thigh_r",Vector3(-.05,0,0))
 	elif v.job=="WSPÓLNOTA":
 		pose_bone(sk,bones,"spine_01",Vector3(.02+work*.025,0,0))
 		pose_bone(sk,bones,"upperarm_l",Vector3(.02,0,-1.52))
@@ -1531,10 +1678,11 @@ func apply_bone_pose(v,moving):
 		pose_bone(sk,bones,"upperarm_r",Vector3(.02,0,1.58))
 		pose_bone(sk,bones,"lowerarm_l",Vector3(.1,0,-.12))
 		pose_bone(sk,bones,"lowerarm_r",Vector3(.1,0,.12))
-		pose_bone(sk,bones,"thigh_l",Vector3.ZERO)
-		pose_bone(sk,bones,"thigh_r",Vector3.ZERO)
-		pose_bone(sk,bones,"calf_l",Vector3.ZERO)
-		pose_bone(sk,bones,"calf_r",Vector3.ZERO)
+		if not use_anim_lower:
+			pose_bone(sk,bones,"thigh_l",Vector3.ZERO)
+			pose_bone(sk,bones,"thigh_r",Vector3.ZERO)
+			pose_bone(sk,bones,"calf_l",Vector3.ZERO)
+			pose_bone(sk,bones,"calf_r",Vector3.ZERO)
 
 func apply_living_pose(v,d,moving,flat_dir):
 	v.phase+=d*(5.4 if not is_adult(v) else (6.4 if moving else (3.6 if v.job!="IDLE" else 1.05)))
@@ -1634,12 +1782,12 @@ func _process(d):
 			var speed=(.8+v.dex*.04)*(1.0 if adult else .72)
 			n.position+=dir.normalized()*d*speed
 			n.look_at(n.position+dir,Vector3.UP)
-			if anim_ready and v.has("anim"): retargeter.play(v.anim,"walk")
+			if anim_ready and v.has("anim"): retargeter.play(v.anim,animation_state_for(v,true))
 			apply_living_pose(v,d,true,dir)
 		else:
 			v.work_timer+=d
 			if v.job!="IDLE":
-				if anim_ready and v.has("anim"): retargeter.play(v.anim,"idle" if v.job=="DZIECKO" else "work")
+				if anim_ready and v.has("anim"): retargeter.play(v.anim,animation_state_for(v,false))
 				apply_living_pose(v,d,false,dir)
 				if v.work_timer>=job_duration(v):
 					var keep_job=finish_job(v)
@@ -1647,7 +1795,7 @@ func _process(d):
 						v.job="IDLE"
 						choose_work(v)
 			else:
-				if anim_ready and v.has("anim"): retargeter.play(v.anim,"idle")
+				if anim_ready and v.has("anim"): retargeter.play(v.anim,animation_state_for(v,false))
 				apply_living_pose(v,d,false,dir)
 				if v.work_timer>=job_duration(v):
 					choose_work(v)

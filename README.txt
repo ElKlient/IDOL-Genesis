@@ -1,4 +1,4 @@
-IDOL Genesis 0.7.5 - ANIM PATH FIX
+IDOL Genesis 0.7.6 - LIVING SETTLEMENT
 
 Prompt roboczy tej łatki:
 Zbuduj pierwszy grywalny rdzeń osady epoki kamienia. Gracz jest Idolem: wolą osady, nie dowódcą armii. Ludzie mają samodzielnie dzielić robotę, nosić surowce, budować podstawowe budynki, odpoczywać, tworzyć pierwsze więzi i odkrywać proste technologie przez zadania.
@@ -8,6 +8,14 @@ Kierunek gry:
 - ludzie nie są wojskiem do szkolenia, tylko pierwszą społecznością
 - później mają tworzyć pary, rozmnażać się, budować relacje, dzielić się na grupy i wchodzić w konflikty
 - rozwój technologii wynika z prostych zadań, które Idol zleca mieszkańcom
+
+Zmiany 0.7.6:
+- retargeter wybiera teraz konkretne klipy: Walk_Carry, Farm_Harvest i TreeChopping zamiast pierwszej losowej animacji po fragmencie nazwy
+- proceduralna warstwa kontroluje głowę, barki i ręce, a sprawny retarget zostawia nogom naturalniejszy ruch
+- dodano drobną wariację pozy między mieszkańcami, żeby nie wyglądali jak identyczne manekiny
+- osadnicy dostali prostą warstwę ubioru, paski, włosy/opaski i drobne dodatki bez dokładania ciężkich assetów
+- scena ma większy teren, cienie, żywszą rzekę, trzciny, kępy traw, kwiaty, kamienne detale, lepszy Idol i obozowe rekwizyty
+- zachowano rozdział I epoki kamienia: praca, pary, dzieci, budowa i kamera z poprzednich wersji
 
 Zmiany 0.7.5:
 - uruchomiono projekt w lokalnym Godot 4.7.2 headless i złapano ostrzeżenia retargetera w runtime

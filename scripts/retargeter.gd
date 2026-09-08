@@ -34,10 +34,16 @@ func find_skeleton(n:Node)->Skeleton3D:
 
 func choose(words:Array[String])->StringName:
 	if not source_player: return &""
-	for a in source_player.get_animation_list():
-		var low=String(a).to_lower()
-		for w in words:
-			if low.contains(w.to_lower()):
+	var animations=source_player.get_animation_list()
+	for w in words:
+		var wanted=w.to_lower()
+		for a in animations:
+			if String(a).to_lower()==wanted:
+				return a
+	for w in words:
+		var wanted=w.to_lower()
+		for a in animations:
+			if String(a).to_lower().contains(wanted):
 				return a
 	return &""
 
@@ -49,11 +55,13 @@ func attach(character:Node)->Dictionary:
 	player.root_node=NodePath("..")
 	var lib=AnimationLibrary.new()
 	var target_path=character.get_path_to(target)
-	for state in ["idle","walk","work"]:
+	for state in ["idle","walk","work","gather","chop"]:
 		var src_name:StringName=&""
-		if state=="idle": src_name=choose(["idle","stand"])
-		elif state=="walk": src_name=choose(["walk","walking"])
-		else: src_name=choose(["farm","chop","hammer","work"])
+		if state=="idle": src_name=choose(["Idle_FoldArms","Zombie_Idle","A_TPose","idle","stand"])
+		elif state=="walk": src_name=choose(["Walk_Carry","Zombie_Walk_Fwd","walk","walking"])
+		elif state=="gather": src_name=choose(["Farm_Harvest","Farm_PlantSeed","farm","harvest"])
+		elif state=="chop": src_name=choose(["TreeChopping","chop","tree"])
+		else: src_name=choose(["Farm_Harvest","TreeChopping","farm","chop","hammer","work"])
 		if src_name==&"": continue
 		var src=source_player.get_animation(src_name)
 		if not src: continue
@@ -83,5 +91,7 @@ func attach(character:Node)->Dictionary:
 func play(ctrl:Dictionary,state:String):
 	if ctrl.is_empty(): return
 	var p:AnimationPlayer=ctrl.player
+	if not p.has_animation(state):
+		state="idle"
 	if p.has_animation(state) and p.current_animation!=state:
 		p.play(state,0.18,1.0)
