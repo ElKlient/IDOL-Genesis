@@ -14,6 +14,7 @@ Zmiany 0.8.16:
 - wymach ramion działa jako rzeczywiste wahadło w płaszczyźnie barku, więc ma ruszać ręką przez przestrzeń, a nie skręcać ją wokół własnej osi
 - wyłączono doklejane prymitywy twarzy do kości głowy, bo z kamery telefonu wyglądały jak wystające losowe przedmioty
 - przy zwykłych poprawkach kodu nie trzeba kasować `.godot`; kasowanie cache zostaje tylko na ciężkie zmiany modeli lub assetów
+- dodano `.gitignore` dla cache Godota, żeby `.godot` nie mieszał się z aktualizacjami z Termuxa
 
 Zmiany 0.8.15:
 - przeniesiono wymach chodzących ramion z osi X na oś prostopadłą do skrętu kości, żeby ręce pracowały przód-tył zamiast obracać się wokół siebie
