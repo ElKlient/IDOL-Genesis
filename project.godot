@@ -1,5 +1,5 @@
 [application]
-config/name="IDOL Genesis 0.8.7 Human Model Recovery"
+config/name="IDOL Genesis 0.8.8 Human Walk Fix"
 run/main_scene="res://main.tscn"
 
 [display]

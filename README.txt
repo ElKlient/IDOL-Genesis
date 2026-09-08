@@ -1,4 +1,4 @@
-IDOL Genesis 0.8.7 - HUMAN MODEL RECOVERY
+IDOL Genesis 0.8.8 - HUMAN WALK FIX
 
 Prompt roboczy tej łatki:
 Zbuduj pierwszy grywalny rdzeń osady epoki kamienia. Gracz jest Idolem: wolą osady, nie dowódcą armii. Ludzie mają samodzielnie dzielić robotę, nosić surowce, budować podstawowe budynki, odpoczywać, tworzyć pierwsze więzi i odkrywać proste technologie przez zadania.
@@ -8,6 +8,13 @@ Kierunek gry:
 - ludzie nie są wojskiem do szkolenia, tylko pierwszą społecznością
 - później mają tworzyć pary, rozmnażać się, budować relacje, dzielić się na grupy i wchodzić w konflikty
 - rozwój technologii wynika z prostych zadań, które Idol zleca mieszkańcom
+
+Zmiany 0.8.8:
+- naprawiono główny błąd pozy ludzkich modeli: kości nie są już ustawiane absolutnie na zero, tylko resetowane do importowanej pozy bazowej Godota
+- proceduralny chód działa teraz jako delikatna delta względem oryginalnej pozy Superhero, więc ręce nie powinny iść pionowo nad głowę
+- opuszczono ramiona do ludzkiej sylwetki przez sprawdzony obrót bazowy, a nogi dostały spokojniejszy krok bez agresywnego retargetu
+- dzieci i dorośli używają tego samego bezpiecznego systemu pozy, z mniejszym zakresem ruchu dla dzieci
+- łatka celowo nie rusza menu, czatu ani świata; skupia się tylko na naprawie ludzi i ich chodzenia
 
 Zmiany 0.8.7:
 - wycofano mini/kreskówkowe modele jako domyślnych mieszkańców; klimat wraca do ludzkich, humanoidalnych postaci

@@ -8,7 +8,7 @@ const WALL=preload("res://assets/village/Wall_Plaster_Straight.gltf")
 const DOOR=preload("res://assets/village/Wall_Plaster_Door_Round.gltf")
 const ROOF=preload("res://assets/village/Roof_RoundTiles_6x6.gltf")
 const RETARGETER=preload("res://scripts/retargeter.gd")
-const VERSION_TITLE="IDOL — GENESIS 0.8.7 HUMAN MODEL RECOVERY"
+const VERSION_TITLE="IDOL — GENESIS 0.8.8 HUMAN WALK FIX"
 const CAMERA_MIN_DISTANCE=5.5
 const CAMERA_MAX_DISTANCE=88.0
 const CAMERA_HEIGHT_RATIO=0.61
@@ -624,6 +624,16 @@ func cache_pose_bones(sk:Skeleton3D):
 		bones[bone_name]=sk.find_bone(bone_name)
 	return bones
 
+func cache_pose_bone_rotations(sk:Skeleton3D,bones:Dictionary):
+	var rotations={}
+	if not sk:
+		return rotations
+	for bone_name in bones.keys():
+		var idx=int(bones[bone_name])
+		if idx>=0:
+			rotations[bone_name]=sk.get_bone_pose_rotation(idx)
+	return rotations
+
 func make_person_label(parent,text,pos,font_size,color):
 	var l=Label3D.new()
 	l.text=text
@@ -829,6 +839,8 @@ func make_person(i):
 	if USE_SETTLER_ROOT_GEAR:
 		make_settler_gear(n,i)
 	var sk=find_skeleton(n)
+	var bones=cache_pose_bones(sk)
+	var pose_bases=cache_pose_bone_rotations(sk,bones)
 	make_head_face(sk,i)
 	var label_y=1.86
 	var speech_y=2.1
@@ -837,7 +849,7 @@ func make_person(i):
 	var speech_label=make_person_label(n,"",Vector3(0,speech_y-.01,-.02),15,Color("#f8fbff"))
 	speech_label.visible=false
 	var cargo=make_carry_node(n)
-	var v={"node":n,"skeleton":sk,"bones":cache_pose_bones(sk),"base_scale":base_scale,"phase":rng.randf_range(0,TAU),"pose_style":rng.randf_range(-1.0,1.0),"work_timer":0.0,"rest_time":rng.randf_range(1.5,3.6),"name":names[i],"trait":traits[i],"like":settler_likes[i%settler_likes.size()],"worry":settler_worries[(i*3)%settler_worries.size()],"sex":sex,"age":rng.randi_range(18,34),"adult":true,"parent_a":-1,"parent_b":-1,"family_cd":rng.randf_range(8.0,18.0),"bond":rng.randf_range(.28,.62),"partner":-1,"str":rng.randi_range(3,9),"dex":rng.randi_range(3,9),"int":rng.randi_range(3,9),"hunger":rng.randf_range(5,25),"energy":rng.randf_range(72,100),"wood":0.0,"gather":0.0,"build":0.0,"knowledge":0.0,"language":rng.randf_range(.28,.46),"last_xz":Vector2(n.position.x,n.position.z),"stuck_time":0.0,"job":"IDLE","carry":"","cargo":cargo,"target":n.position}
+	var v={"node":n,"skeleton":sk,"bones":bones,"pose_bases":pose_bases,"base_scale":base_scale,"phase":rng.randf_range(0,TAU),"pose_style":rng.randf_range(-1.0,1.0),"work_timer":0.0,"rest_time":rng.randf_range(1.5,3.6),"name":names[i],"trait":traits[i],"like":settler_likes[i%settler_likes.size()],"worry":settler_worries[(i*3)%settler_worries.size()],"sex":sex,"age":rng.randi_range(18,34),"adult":true,"parent_a":-1,"parent_b":-1,"family_cd":rng.randf_range(8.0,18.0),"bond":rng.randf_range(.28,.62),"partner":-1,"str":rng.randi_range(3,9),"dex":rng.randi_range(3,9),"int":rng.randi_range(3,9),"hunger":rng.randf_range(5,25),"energy":rng.randf_range(72,100),"wood":0.0,"gather":0.0,"build":0.0,"knowledge":0.0,"language":rng.randf_range(.28,.46),"last_xz":Vector2(n.position.x,n.position.z),"stuck_time":0.0,"job":"IDLE","carry":"","cargo":cargo,"target":n.position}
 	v["body_parts"]=body_parts
 	v["name_label"]=name_label
 	v["speech_back"]=speech_back
@@ -893,6 +905,8 @@ func spawn_child(parent_a_idx,parent_b_idx):
 	if USE_SETTLER_ROOT_GEAR:
 		make_settler_gear(n,children_born+2)
 	var sk=find_skeleton(n)
+	var bones=cache_pose_bones(sk)
+	var pose_bases=cache_pose_bone_rotations(sk,bones)
 	make_head_face(sk,children_born+2)
 	var label_y=1.84
 	var speech_y=2.08
@@ -901,7 +915,7 @@ func spawn_child(parent_a_idx,parent_b_idx):
 	var speech_label=make_person_label(n,"",Vector3(0,speech_y-.01,-.02),13,Color("#f8fbff"))
 	speech_label.visible=false
 	var cargo=make_carry_node(n)
-	var v={"node":n,"skeleton":sk,"bones":cache_pose_bones(sk),"base_scale":base_scale,"phase":rng.randf_range(0,TAU),"pose_style":rng.randf_range(-.8,.8),"work_timer":0.0,"rest_time":rng.randf_range(1.8,3.8),"name":child_name,"trait":"Dziecko osady","like":settler_likes[(children_born+4)%settler_likes.size()],"worry":settler_worries[(children_born+5)%settler_worries.size()],"sex":sex,"age":1,"adult":false,"parent_a":parent_a_idx,"parent_b":parent_b_idx,"family_cd":0.0,"bond":rng.randf_range(.62,.78),"partner":-1,"str":rng.randi_range(1,3),"dex":rng.randi_range(2,5),"int":rng.randi_range(2,5),"hunger":rng.randf_range(0,12),"energy":rng.randf_range(82,100),"wood":0.0,"gather":0.0,"build":0.0,"knowledge":0.0,"language":rng.randf_range(.22,.38),"last_xz":Vector2(n.position.x,n.position.z),"stuck_time":0.0,"job":"DZIECKO","carry":"","cargo":cargo,"target":n.position}
+	var v={"node":n,"skeleton":sk,"bones":bones,"pose_bases":pose_bases,"base_scale":base_scale,"phase":rng.randf_range(0,TAU),"pose_style":rng.randf_range(-.8,.8),"work_timer":0.0,"rest_time":rng.randf_range(1.8,3.8),"name":child_name,"trait":"Dziecko osady","like":settler_likes[(children_born+4)%settler_likes.size()],"worry":settler_worries[(children_born+5)%settler_worries.size()],"sex":sex,"age":1,"adult":false,"parent_a":parent_a_idx,"parent_b":parent_b_idx,"family_cd":0.0,"bond":rng.randf_range(.62,.78),"partner":-1,"str":rng.randi_range(1,3),"dex":rng.randi_range(2,5),"int":rng.randi_range(2,5),"hunger":rng.randf_range(0,12),"energy":rng.randf_range(82,100),"wood":0.0,"gather":0.0,"build":0.0,"knowledge":0.0,"language":rng.randf_range(.22,.38),"last_xz":Vector2(n.position.x,n.position.z),"stuck_time":0.0,"job":"DZIECKO","carry":"","cargo":cargo,"target":n.position}
 	v["body_parts"]=body_parts
 	v["name_label"]=name_label
 	v["speech_back"]=speech_back
@@ -2054,16 +2068,23 @@ func set_order(s):
 		set_notice("Idol kieruje ciekawych do kamieni odkryć")
 	redirect_people()
 
-func pose_bone(sk,bones,bone_name,rot):
+func reset_human_pose(v):
+	var sk=v.skeleton
+	if sk:
+		sk.reset_bone_poses()
+
+func pose_bone_delta(v,bone_name,rot):
+	var sk=v.skeleton
 	if not sk:
 		return
+	var bones=v.bones
 	var idx=bones.get(bone_name,-1)
-	if idx>=0:
-		sk.set_bone_pose_rotation(idx,Quaternion.from_euler(rot))
-
-func reset_pose_frame(sk,bones):
-	for bone_name in ["spine_02","spine_03","neck_01","Head","clavicle_l","clavicle_r","hand_l","hand_r"]:
-		pose_bone(sk,bones,bone_name,Vector3.ZERO)
+	if idx<0:
+		return
+	var base=sk.get_bone_pose_rotation(idx)
+	if v.has("pose_bases") and v.pose_bases.has(bone_name):
+		base=v.pose_bases[bone_name]
+	sk.set_bone_pose_rotation(idx,base*Quaternion.from_euler(rot))
 
 func has_retarget_motion(v):
 	return USE_RETARGETED_ANIMATIONS and anim_ready and v.has("anim") and not v.anim.is_empty()
@@ -2083,85 +2104,84 @@ func apply_bone_pose(v,moving):
 	var sk=v.skeleton
 	if not sk:
 		return
-	var bones=v.bones
 	var step=sin(v.phase)
 	var work=sin(v.phase*2.4)
 	var style=float(v.get("pose_style",0.0))
 	var use_anim_lower=has_retarget_motion(v)
-	var arm_drop=2.55+style*.025
-	var shoulder_drop=.085+style*.01
-	reset_pose_frame(sk,bones)
-	pose_bone(sk,bones,"neck_01",Vector3(.015+sin(v.phase*.42)*.012,0,0))
-	pose_bone(sk,bones,"Head",Vector3(.01,sin(v.phase*.35+style)*.035,0))
-	pose_bone(sk,bones,"clavicle_l",Vector3(-.015,0,-shoulder_drop))
-	pose_bone(sk,bones,"clavicle_r",Vector3(-.015,0,shoulder_drop))
+	var arm_drop=1.36+style*.025
+	var shoulder_drop=.035+style*.006
+	reset_human_pose(v)
+	pose_bone_delta(v,"neck_01",Vector3(.012+sin(v.phase*.42)*.008,0,0))
+	pose_bone_delta(v,"Head",Vector3(.006,sin(v.phase*.35+style)*.025,0))
+	pose_bone_delta(v,"clavicle_l",Vector3(-.006,0,-shoulder_drop))
+	pose_bone_delta(v,"clavicle_r",Vector3(-.006,0,shoulder_drop))
 	if not is_adult(v):
-		pose_bone(sk,bones,"spine_01",Vector3(.04+sin(v.phase*.7)*.018,0,0))
-		pose_bone(sk,bones,"upperarm_l",Vector3(.015,0,-2.28))
-		pose_bone(sk,bones,"upperarm_r",Vector3(.015,0,2.28))
-		pose_bone(sk,bones,"lowerarm_l",Vector3(.22+step*.03,0,-.08))
-		pose_bone(sk,bones,"lowerarm_r",Vector3(.22-step*.03,0,.08))
+		pose_bone_delta(v,"spine_01",Vector3(.018+sin(v.phase*.7)*.01,0,0))
+		pose_bone_delta(v,"upperarm_l",Vector3(step*.045,0,-1.2))
+		pose_bone_delta(v,"upperarm_r",Vector3(-step*.045,0,1.2))
+		pose_bone_delta(v,"lowerarm_l",Vector3(.08+step*.025,0,-.02))
+		pose_bone_delta(v,"lowerarm_r",Vector3(.08-step*.025,0,.02))
 		if not use_anim_lower:
-			pose_bone(sk,bones,"thigh_l",Vector3.ZERO)
-			pose_bone(sk,bones,"thigh_r",Vector3.ZERO)
-			pose_bone(sk,bones,"calf_l",Vector3.ZERO)
-			pose_bone(sk,bones,"calf_r",Vector3.ZERO)
+			pose_bone_delta(v,"thigh_l",Vector3(-step*.14,0,0))
+			pose_bone_delta(v,"thigh_r",Vector3(step*.14,0,0))
+			pose_bone_delta(v,"calf_l",Vector3(max(0.0,step)*.12,0,0))
+			pose_bone_delta(v,"calf_r",Vector3(max(0.0,-step)*.12,0,0))
 		return
 	if not moving and not use_anim_lower:
-		pose_bone(sk,bones,"thigh_l",Vector3.ZERO)
-		pose_bone(sk,bones,"thigh_r",Vector3.ZERO)
-		pose_bone(sk,bones,"calf_l",Vector3.ZERO)
-		pose_bone(sk,bones,"calf_r",Vector3.ZERO)
-		pose_bone(sk,bones,"foot_l",Vector3.ZERO)
-		pose_bone(sk,bones,"foot_r",Vector3.ZERO)
+		pose_bone_delta(v,"thigh_l",Vector3.ZERO)
+		pose_bone_delta(v,"thigh_r",Vector3.ZERO)
+		pose_bone_delta(v,"calf_l",Vector3.ZERO)
+		pose_bone_delta(v,"calf_r",Vector3.ZERO)
+		pose_bone_delta(v,"foot_l",Vector3.ZERO)
+		pose_bone_delta(v,"foot_r",Vector3.ZERO)
 	if moving:
-		pose_bone(sk,bones,"spine_01",Vector3(-.025,0,0))
-		pose_bone(sk,bones,"upperarm_l",Vector3(step*.03,0,-arm_drop))
-		pose_bone(sk,bones,"upperarm_r",Vector3(-step*.03,0,arm_drop))
-		pose_bone(sk,bones,"lowerarm_l",Vector3(.24+max(0.0,-step)*.08,0,-.04))
-		pose_bone(sk,bones,"lowerarm_r",Vector3(.24+max(0.0,step)*.08,0,.04))
+		pose_bone_delta(v,"spine_01",Vector3(-.012,0,0))
+		pose_bone_delta(v,"upperarm_l",Vector3(step*.22,0,-arm_drop))
+		pose_bone_delta(v,"upperarm_r",Vector3(-step*.22,0,arm_drop))
+		pose_bone_delta(v,"lowerarm_l",Vector3(.13+max(0.0,-step)*.05,0,-.025))
+		pose_bone_delta(v,"lowerarm_r",Vector3(.13+max(0.0,step)*.05,0,.025))
 		if not use_anim_lower:
-			pose_bone(sk,bones,"thigh_l",Vector3(-step*.26,0,0))
-			pose_bone(sk,bones,"thigh_r",Vector3(step*.26,0,0))
-			pose_bone(sk,bones,"calf_l",Vector3(max(0.0,step)*.24,0,0))
-			pose_bone(sk,bones,"calf_r",Vector3(max(0.0,-step)*.24,0,0))
-			pose_bone(sk,bones,"foot_l",Vector3(-max(0.0,step)*.08,0,0))
-			pose_bone(sk,bones,"foot_r",Vector3(-max(0.0,-step)*.08,0,0))
+			pose_bone_delta(v,"thigh_l",Vector3(-step*.34,0,0))
+			pose_bone_delta(v,"thigh_r",Vector3(step*.34,0,0))
+			pose_bone_delta(v,"calf_l",Vector3(max(0.0,step)*.32,0,0))
+			pose_bone_delta(v,"calf_r",Vector3(max(0.0,-step)*.32,0,0))
+			pose_bone_delta(v,"foot_l",Vector3(-max(0.0,step)*.1,0,0))
+			pose_bone_delta(v,"foot_r",Vector3(-max(0.0,-step)*.1,0,0))
 	elif v.job=="BUDOWA":
-		pose_bone(sk,bones,"spine_01",Vector3(-.11+work*.032,0,0))
-		pose_bone(sk,bones,"upperarm_l",Vector3(-.08+work*.032,0,-2.32))
-		pose_bone(sk,bones,"upperarm_r",Vector3(-.08-work*.032,0,2.32))
-		pose_bone(sk,bones,"lowerarm_l",Vector3(.55,0,-.03))
-		pose_bone(sk,bones,"lowerarm_r",Vector3(.55,0,.03))
+		pose_bone_delta(v,"spine_01",Vector3(-.055+work*.018,0,0))
+		pose_bone_delta(v,"upperarm_l",Vector3(-.08+work*.045,0,-1.12))
+		pose_bone_delta(v,"upperarm_r",Vector3(-.08-work*.045,0,1.12))
+		pose_bone_delta(v,"lowerarm_l",Vector3(.28,0,-.02))
+		pose_bone_delta(v,"lowerarm_r",Vector3(.28,0,.02))
 		if not use_anim_lower:
-			pose_bone(sk,bones,"thigh_l",Vector3(.08,0,0))
-			pose_bone(sk,bones,"thigh_r",Vector3(-.08,0,0))
+			pose_bone_delta(v,"thigh_l",Vector3(.035,0,0))
+			pose_bone_delta(v,"thigh_r",Vector3(-.035,0,0))
 	elif v.job in ["PATYKI","KAMIEŃ","JAGODY"]:
-		pose_bone(sk,bones,"spine_01",Vector3(-.13+work*.03,0,0))
-		pose_bone(sk,bones,"upperarm_l",Vector3(-.08+work*.03,0,-2.42))
-		pose_bone(sk,bones,"upperarm_r",Vector3(-.08-work*.03,0,2.42))
-		pose_bone(sk,bones,"lowerarm_l",Vector3(.48,0,-.04))
-		pose_bone(sk,bones,"lowerarm_r",Vector3(.48,0,.04))
+		pose_bone_delta(v,"spine_01",Vector3(-.06+work*.016,0,0))
+		pose_bone_delta(v,"upperarm_l",Vector3(-.06+work*.035,0,-1.18))
+		pose_bone_delta(v,"upperarm_r",Vector3(-.06-work*.035,0,1.18))
+		pose_bone_delta(v,"lowerarm_l",Vector3(.24,0,-.025))
+		pose_bone_delta(v,"lowerarm_r",Vector3(.24,0,.025))
 		if not use_anim_lower:
-			pose_bone(sk,bones,"thigh_l",Vector3(.12,0,0))
-			pose_bone(sk,bones,"thigh_r",Vector3(-.05,0,0))
+			pose_bone_delta(v,"thigh_l",Vector3(.045,0,0))
+			pose_bone_delta(v,"thigh_r",Vector3(-.025,0,0))
 	elif v.job=="WSPÓLNOTA":
-		pose_bone(sk,bones,"spine_01",Vector3(.02+work*.025,0,0))
-		pose_bone(sk,bones,"upperarm_l",Vector3(.015,0,-2.58))
-		pose_bone(sk,bones,"upperarm_r",Vector3(.015,0,2.58))
-		pose_bone(sk,bones,"lowerarm_l",Vector3(.24+work*.04,0,-.1))
-		pose_bone(sk,bones,"lowerarm_r",Vector3(.24-work*.04,0,.1))
+		pose_bone_delta(v,"spine_01",Vector3(.012+work*.015,0,0))
+		pose_bone_delta(v,"upperarm_l",Vector3(.035+work*.04,0,-1.3))
+		pose_bone_delta(v,"upperarm_r",Vector3(.035-work*.04,0,1.3))
+		pose_bone_delta(v,"lowerarm_l",Vector3(.14+work*.03,0,-.04))
+		pose_bone_delta(v,"lowerarm_r",Vector3(.14-work*.03,0,.04))
 	else:
-		pose_bone(sk,bones,"spine_01",Vector3(sin(v.phase*.7)*.018,0,0))
-		pose_bone(sk,bones,"upperarm_l",Vector3(.02,0,-2.72))
-		pose_bone(sk,bones,"upperarm_r",Vector3(.02,0,2.72))
-		pose_bone(sk,bones,"lowerarm_l",Vector3(.24,0,-.06))
-		pose_bone(sk,bones,"lowerarm_r",Vector3(.24,0,.06))
+		pose_bone_delta(v,"spine_01",Vector3(sin(v.phase*.7)*.01,0,0))
+		pose_bone_delta(v,"upperarm_l",Vector3(.015,0,-1.38))
+		pose_bone_delta(v,"upperarm_r",Vector3(.015,0,1.38))
+		pose_bone_delta(v,"lowerarm_l",Vector3(.12,0,-.025))
+		pose_bone_delta(v,"lowerarm_r",Vector3(.12,0,.025))
 		if not use_anim_lower:
-			pose_bone(sk,bones,"thigh_l",Vector3.ZERO)
-			pose_bone(sk,bones,"thigh_r",Vector3.ZERO)
-			pose_bone(sk,bones,"calf_l",Vector3.ZERO)
-			pose_bone(sk,bones,"calf_r",Vector3.ZERO)
+			pose_bone_delta(v,"thigh_l",Vector3.ZERO)
+			pose_bone_delta(v,"thigh_r",Vector3.ZERO)
+			pose_bone_delta(v,"calf_l",Vector3.ZERO)
+			pose_bone_delta(v,"calf_r",Vector3.ZERO)
 
 func actor_space_radius(v):
 	return PERSONAL_SPACE_ADULT if is_adult(v) else PERSONAL_SPACE_CHILD
