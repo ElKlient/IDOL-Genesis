@@ -182,8 +182,8 @@ Jesli zmieniasz kod/scenerie/importy, odpal Godota wedlug sekcji `Kontener Codex
 
 ## Aktualna baza gry
 
-Aktualny kierunek: `0.8.20 Living World` - lekka niskopoligonowa osada epoki kamienia / wczesnego sredniowiecza z Idolem, ludzmi, praca, zasobami, lowami, miesem, skorami, palisada, brama osady, slady przy sciezkach, przeprawa przez rzeke, narzedziami kamiennymi, jeleniami i zapowiedzia pozniejszej stali.
+Aktualny kierunek: `0.8.22 Textured Climate` - lekka niskopoligonowa osada epoki kamienia / wczesnego sredniowiecza z Idolem, ludzmi, praca, zasobami, lowami, miesem, skorami, palisada, brama osady, slady przy sciezkach, przeprawa przez rzeke, narzedziami kamiennymi, jeleniami, aktywnymi malymi GLB rekwizytami i proceduralnie teksturowanym terenem.
 
-Najnowszy pass Kontenera A polaczyl `0.8.19 Hunt and Hides` z druga warstwa swiata: palisade/gate, podworka chat, legowiska, stosy drewna, przeprawe, slady stop i strefe obrobki skor. Kontenery B/C/D/E maja po pullu sprawdzic swoje pliki zadan w `docs/container_tasks/`.
+Najnowsze passy Kontenera A polaczyly `0.8.19 Hunt and Hides`, `0.8.20 Living World`, `0.8.21 Living Camp Props` i `0.8.22 Textured Climate`: palisade/gate, podworka chat, legowiska, stosy drewna, przeprawe, slady stop, strefe obrobki skor, realne lekkie rekwizyty GLB, mgielke tła oraz teksturowane materialy ziemi, trawy, drewna, kamienia i wody. Kontenery B/C/D/E maja po pullu sprawdzic swoje pliki zadan w `docs/container_tasks/`.
 
 Ludzie sa kluczowi. Nie wymieniaj modelu, szkieletu, retargetera ani proceduralnego chodu, jesli zadanie tego wprost nie dotyczy.

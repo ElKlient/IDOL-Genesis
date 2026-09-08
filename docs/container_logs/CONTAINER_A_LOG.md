@@ -212,3 +212,39 @@ Validation run by Container A:
 - Godot headless runtime start passed.
 - 8 second headless startup ran clean until expected timeout.
 - `.import` and `.uid` files stay ignored by repo policy.
+
+## Container A Patch - 0.8.22 Textured Climate - 2026-09-08
+
+Goal: make the current stone-age settlement feel less flat and closer to the realistic earthy reference direction without adding heavy texture packs or replacing the human model.
+
+Plan split used for this pass:
+
+- terrain/paths: procedural material noise plus dirt stains,
+- wood/hides: warmer rough material texture from existing color palette,
+- stone: rough speckled material texture,
+- water: subtle procedural variation,
+- atmosphere: light fog and warmer depth,
+- Android: keep runtime texture size small and reuse the existing `world_count()` density scaling.
+
+Implemented in `scripts/main.gd`:
+
+- bumped version title to `IDOL -- GENESIS 0.8.22 TEXTURED CLIMATE`,
+- added procedural textured material generation inside `mat(c)` for grass, earth, wood, stone and water,
+- added cached small `NoiseTexture2D` materials instead of bitmap texture imports,
+- added `make_surface_stain(...)` and `make_climate_surface_pass(home_a, home_b)`,
+- added dirt, ash, trampled soil and muddy riverbank surface layers around the camp,
+- added light background fog in `Environment`.
+
+Preserved:
+
+- people models, procedural walk, retargeter flag and AI,
+- Android performance pass from Container D,
+- active GLB props from `0.8.21`,
+- hunting/meat/hides gameplay.
+
+Validation completed in this local pass:
+
+- `git diff --check`: clean
+- Godot headless editor import: clean
+- Godot headless runtime startup: clean
+- 8 second headless startup: clean

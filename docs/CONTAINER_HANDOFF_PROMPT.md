@@ -89,6 +89,27 @@ Jezeli ta sciezka w danym kontenerze nie istnieje, dopiero wtedy raportuj brak l
 
 Godot 4.7 moze po imporcie utworzyc pliki `*.gd.uid`. Nie stage'uj ich automatem razem z naprawa gameplayu/scenerii. Najpierw zdecyduj, czy aktualny task faktycznie dotyczy migracji UID / polityki repo.
 
+## Stan po passcie `0.8.22 Textured Climate`
+
+Kontener A dodal pierwszy materialowo-teksturalny pass klimatu bez ciezkich bitmap:
+
+- `VERSION_TITLE` ustawione na `IDOL — GENESIS 0.8.22 TEXTURED CLIMATE`.
+- `project.godot` ustawione na `IDOL Genesis 0.8.22 Textured Climate`.
+- `mat(c)` rozpoznaje teraz powierzchnie: trawa, ziemia, drewno, kamien i woda dostaja male proceduralne `NoiseTexture2D`.
+- Tekstury sa cache'owane w materialach i maja mniejszy rozmiar na Androidzie.
+- Dodano `make_surface_stain(...)` i `make_climate_surface_pass(home_a, home_b)` dla ubitej ziemi, popiolu, pylu i blotnistych brzegow rzeki.
+- Dodano lekka mgle tla w `Environment`.
+- Nie ruszano ludzi, animacji, AI, retargetera, lowow ani aktywnych GLB z 0.8.21.
+
+## Stan po passcie `0.8.21 Living Camp Props`
+
+Kontener A dodal pierwszy maly aktywny zestaw GLB rekwizytow:
+
+- `assets/environment/kenney_survival/`: drewno, kamien, narzedzia, warsztat, poslania, polnamiot, ognisko i wymagana `Textures/colormap.png`.
+- `assets/environment/kenney_nature/`: canoe, wioslo, stos klod i duzy kamien.
+- `_ready()` zachowuje `make_world_depth_pass(home_a, home_b)` i po nim wywoluje `make_living_camp_props(home_a, home_b)`.
+- Nie importowano calych paczek vendor source.
+
 ## Stan po passcie `0.8.20 Living World`
 
 Kontener A scalil `0.8.19 Hunt and Hides` z drugim lekkim passem swiata. Obecna baza ma juz lowy, mieso, skory, zywa zwierzyne oraz czytelniejsze otoczenie osady.

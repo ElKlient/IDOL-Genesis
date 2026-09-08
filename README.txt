@@ -1,6 +1,6 @@
 START DLA KONTENEROW: najpierw przeczytaj WORKFLOW_FIRST.md.
 
-IDOL Genesis 0.8.21 - LIVING CAMP PROPS
+IDOL Genesis 0.8.22 - TEXTURED CLIMATE
 
 Prompt roboczy tej łatki:
 Zbuduj pierwszy grywalny rdzeń osady epoki kamienia. Gracz jest Idolem: wolą osady, nie dowódcą armii. Ludzie mają samodzielnie dzielić robotę, nosić surowce, budować podstawowe budynki, odpoczywać, tworzyć pierwsze więzi i odkrywać proste technologie przez zadania.
@@ -10,6 +10,14 @@ Kierunek gry:
 - ludzie nie są wojskiem do szkolenia, tylko pierwszą społecznością
 - później mają tworzyć pary, rozmnażać się, budować relacje, dzielić się na grupy i wchodzić w konflikty
 - rozwój technologii wynika z prostych zadań, które Idol zleca mieszkańcom
+
+Zmiany 0.8.22:
+- dodano mobilny proceduralny system teksturowania materiałów: ziemia, trawa, drewno, kamień i woda nie są już płaskimi kolorami
+- `mat(c)` rozpoznaje rodzaj powierzchni po kolorze i nakłada małą teksturę szumu z cachem materiałów, bez ciężkich bitmap w repo
+- dodano mgłę tła i cieplejszą atmosferę światła, żeby osada mniej wyglądała jak makieta na pustej planszy
+- dodano warstwę powierzchniową: przy ognisku, składzie, domach, warsztacie i rzece są plamy ubitej ziemi, popiołu, pyłu i błota
+- zachowano optymalizację Androida z 0.8.20/0.8.21: tekstury proceduralne mają mniejszy rozmiar na mobile, a świat dalej skaluje gęstość przez `world_count()`
+- nie ruszano ludzi, animacji, AI, retargetera ani logiki łowów
 
 Zmiany 0.8.21:
 - dodano aktywny, mały zestaw prawdziwych GLB z paczek Kenney do `assets/environment`, bez importowania całych ukrytych katalogów źródłowych

@@ -22,7 +22,7 @@ const PROP_PADDLE=preload("res://assets/environment/kenney_nature/canoe_paddle.g
 const PROP_LOG_STACK=preload("res://assets/environment/kenney_nature/log_stack.glb")
 const PROP_ROCK_LARGE=preload("res://assets/environment/kenney_nature/rock_largeA.glb")
 const RETARGETER=preload("res://scripts/retargeter.gd")
-const VERSION_TITLE="IDOL — GENESIS 0.8.21 LIVING CAMP PROPS"
+const VERSION_TITLE="IDOL — GENESIS 0.8.22 TEXTURED CLIMATE"
 const CAMERA_MIN_DISTANCE=5.5
 const CAMERA_MAX_DISTANCE=88.0
 const CAMERA_HEIGHT_RATIO=0.61
@@ -64,6 +64,9 @@ const USE_FLOATING_CARGO=true
 const USE_HEAD_FACE_ATTACHMENTS=false
 const MOBILE_WORLD_DENSITY=.72
 const MOBILE_SHADOWS=false
+const USE_PROCEDURAL_CLIMATE_TEXTURES=true
+const CLIMATE_TEXTURE_SIZE_DESKTOP=96
+const CLIMATE_TEXTURE_SIZE_MOBILE=64
 const HUMAN_FEMALE_ADULT_SCALE=1.16
 const HUMAN_MALE_ADULT_SCALE=1.22
 const HUMAN_CHILD_SCALE=.74
@@ -148,11 +151,99 @@ var traits=["Pracowita","Odważna","Ciekawska","Śpioch","Spokojna","Silny","Upa
 var settler_likes=["ogień","rzekę","ciepły dom","zbieranie jagód","ciszę przy drzewach","pracę z kamieniem","budowanie","rozmowy przy ognisku","porządek w składzie","znaki Idola"]
 var settler_worries=["głód","noc","ciasne ścieżki","brak wolnego domu","zimno","hałas przy budowie","pusty skład","samotność","kamienie na drodze","gniew Idola"]
 
+func climate_texture_size():
+	if is_mobile_runtime():
+		return CLIMATE_TEXTURE_SIZE_MOBILE
+	return CLIMATE_TEXTURE_SIZE_DESKTOP
+
+func climate_surface_kind(c):
+	if not USE_PROCEDURAL_CLIMATE_TEXTURES or c.a<.94:
+		return "plain"
+	var l=(c.r+c.g+c.b)/3.0
+	if c.r>.72 and c.g>.28 and c.b<.23:
+		return "plain"
+	if c.b>c.r*1.08 and c.g>c.r*.82:
+		return "water"
+	if c.g>c.r*.9 and c.g>c.b*1.08 and c.r<.68:
+		return "grass"
+	if abs(c.r-c.g)<.085 and abs(c.g-c.b)<.085 and l>.28:
+		return "stone"
+	if c.r>c.g*1.04 and c.g>c.b*1.08:
+		return "wood"
+	if c.r>c.b and c.g>c.b and l>.2:
+		return "earth"
+	return "plain"
+
+func climate_noise_frequency(kind):
+	match kind:
+		"grass":
+			return .055
+		"earth":
+			return .075
+		"wood":
+			return .11
+		"stone":
+			return .095
+		"water":
+			return .065
+		_:
+			return .08
+
+func climate_uv_scale(kind):
+	match kind:
+		"grass":
+			return 7.2
+		"earth":
+			return 5.6
+		"wood":
+			return 3.4
+		"stone":
+			return 4.4
+		"water":
+			return 6.2
+		_:
+			return 4.0
+
+func climate_roughness(kind):
+	if kind=="water":
+		return .48
+	if kind=="stone":
+		return .98
+	return .92
+
+func climate_seed(c,kind):
+	var seed=int(c.r*255.0)*73856093+int(c.g*255.0)*19349663+int(c.b*255.0)*83492791+kind.length()*1013
+	return abs(seed)%2147483647
+
+func climate_noise_texture(c,kind):
+	var noise=FastNoiseLite.new()
+	noise.seed=climate_seed(c,kind)
+	noise.frequency=climate_noise_frequency(kind)
+	noise.fractal_octaves=3
+	noise.fractal_gain=.47
+	noise.fractal_lacunarity=2.08
+	var tex=NoiseTexture2D.new()
+	tex.width=climate_texture_size()
+	tex.height=climate_texture_size()
+	tex.seamless=true
+	tex.noise=noise
+	var ramp=Gradient.new()
+	ramp.set_color(0,Color(.66,.66,.66,1))
+	ramp.set_color(1,Color(1,1,1,1))
+	tex.color_ramp=ramp
+	return tex
+
 func mat(c):
-	var key=str(c)
+	var kind=climate_surface_kind(c)
+	var key=str(c)+":"+kind+":"+str(climate_texture_size())
 	if material_cache.has(key):
 		return material_cache[key]
-	var m=StandardMaterial3D.new(); m.albedo_color=c; m.roughness=.95
+	var m=StandardMaterial3D.new()
+	m.albedo_color=c
+	m.roughness=climate_roughness(kind)
+	if kind!="plain":
+		m.albedo_texture=climate_noise_texture(c,kind)
+		m.uv1_scale=Vector3(climate_uv_scale(kind),climate_uv_scale(kind),1.0)
 	if c.a<1.0:
 		m.transparency=BaseMaterial3D.TRANSPARENCY_ALPHA
 	material_cache[key]=m
@@ -200,6 +291,11 @@ func _ready():
 	world_env=WorldEnvironment.new(); var e=Environment.new()
 	e.background_mode=Environment.BG_COLOR; e.background_color=Color("#9fb8bf")
 	e.ambient_light_source=Environment.AMBIENT_SOURCE_COLOR; e.ambient_light_color=Color("#fff0d5"); e.ambient_light_energy=.52
+	e.fog_enabled=true
+	e.fog_light_color=Color("#aab2a3")
+	e.fog_light_energy=.28
+	e.fog_density=(.011 if is_mobile_runtime() else .016)
+	e.fog_sun_scatter=.16
 	world_env.environment=e; add_child(world_env)
 	sun=DirectionalLight3D.new(); sun.rotation_degrees=Vector3(-55,-35,0); sun.light_energy=1.42; sun.shadow_enabled=(not is_mobile_runtime()) or MOBILE_SHADOWS; add_child(sun)
 
@@ -235,6 +331,7 @@ func _ready():
 	make_ancient_settlement_scene()
 	make_world_depth_pass(home_a,home_b)
 	make_living_camp_props(home_a,home_b)
+	make_climate_surface_pass(home_a,home_b)
 
 	for i in range(10): make_person(i)
 	make_selection_marker()
@@ -290,6 +387,11 @@ func make_ground_patch(p,size,c,rot=0.0):
 	var patch=box(Vector3(p.x,.032,p.z),Vector3(size.x,.035,size.y),c)
 	patch.rotation_degrees.y=rot
 	return patch
+
+func make_surface_stain(p,size,c,rot=0.0):
+	var stain=box(Vector3(p.x,.071,p.z),Vector3(size.x,.018,size.y),c)
+	stain.rotation_degrees.y=rot
+	return stain
 
 func make_terrain_layers():
 	var cols=[Color("#5d7046"),Color("#49613b"),Color("#61754b"),Color("#6b6648"),Color("#4d653c")]
@@ -923,6 +1025,25 @@ func make_living_camp_props(home_a,home_b):
 	prop_scene(camp,PROP_ROCK_LARGE,Vector3(3.9,.06,-2.55),-10,.72)
 	prop_scene(camp,PROP_LOG_STACK,Vector3(-7.55,.08,5.95),42,.72)
 	add_obstacle(Vector3(-7.55,0,5.95),.75)
+
+func make_climate_surface_pass(home_a,home_b):
+	var camp_soil=[Color("#514833"),Color("#5b4d34"),Color("#65583c"),Color("#4b4532")]
+	var hubs=[hearth_pos,STOCKPILE_POS,RESEARCH_POS,home_a,home_b,Vector3(4.8,0,11.6),Vector3(-12.0,0,5.7)]
+	for hub in hubs:
+		for i in range(world_count(4)):
+			var p=hub+Vector3(rng.randf_range(-3.0,3.0),0,rng.randf_range(-2.2,2.2))
+			make_surface_stain(p,Vector2(rng.randf_range(.9,2.1),rng.randf_range(.42,1.2)),camp_soil[rng.randi_range(0,camp_soil.size()-1)],rng.randf_range(0,180))
+	for z in range(-27,28,6):
+		var x=river_x_at_z(z)
+		make_surface_stain(Vector3(x-3.55,0,z+rng.randf_range(-.65,.65)),Vector2(rng.randf_range(.7,1.15),rng.randf_range(2.1,3.4)),Color("#465039"),rng.randf_range(-8,8))
+		make_surface_stain(Vector3(x+3.55,0,z+rng.randf_range(-.65,.65)),Vector2(rng.randf_range(.7,1.15),rng.randf_range(2.1,3.4)),Color("#465039"),rng.randf_range(-8,8))
+	for i in range(world_count(15)):
+		var a=rng.randf_range(0,TAU)
+		var p=hearth_pos+Vector3(cos(a)*rng.randf_range(.85,2.35),0,sin(a)*rng.randf_range(.65,1.9))
+		make_surface_stain(p,Vector2(rng.randf_range(.18,.5),rng.randf_range(.08,.22)),Color("#343129"),rng.randf_range(0,180))
+	for i in range(world_count(12)):
+		var p=STOCKPILE_POS+Vector3(rng.randf_range(-2.4,2.4),0,rng.randf_range(-1.55,1.55))
+		make_surface_stain(p,Vector2(rng.randf_range(.35,.9),rng.randf_range(.12,.28)),Color("#493a28"),rng.randf_range(0,180))
 
 func make_idol():
 	add_obstacle(Vector3.ZERO,2.35)

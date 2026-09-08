@@ -1,5 +1,5 @@
 [application]
-config/name="IDOL Genesis 0.8.21 Living Camp Props"
+config/name="IDOL Genesis 0.8.22 Textured Climate"
 run/main_scene="res://main.tscn"
 
 [display]
