@@ -5,7 +5,7 @@ var source_scene:Node
 var source_player:AnimationPlayer
 var source_skeleton:Skeleton3D
 var cache={}
-var procedural_upper_body=["spine","clavicle","upperarm","lowerarm","hand","neck","head"]
+var procedural_upper_body=["spine","clavicle","upperarm","lowerarm","hand","neck","head","index","middle","pinky","ring","thumb"]
 
 func initialize():
 	var packed=load("res://assets/animations/UAL2_Standard.glb")
@@ -46,8 +46,9 @@ func attach(character:Node)->Dictionary:
 	if not target or not source_player: return {}
 	var player=AnimationPlayer.new()
 	character.add_child(player)
+	player.root_node=NodePath("..")
 	var lib=AnimationLibrary.new()
-	var target_path=player.get_path_to(target)
+	var target_path=character.get_path_to(target)
 	for state in ["idle","walk","work"]:
 		var src_name:StringName=&""
 		if state=="idle": src_name=choose(["idle","stand"])
@@ -71,6 +72,9 @@ func attach(character:Node)->Dictionary:
 				anim.remove_track(ti)
 				continue
 			if subs!="":
+				if target.find_bone(subs)<0:
+					anim.remove_track(ti)
+					continue
 				anim.track_set_path(ti,NodePath(String(target_path)+":"+subs))
 		lib.add_animation(state,anim)
 	player.add_animation_library("",lib)

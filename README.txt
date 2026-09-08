@@ -1,4 +1,4 @@
-IDOL Genesis 0.7.4 - POSE FIX
+IDOL Genesis 0.7.5 - ANIM PATH FIX
 
 Prompt roboczy tej łatki:
 Zbuduj pierwszy grywalny rdzeń osady epoki kamienia. Gracz jest Idolem: wolą osady, nie dowódcą armii. Ludzie mają samodzielnie dzielić robotę, nosić surowce, budować podstawowe budynki, odpoczywać, tworzyć pierwsze więzi i odkrywać proste technologie przez zadania.
@@ -8,6 +8,12 @@ Kierunek gry:
 - ludzie nie są wojskiem do szkolenia, tylko pierwszą społecznością
 - później mają tworzyć pary, rozmnażać się, budować relacje, dzielić się na grupy i wchodzić w konflikty
 - rozwój technologii wynika z prostych zadań, które Idol zleca mieszkańcom
+
+Zmiany 0.7.5:
+- uruchomiono projekt w lokalnym Godot 4.7.2 headless i złapano ostrzeżenia retargetera w runtime
+- naprawiono ścieżkę AnimationPlayera: animacje są mapowane względem postaci, a nie względem samego playera
+- retargeter usuwa tory kości, których model nie posiada, zamiast zostawiać je jako nierozwiązywalne tracki
+- tory palców są wycinane razem z górą ciała, żeby proceduralna poza spokojniej kontrolowała sylwetkę osadnika
 
 Zmiany 0.7.4:
 - po analizie filmu z telefonu poprawiono warstwę proceduralnej pozy osadników
