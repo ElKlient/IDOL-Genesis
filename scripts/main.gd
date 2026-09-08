@@ -8,7 +8,7 @@ const WALL=preload("res://assets/village/Wall_Plaster_Straight.gltf")
 const DOOR=preload("res://assets/village/Wall_Plaster_Door_Round.gltf")
 const ROOF=preload("res://assets/village/Roof_RoundTiles_6x6.gltf")
 const RETARGETER=preload("res://scripts/retargeter.gd")
-const VERSION_TITLE="IDOL — GENESIS 0.8.11 WALK SPEECH"
+const VERSION_TITLE="IDOL — GENESIS 0.8.12 ARM SYNC"
 const CAMERA_MIN_DISTANCE=5.5
 const CAMERA_MAX_DISTANCE=88.0
 const CAMERA_HEIGHT_RATIO=0.61
@@ -2161,10 +2161,10 @@ func apply_bone_pose(v,moving):
 	pose_bone_delta(v,"clavicle_r",Vector3(-.006,0,shoulder_drop))
 	if not is_adult(v):
 		pose_bone_delta(v,"spine_01",Vector3(.018+sin(v.phase*.7)*.01,0,0))
-		pose_bone_delta(v,"upperarm_l",Vector3(step*.2,0,-1.2))
-		pose_bone_delta(v,"upperarm_r",Vector3(-step*.2,0,1.2))
-		pose_bone_delta(v,"lowerarm_l",Vector3(.08-step*.06,0,-.02))
-		pose_bone_delta(v,"lowerarm_r",Vector3(.08+step*.06,0,.02))
+		pose_bone_delta(v,"upperarm_l",Vector3(step*.36,0,-1.2))
+		pose_bone_delta(v,"upperarm_r",Vector3(-step*.36,0,1.2))
+		pose_bone_delta(v,"lowerarm_l",Vector3(.09-step*.1,0,-.02))
+		pose_bone_delta(v,"lowerarm_r",Vector3(.09+step*.1,0,.02))
 		if not use_anim_lower:
 			pose_bone_delta(v,"thigh_l",Vector3(-step*.27,0,0))
 			pose_bone_delta(v,"thigh_r",Vector3(step*.27,0,0))
@@ -2180,10 +2180,10 @@ func apply_bone_pose(v,moving):
 		pose_bone_delta(v,"foot_r",Vector3.ZERO)
 	if moving:
 		pose_bone_delta(v,"spine_01",Vector3(-.012,0,0))
-		pose_bone_delta(v,"upperarm_l",Vector3(step*.68,0,-arm_drop))
-		pose_bone_delta(v,"upperarm_r",Vector3(-step*.68,0,arm_drop))
-		pose_bone_delta(v,"lowerarm_l",Vector3(.13-step*.14,0,-.025))
-		pose_bone_delta(v,"lowerarm_r",Vector3(.13+step*.14,0,.025))
+		pose_bone_delta(v,"upperarm_l",Vector3(step*.82,0,-arm_drop))
+		pose_bone_delta(v,"upperarm_r",Vector3(-step*.82,0,arm_drop))
+		pose_bone_delta(v,"lowerarm_l",Vector3(.14-step*.19,0,-.025))
+		pose_bone_delta(v,"lowerarm_r",Vector3(.14+step*.19,0,.025))
 		if not use_anim_lower:
 			pose_bone_delta(v,"thigh_l",Vector3(-step*.46,0,0))
 			pose_bone_delta(v,"thigh_r",Vector3(step*.46,0,0))

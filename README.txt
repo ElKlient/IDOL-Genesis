@@ -1,4 +1,4 @@
-IDOL Genesis 0.8.11 - WALK SPEECH
+IDOL Genesis 0.8.12 - ARM SYNC
 
 Prompt roboczy tej łatki:
 Zbuduj pierwszy grywalny rdzeń osady epoki kamienia. Gracz jest Idolem: wolą osady, nie dowódcą armii. Ludzie mają samodzielnie dzielić robotę, nosić surowce, budować podstawowe budynki, odpoczywać, tworzyć pierwsze więzi i odkrywać proste technologie przez zadania.
@@ -8,6 +8,12 @@ Kierunek gry:
 - ludzie nie są wojskiem do szkolenia, tylko pierwszą społecznością
 - później mają tworzyć pary, rozmnażać się, budować relacje, dzielić się na grupy i wchodzić w konflikty
 - rozwój technologii wynika z prostych zadań, które Idol zleca mieszkańcom
+
+Zmiany 0.8.12:
+- podbito zakres pracy ramion przy chodzeniu dorosłych do wyraźniejszego, przeciwfazowego ruchu względem nóg
+- łokcie mocniej domykają i otwierają krok, żeby ręce nie wyglądały jak sztywno przyklejone do ciała
+- dzieci dostały proporcjonalnie mniejszy, ale nadal widoczny swing ramion
+- dymki, czat i menu zostają bez zmian względem 0.8.11
 
 Zmiany 0.8.11:
 - zwiększono widoczny swing ramion podczas chodzenia, nadal tylko na bezpiecznej osi przód-tył względem pozy bazowej modelu
