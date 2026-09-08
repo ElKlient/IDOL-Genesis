@@ -1,4 +1,4 @@
-IDOL Genesis 0.8.10 - SPEECH TUNING
+IDOL Genesis 0.8.11 - WALK SPEECH
 
 Prompt roboczy tej łatki:
 Zbuduj pierwszy grywalny rdzeń osady epoki kamienia. Gracz jest Idolem: wolą osady, nie dowódcą armii. Ludzie mają samodzielnie dzielić robotę, nosić surowce, budować podstawowe budynki, odpoczywać, tworzyć pierwsze więzi i odkrywać proste technologie przez zadania.
@@ -8,6 +8,13 @@ Kierunek gry:
 - ludzie nie są wojskiem do szkolenia, tylko pierwszą społecznością
 - później mają tworzyć pary, rozmnażać się, budować relacje, dzielić się na grupy i wchodzić w konflikty
 - rozwój technologii wynika z prostych zadań, które Idol zleca mieszkańcom
+
+Zmiany 0.8.11:
+- zwiększono widoczny swing ramion podczas chodzenia, nadal tylko na bezpiecznej osi przód-tył względem pozy bazowej modelu
+- lekko wzmocniono krok nóg i stóp, żeby spacer nie wyglądał jak przesuwanie sztywnej figury
+- dymki rozmów zachowują mały prostokąt, ale tekst jest większy, bielszy i ma mocniejszy outline
+- panel rozmów osady jest delikatnie większy i ma font podbity o jeden stopień
+- łatka celowo dotyka tylko postaci, chodu i czytelności rozmów
 
 Zmiany 0.8.10:
 - zmniejszono imiona i wyłączono dla nich ekranowy fixed-size, żeby nie robiły wielkich napisów przy kamerze
