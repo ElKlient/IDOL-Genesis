@@ -104,6 +104,10 @@ After this pass:
   - editor import passed, exit `0`;
   - runtime passed, exit `0`;
   - `timeout 8s ... --headless --path .`: ran without runtime errors until expected exit `124`.
+- Final Git Data API push succeeded without force:
+  - remote commit: `7e2d5bc902b9d180e4e4dc4ade4aec32a9d41974`;
+  - parent: `2c2c9ccfc96993774b8aa9a9a10753f12cf0dbc5`;
+  - local source HEAD for the pushed tree: `99bfa02fa998b2edcc8e82f2d4e2dd385d2d6a12`.
 - Old Godot path requested by handoff:
   - `/workspace/scratch/ad3cb27c6389/tools/godot/Godot_v4.7.2-stable_linux.x86_64 --headless --editor --path . --quit`
   - result: binary not present in this container.
@@ -120,7 +124,7 @@ After this pass:
 
 ## Blockers / Risks
 
-- D changes are committed locally. A second push attempt will be made after this log update; plain HTTPS push may still be blocked if credentials are not available.
+- D code/performance changes are on GitHub in `7e2d5bc902b9d180e4e4dc4ade4aec32a9d41974`. Plain HTTPS `git push` from this container is still blocked by missing credentials, so further container writes may need the GitHub connector/Git Data API path.
 - The old shared Godot path is missing in this container, but the local fallback Godot 4.7.2 binary passed editor import and runtime.
 - Real FPS and gray-screen confirmation still need an Android-side test after pulling this commit on the phone.
 - Downscaled 1024px textures are the right mobile direction, but visual quality should be checked on the phone after import.
