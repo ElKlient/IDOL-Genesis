@@ -1,4 +1,4 @@
-IDOL Genesis 0.7.7 - ANIMATION POLISH
+IDOL Genesis 0.7.8 - POSE OVERRIDE
 
 Prompt roboczy tej łatki:
 Zbuduj pierwszy grywalny rdzeń osady epoki kamienia. Gracz jest Idolem: wolą osady, nie dowódcą armii. Ludzie mają samodzielnie dzielić robotę, nosić surowce, budować podstawowe budynki, odpoczywać, tworzyć pierwsze więzi i odkrywać proste technologie przez zadania.
@@ -8,6 +8,11 @@ Kierunek gry:
 - ludzie nie są wojskiem do szkolenia, tylko pierwszą społecznością
 - później mają tworzyć pary, rozmnażać się, budować relacje, dzielić się na grupy i wchodzić w konflikty
 - rozwój technologii wynika z prostych zadań, które Idol zleca mieszkańcom
+
+Zmiany 0.7.8:
+- po kolejnym filmie naprawiono kolejność animacji: retargeter działa teraz manualnie i jest przesuwany przed proceduralną pozą
+- proceduralna poza ma ostatnie słowo w klatce, więc animacja nóg nie powinna już ponownie podnosić ramion do T-pose
+- wywołania retargetera dostają delta time z pętli gry, żeby chodzenie nadal było animowane mimo ręcznego trybu
 
 Zmiany 0.7.7:
 - po teście wideo z telefonu zmniejszono HUD i panele informacji, żeby kamera i animacje były lepiej widoczne na Androidzie

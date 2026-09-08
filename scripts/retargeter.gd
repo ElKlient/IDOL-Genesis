@@ -53,6 +53,7 @@ func attach(character:Node)->Dictionary:
 	var player=AnimationPlayer.new()
 	character.add_child(player)
 	player.root_node=NodePath("..")
+	player.playback_process_mode=AnimationPlayer.ANIMATION_PROCESS_MANUAL
 	var lib=AnimationLibrary.new()
 	var target_path=character.get_path_to(target)
 	for state in ["idle","walk","work","gather","chop"]:
@@ -88,10 +89,12 @@ func attach(character:Node)->Dictionary:
 	player.add_animation_library("",lib)
 	return {"player":player,"idle":lib.has_animation("idle"),"walk":lib.has_animation("walk"),"work":lib.has_animation("work")}
 
-func play(ctrl:Dictionary,state:String):
+func play(ctrl:Dictionary,state:String,step:float=0.0):
 	if ctrl.is_empty(): return
 	var p:AnimationPlayer=ctrl.player
 	if not p.has_animation(state):
 		state="idle"
 	if p.has_animation(state) and p.current_animation!=state:
 		p.play(state,0.18,1.0)
+	if p.has_animation(state) and step>0.0:
+		p.advance(step)

@@ -8,7 +8,7 @@ const WALL=preload("res://assets/village/Wall_Plaster_Straight.gltf")
 const DOOR=preload("res://assets/village/Wall_Plaster_Door_Round.gltf")
 const ROOF=preload("res://assets/village/Roof_RoundTiles_6x6.gltf")
 const RETARGETER=preload("res://scripts/retargeter.gd")
-const VERSION_TITLE="IDOL — GENESIS 0.7.7 ANIMATION POLISH"
+const VERSION_TITLE="IDOL — GENESIS 0.7.8 POSE OVERRIDE"
 const CAMERA_MIN_DISTANCE=5.5
 const CAMERA_MAX_DISTANCE=88.0
 const CAMERA_HEIGHT_RATIO=0.61
@@ -1800,12 +1800,12 @@ func _process(d):
 			var speed=(.8+v.dex*.04)*(1.0 if adult else .72)
 			n.position+=dir.normalized()*d*speed
 			n.look_at(n.position+dir,Vector3.UP)
-			if anim_ready and v.has("anim"): retargeter.play(v.anim,animation_state_for(v,true))
+			if anim_ready and v.has("anim"): retargeter.play(v.anim,animation_state_for(v,true),d)
 			apply_living_pose(v,d,true,dir)
 		else:
 			v.work_timer+=d
 			if v.job!="IDLE":
-				if anim_ready and v.has("anim"): retargeter.play(v.anim,animation_state_for(v,false))
+				if anim_ready and v.has("anim"): retargeter.play(v.anim,animation_state_for(v,false),d)
 				apply_living_pose(v,d,false,dir)
 				if v.work_timer>=job_duration(v):
 					var keep_job=finish_job(v)
@@ -1813,7 +1813,7 @@ func _process(d):
 						v.job="IDLE"
 						choose_work(v)
 			else:
-				if anim_ready and v.has("anim"): retargeter.play(v.anim,animation_state_for(v,false))
+				if anim_ready and v.has("anim"): retargeter.play(v.anim,animation_state_for(v,false),d)
 				apply_living_pose(v,d,false,dir)
 				if v.work_timer>=job_duration(v):
 					choose_work(v)
