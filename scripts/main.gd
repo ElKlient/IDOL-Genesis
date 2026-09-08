@@ -2407,10 +2407,13 @@ func pose_walk_arm(v,left:bool,arm_swing:float,elbow_swing:float,drop:float):
 		forward_dir=Vector3(0,0,1)
 	else:
 		forward_dir=forward_dir.normalized()
+	var swing_weight=clamp(abs(arm_swing),0.0,1.0)
 	var target_dir=(down_dir+forward_dir*arm_swing).normalized()
 	pose_bone_aim_child(v,upper_name,lower_name,target_dir)
-	pose_bone_delta(v,lower_name,Vector3(0,0,side*(.035+abs(elbow_swing)*.05)))
-	pose_bone_delta(v,hand_name,Vector3.ZERO)
+	var forearm_follow=clamp(elbow_swing*.34,-.11,.11)
+	var elbow_bend=side*(.045+swing_weight*.035+abs(elbow_swing)*.065)
+	pose_bone_delta(v,lower_name,Vector3(forearm_follow,0,elbow_bend))
+	pose_bone_delta(v,hand_name,Vector3(-forearm_follow*.35,0,side*swing_weight*.01))
 
 func soft01(x:float):
 	x=clamp(x,0.0,1.0)
@@ -2493,19 +2496,21 @@ func apply_bone_pose(v,moving):
 		pose_bone_delta(v,"foot_l",Vector3.ZERO)
 		pose_bone_delta(v,"foot_r",Vector3.ZERO)
 	if moving:
-		var arm_swing=arm_step*.82
-		var elbow_swing=arm_step*.24
+		var carry_factor=.68 if v.carry!="" else 1.0
+		var arm_swing=arm_step*.76*carry_factor
+		var elbow_swing=arm_step*.30*carry_factor
 		var weight=sin(v.phase)
 		var pelvis_roll=weight*(.055+style*.004)
 		var pelvis_yaw=-weight*.028
+		var walk_arm_drop=arm_drop-abs(arm_step)*.026+(0.05 if v.carry!="" else 0.0)
 		pose_bone_delta(v,"pelvis",Vector3(step2*.018,pelvis_yaw,pelvis_roll))
 		pose_bone_delta(v,"spine_01",Vector3(-.038+step2*.018,-pelvis_yaw*.45,-pelvis_roll*.34))
 		pose_bone_delta(v,"spine_02",Vector3(.018-step2*.01,pelvis_yaw*.28,pelvis_roll*.18))
 		pose_bone_delta(v,"spine_03",Vector3(.01, -pelvis_yaw*.18, -pelvis_roll*.14))
-		pose_bone_delta(v,"clavicle_l",Vector3(-.012+arm_step*.04,0,-shoulder_drop-arm_step*.016))
-		pose_bone_delta(v,"clavicle_r",Vector3(-.012-arm_step*.04,0,shoulder_drop-arm_step*.016))
-		pose_walk_arm(v,true,arm_swing,elbow_swing,arm_drop-abs(arm_step)*.028)
-		pose_walk_arm(v,false,arm_swing,elbow_swing,arm_drop-abs(arm_step)*.028)
+		pose_bone_delta(v,"clavicle_l",Vector3(-.012+arm_step*.04*carry_factor,0,-shoulder_drop-arm_step*.014*carry_factor))
+		pose_bone_delta(v,"clavicle_r",Vector3(-.012-arm_step*.04*carry_factor,0,shoulder_drop-arm_step*.014*carry_factor))
+		pose_walk_arm(v,true,arm_swing,elbow_swing,walk_arm_drop)
+		pose_walk_arm(v,false,arm_swing,elbow_swing,walk_arm_drop)
 		if not use_anim_lower:
 			var stride=.39+style*.018
 			var knee_amount=.48+style*.018

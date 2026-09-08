@@ -71,6 +71,10 @@ func attach(character:Node)->Dictionary:
 		for ti in range(anim.get_track_count()-1,-1,-1):
 			var path=anim.track_get_path(ti)
 			var subs=String(path.get_concatenated_subnames())
+			var track_type=anim.track_get_type(ti)
+			if track_type==Animation.TYPE_POSITION_3D or track_type==Animation.TYPE_SCALE_3D:
+				anim.remove_track(ti)
+				continue
 			var low=(String(path)+" "+subs).to_lower()
 			var procedural=false
 			for key in procedural_upper_body:
