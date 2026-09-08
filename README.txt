@@ -1,4 +1,4 @@
-IDOL Genesis 0.8.3 - HUMAN VOICES
+IDOL Genesis 0.8.4 - CLEAN PEOPLE
 
 Prompt roboczy tej łatki:
 Zbuduj pierwszy grywalny rdzeń osady epoki kamienia. Gracz jest Idolem: wolą osady, nie dowódcą armii. Ludzie mają samodzielnie dzielić robotę, nosić surowce, budować podstawowe budynki, odpoczywać, tworzyć pierwsze więzi i odkrywać proste technologie przez zadania.
@@ -8,6 +8,14 @@ Kierunek gry:
 - ludzie nie są wojskiem do szkolenia, tylko pierwszą społecznością
 - później mają tworzyć pary, rozmnażać się, budować relacje, dzielić się na grupy i wchodzić w konflikty
 - rozwój technologii wynika z prostych zadań, które Idol zleca mieszkańcom
+
+Zmiany 0.8.4:
+- zdjęto z importowanych ludzi prowizoryczne rootowe doczepki: pływające włosy, paski, torby i widoczne ładunki nie będą już rozwalać sylwetki
+- zostawiono czystszy model człowieka i dodano tylko małe detale twarzy przypięte do kości głowy, żeby nie odklejały się od animacji
+- uspokojono chód: mniej bujania całym ciałem, mniej pochylania przy pracy i mniejsze proceduralne zakresy rąk oraz nóg
+- zwiększono osobisty odstęp mieszkańców i delikatnie mocniejsze omijanie przeszkód, żeby rzadziej zbijali się w jedną bryłę
+- powiększono dymki, imiona i panel rozmów osady; tekst powinien być czytelniejszy na telefonie bez gigantycznego spamu
+- język mieszkańców ma teraz preferencje i obawy: ludzie mówią o tym, co lubią, czego się boją, jak dzielą pracę i gdzie robi się tłok
 
 Zmiany 0.8.3:
 - przywrócono widoczny importowany model człowieka; proste ciało zastępcze z 0.8.2 jest wyłączone i zostaje tylko jako awaryjna opcja
