@@ -56,3 +56,35 @@ Termux update command for the user:
 ```bash
 cd /storage/emulated/0/IDOL-Genesis/IDOL-Genesis && git config --global --add safe.directory /storage/emulated/0/IDOL-Genesis/IDOL-Genesis && git stash push -m "backup przed update" && git pull origin main && git --no-pager log -5 --oneline
 ```
+
+
+## 2026-09-08 - GitHub Instruction Check
+
+Trigger:
+- User said: "Masz zapisane instrukcje na github zastosuj się".
+
+Checked on current `main`:
+- `WORKFLOW_FIRST.md`
+- `docs/CONTAINER_HANDOFF_PROMPT.md`
+- `docs/container_tasks/README.md`
+- `docs/container_tasks/CONTAINER_B_TASK.md`
+- `docs/container_logs/CONTAINER_A_LOG.md`
+- `docs/container_logs/CONTAINER_B_LOG.md`
+- `docs/container_logs/CONTAINER_C_LOG.md`
+- `scripts/main.gd` focus ranges around people, pose, walk, and process functions
+- `scripts/retargeter.gd`
+
+Current instruction status for Container B:
+- Scope remains people, walking animation, arm motion, bone axes, skeleton/pose safety.
+- Do not touch terrain, resources, UI, asset packs, Android workflow, or gameplay balance.
+- Existing B code pass is already on GitHub as `f0e7ea7 Tune villager walk animation`.
+
+Decision:
+- No extra code change in this check. The current B task should go to Android visual testing before another animation tweak.
+- Recommendation to Container A: integrate/keep `f0e7ea7`, then request a short phone video focused on walking settlers with and without cargo.
+
+35 minute instruction note:
+- The repo asks active helper containers to check every 35 minutes.
+- This host cannot honestly wake the same live coding session every 35 minutes by itself.
+- Work Mode automations have a minimum practical frequency of once per hour, so exact 35-minute polling cannot be scheduled here.
+- If the user resumes this container, re-check `WORKFLOW_FIRST.md`, `docs/container_tasks/CONTAINER_B_TASK.md`, and this log before doing more work.
