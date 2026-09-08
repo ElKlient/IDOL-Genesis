@@ -8,7 +8,7 @@ const WALL=preload("res://assets/village/Wall_Plaster_Straight.gltf")
 const DOOR=preload("res://assets/village/Wall_Plaster_Door_Round.gltf")
 const ROOF=preload("res://assets/village/Roof_RoundTiles_6x6.gltf")
 const RETARGETER=preload("res://scripts/retargeter.gd")
-const VERSION_TITLE="IDOL — GENESIS 0.7.8 POSE OVERRIDE"
+const VERSION_TITLE="IDOL — GENESIS 0.7.9 SETTLER ARMS"
 const CAMERA_MIN_DISTANCE=5.5
 const CAMERA_MAX_DISTANCE=88.0
 const CAMERA_HEIGHT_RATIO=0.61
@@ -1627,7 +1627,7 @@ func apply_bone_pose(v,moving):
 	var work=sin(v.phase*2.4)
 	var style=float(v.get("pose_style",0.0))
 	var use_anim_lower=has_retarget_motion(v)
-	var arm_drop=1.72+style*.045
+	var arm_drop=2.62+style*.04
 	var shoulder_drop=.12+style*.015
 	reset_pose_frame(sk,bones)
 	pose_bone(sk,bones,"neck_01",Vector3(.015+sin(v.phase*.42)*.012,0,0))
@@ -1636,8 +1636,8 @@ func apply_bone_pose(v,moving):
 	pose_bone(sk,bones,"clavicle_r",Vector3(-.015,0,shoulder_drop))
 	if not is_adult(v):
 		pose_bone(sk,bones,"spine_01",Vector3(.04+sin(v.phase*.7)*.018,0,0))
-		pose_bone(sk,bones,"upperarm_l",Vector3(.02,0,-1.68))
-		pose_bone(sk,bones,"upperarm_r",Vector3(.02,0,1.68))
+		pose_bone(sk,bones,"upperarm_l",Vector3(.02,0,-2.36))
+		pose_bone(sk,bones,"upperarm_r",Vector3(.02,0,2.36))
 		pose_bone(sk,bones,"lowerarm_l",Vector3(.26+step*.04,0,-.12))
 		pose_bone(sk,bones,"lowerarm_r",Vector3(.26-step*.04,0,.12))
 		if not use_anim_lower:
@@ -1668,34 +1668,34 @@ func apply_bone_pose(v,moving):
 			pose_bone(sk,bones,"foot_r",Vector3(-max(0.0,-step)*.18,0,0))
 	elif v.job=="BUDOWA":
 		pose_bone(sk,bones,"spine_01",Vector3(-.18+work*.05,0,0))
-		pose_bone(sk,bones,"upperarm_l",Vector3(-.20+work*.055,0,-1.64))
-		pose_bone(sk,bones,"upperarm_r",Vector3(-.18-work*.055,0,1.64))
-		pose_bone(sk,bones,"lowerarm_l",Vector3(.66,0,-.05))
-		pose_bone(sk,bones,"lowerarm_r",Vector3(.66,0,.05))
+		pose_bone(sk,bones,"upperarm_l",Vector3(-.16+work*.05,0,-2.34))
+		pose_bone(sk,bones,"upperarm_r",Vector3(-.15-work*.05,0,2.34))
+		pose_bone(sk,bones,"lowerarm_l",Vector3(.72,0,-.035))
+		pose_bone(sk,bones,"lowerarm_r",Vector3(.72,0,.035))
 		if not use_anim_lower:
 			pose_bone(sk,bones,"thigh_l",Vector3(.08,0,0))
 			pose_bone(sk,bones,"thigh_r",Vector3(-.08,0,0))
 	elif v.job in ["PATYKI","KAMIEŃ","JAGODY"]:
 		pose_bone(sk,bones,"spine_01",Vector3(-.23+work*.04,0,0))
-		pose_bone(sk,bones,"upperarm_l",Vector3(-.16+work*.05,0,-1.68))
-		pose_bone(sk,bones,"upperarm_r",Vector3(-.14-work*.05,0,1.68))
-		pose_bone(sk,bones,"lowerarm_l",Vector3(.54,0,-.08))
-		pose_bone(sk,bones,"lowerarm_r",Vector3(.54,0,.08))
+		pose_bone(sk,bones,"upperarm_l",Vector3(-.14+work*.045,0,-2.48))
+		pose_bone(sk,bones,"upperarm_r",Vector3(-.13-work*.045,0,2.48))
+		pose_bone(sk,bones,"lowerarm_l",Vector3(.62,0,-.05))
+		pose_bone(sk,bones,"lowerarm_r",Vector3(.62,0,.05))
 		if not use_anim_lower:
 			pose_bone(sk,bones,"thigh_l",Vector3(.12,0,0))
 			pose_bone(sk,bones,"thigh_r",Vector3(-.05,0,0))
 	elif v.job=="WSPÓLNOTA":
 		pose_bone(sk,bones,"spine_01",Vector3(.02+work*.025,0,0))
-		pose_bone(sk,bones,"upperarm_l",Vector3(.015,0,-1.70))
-		pose_bone(sk,bones,"upperarm_r",Vector3(.015,0,1.70))
+		pose_bone(sk,bones,"upperarm_l",Vector3(.015,0,-2.58))
+		pose_bone(sk,bones,"upperarm_r",Vector3(.015,0,2.58))
 		pose_bone(sk,bones,"lowerarm_l",Vector3(.24+work*.04,0,-.1))
 		pose_bone(sk,bones,"lowerarm_r",Vector3(.24-work*.04,0,.1))
 	else:
 		pose_bone(sk,bones,"spine_01",Vector3(sin(v.phase*.7)*.018,0,0))
-		pose_bone(sk,bones,"upperarm_l",Vector3(.02,0,-1.74))
-		pose_bone(sk,bones,"upperarm_r",Vector3(.02,0,1.74))
-		pose_bone(sk,bones,"lowerarm_l",Vector3(.18,0,-.09))
-		pose_bone(sk,bones,"lowerarm_r",Vector3(.18,0,.09))
+		pose_bone(sk,bones,"upperarm_l",Vector3(.02,0,-2.72))
+		pose_bone(sk,bones,"upperarm_r",Vector3(.02,0,2.72))
+		pose_bone(sk,bones,"lowerarm_l",Vector3(.24,0,-.06))
+		pose_bone(sk,bones,"lowerarm_r",Vector3(.24,0,.06))
 		if not use_anim_lower:
 			pose_bone(sk,bones,"thigh_l",Vector3.ZERO)
 			pose_bone(sk,bones,"thigh_r",Vector3.ZERO)

@@ -1,5 +1,5 @@
 [application]
-config/name="IDOL Genesis 0.7.8 Pose Override"
+config/name="IDOL Genesis 0.7.9 Settler Arms"
 run/main_scene="res://main.tscn"
 
 [display]

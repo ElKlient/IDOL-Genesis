@@ -1,4 +1,4 @@
-IDOL Genesis 0.7.8 - POSE OVERRIDE
+IDOL Genesis 0.7.9 - SETTLER ARMS
 
 Prompt roboczy tej łatki:
 Zbuduj pierwszy grywalny rdzeń osady epoki kamienia. Gracz jest Idolem: wolą osady, nie dowódcą armii. Ludzie mają samodzielnie dzielić robotę, nosić surowce, budować podstawowe budynki, odpoczywać, tworzyć pierwsze więzi i odkrywać proste technologie przez zadania.
@@ -8,6 +8,11 @@ Kierunek gry:
 - ludzie nie są wojskiem do szkolenia, tylko pierwszą społecznością
 - później mają tworzyć pary, rozmnażać się, budować relacje, dzielić się na grupy i wchodzić w konflikty
 - rozwój technologii wynika z prostych zadań, które Idol zleca mieszkańcom
+
+Zmiany 0.7.9:
+- po screenie z 0.7.8 sprawdzono w Godocie realny kierunek kości ramion zamiast zgadywania wartości
+- ręce dostały mocniejszą bazę w dół: idle, chód, wspólnota i praca mniej rozpychają sylwetkę na boki
+- dzieci mają łagodniejszy wariant tej pozy, a prace zasobowe i budowa zachowują lekkie pochylenie do zadania
 
 Zmiany 0.7.8:
 - po kolejnym filmie naprawiono kolejność animacji: retargeter działa teraz manualnie i jest przesuwany przed proceduralną pozą
