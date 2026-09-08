@@ -1,6 +1,6 @@
 # IDOL Genesis - prompt dla kolejnych kontenerow
 
-Pracujesz nad repozytorium `ElKlient/IDOL-Genesis`, gra w Godot 4.x na Androida. Nie zakladaj nowego projektu i nie wymieniaj dzialajacych mechanik ludzi bez potrzeby. Najpierw przeczytaj:
+Pracujesz nad repozytorium `ElKlient/IDOL-Genesis`, gra w Godot 4.x na Androida. Nie zakladaj nowego projektu i nie wymieniaj dzialajacych mechanik ludzi bez potrzeby. Najpierw przeczytaj `WORKFLOW_FIRST.md`, potem:
 
 - `project.godot`
 - `main.tscn`

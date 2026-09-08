@@ -1,4 +1,6 @@
-IDOL Genesis 0.8.17 - NATURAL WALK
+START DLA KONTENEROW: najpierw przeczytaj WORKFLOW_FIRST.md.
+
+IDOL Genesis 0.8.18 - ANCIENT SETTLEMENT
 
 Prompt roboczy tej łatki:
 Zbuduj pierwszy grywalny rdzeń osady epoki kamienia. Gracz jest Idolem: wolą osady, nie dowódcą armii. Ludzie mają samodzielnie dzielić robotę, nosić surowce, budować podstawowe budynki, odpoczywać, tworzyć pierwsze więzi i odkrywać proste technologie przez zadania.
