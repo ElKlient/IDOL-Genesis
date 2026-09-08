@@ -101,3 +101,20 @@ Expected:
 - Do not replace the people system unless the task explicitly requires it.
 - Prefer lightweight procedural assets for Android unless a curated pack is clearly worth importing.
 - If plain `git push` fails in the container, use the GitHub connector or Git data API with a fast-forward guard.
+## Coordination Update - 2026-09-08
+
+User confirmed Containers B, C, D and E are now analyzing the handoff prompt.
+
+Active delegated lanes:
+
+- Container B: people, walk realism, arm axes, skeleton/pose safety. Preserve current model unless the task explicitly changes people.
+- Container C: settlement assets and visual environment. Prefer selected lightweight GLB/GLTF assets and mobile-safe wrappers.
+- Container D: Android/Godot workflow, import speed, gray screen, build/runtime validation and Termux update flow.
+- Container E: settlement gameplay, resources, buildings, tasks, UI and social/life systems.
+
+Container A coordination rule:
+
+- Do not merge or overwrite container work blindly.
+- Wait for each container's log/report or inspect its pushed commit before integration.
+- Integrate smallest safe verticals first: Android safety, then animation safety, then world visuals, then gameplay expansion.
+- Keep documenting workflow changes in `WORKFLOW_FIRST.md` or this log so future containers start from repo knowledge, not chat memory.
