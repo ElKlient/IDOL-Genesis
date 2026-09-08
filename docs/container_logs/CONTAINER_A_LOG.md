@@ -118,3 +118,16 @@ Container A coordination rule:
 - Wait for each container's log/report or inspect its pushed commit before integration.
 - Integrate smallest safe verticals first: Android safety, then animation safety, then world visuals, then gameplay expansion.
 - Keep documenting workflow changes in `WORKFLOW_FIRST.md` or this log so future containers start from repo knowledge, not chat memory.
+
+## Instruction Update - 2026-09-08
+
+Added mandatory post-analysis reporting instructions to:
+
+- `WORKFLOW_FIRST.md`
+- `docs/CONTAINER_HANDOFF_PROMPT.md`
+
+New rule for helper containers:
+
+- after analysis, each container must write its own log under `docs/container_logs/`,
+- the log must include checked scope, important files/functions, changed files or no-code status, commit SHA, risks/tests, and the integration decision for Container A,
+- Container A integrates in order D -> B -> C -> E and never merges blindly.
