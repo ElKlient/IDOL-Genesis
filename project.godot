@@ -1,5 +1,5 @@
 [application]
-config/name="IDOL Genesis 0.7.2 Life Spark"
+config/name="IDOL Genesis 0.7.3 Touch HUD"
 run/main_scene="res://main.tscn"
 
 [display]

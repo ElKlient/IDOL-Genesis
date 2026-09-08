@@ -8,7 +8,7 @@ const WALL=preload("res://assets/village/Wall_Plaster_Straight.gltf")
 const DOOR=preload("res://assets/village/Wall_Plaster_Door_Round.gltf")
 const ROOF=preload("res://assets/village/Roof_RoundTiles_6x6.gltf")
 const RETARGETER=preload("res://scripts/retargeter.gd")
-const VERSION_TITLE="IDOL — GENESIS 0.7.2 LIFE SPARK"
+const VERSION_TITLE="IDOL — GENESIS 0.7.3 TOUCH HUD"
 const CAMERA_MIN_DISTANCE=5.5
 const CAMERA_MAX_DISTANCE=88.0
 const CAMERA_HEIGHT_RATIO=0.61
@@ -120,6 +120,7 @@ func sphere_in(parent,p,r,c):
 
 func _ready():
 	rng.seed=5302026
+	process_priority=80
 	world_env=WorldEnvironment.new(); var e=Environment.new()
 	e.background_mode=Environment.BG_COLOR; e.background_color=Color("#8fa9b3")
 	e.ambient_light_source=Environment.AMBIENT_SOURCE_COLOR; e.ambient_light_color=Color("#fff0d5"); e.ambient_light_energy=.68
@@ -590,15 +591,16 @@ func make_ui():
 	var layer=CanvasLayer.new(); add_child(layer)
 	var bg=ColorRect.new(); bg.position=Vector2(14,14); bg.size=Vector2(574,174); bg.color=Color(0.02,0.02,0.015,.87); layer.add_child(bg)
 	hud=Label.new(); hud.position=Vector2(29,27); hud.add_theme_font_size_override("font_size",14); layer.add_child(hud)
-	var menu=VBoxContainer.new(); menu.position=Vector2(1005,18); menu.size=Vector2(250,430); menu.add_theme_constant_override("separation",2); layer.add_child(menu)
-	var title=Label.new(); title.text="ROZKAZY IDOLA"; title.add_theme_font_size_override("font_size",17); menu.add_child(title)
+	var menu=VBoxContainer.new(); menu.position=Vector2(846,18); menu.size=Vector2(410,300); menu.add_theme_constant_override("separation",4); layer.add_child(menu)
+	var title=Label.new(); title.text="ROZKAZY I MOCE IDOLA"; title.add_theme_font_size_override("font_size",17); menu.add_child(title)
+	var grid=GridContainer.new(); grid.columns=2; grid.add_theme_constant_override("h_separation",5); grid.add_theme_constant_override("v_separation",3); menu.add_child(grid)
 	for s in ["AUTO","PATYKI","KAMIEŃ","JAGODY","ZGROMADZENIE","ODKRYCIA","DOM 5/5","SPICHLERZ 5/5","WARSZTAT 8/6"]:
 		var cmd=s
-		var b=Button.new(); b.text=cmd; b.custom_minimum_size=Vector2(240,25); b.pressed.connect(func(): set_order(cmd)); menu.add_child(b)
-	var next_btn=Button.new(); next_btn.text="OSOBA +"; next_btn.custom_minimum_size=Vector2(240,25); next_btn.pressed.connect(func(): cycle_selected()); menu.add_child(next_btn)
+		var b=Button.new(); b.text=cmd; b.custom_minimum_size=Vector2(198,27); b.pressed.connect(func(): set_order(cmd)); grid.add_child(b)
+	var next_btn=Button.new(); next_btn.text="OSOBA +"; next_btn.custom_minimum_size=Vector2(198,27); next_btn.pressed.connect(func(): cycle_selected()); grid.add_child(next_btn)
 	for s in ["KAMERA OS.","PRZYWOŁAJ","BŁOGOSŁAW","WIĘŹ +","KRĄG ŻYCIA"]:
 		var action=s
-		var b=Button.new(); b.text=action; b.custom_minimum_size=Vector2(240,22); b.pressed.connect(func(): handle_idol_action(action)); menu.add_child(b)
+		var b=Button.new(); b.text=action; b.custom_minimum_size=Vector2(198,27); b.pressed.connect(func(): handle_idol_action(action)); grid.add_child(b)
 	var ibg=ColorRect.new(); ibg.position=Vector2(14,194); ibg.size=Vector2(430,262); ibg.color=Color(0.02,0.02,0.015,.72); layer.add_child(ibg)
 	info=Label.new(); info.position=Vector2(30,206); info.add_theme_font_size_override("font_size",12); layer.add_child(info)
 	make_camera_sticks(layer)
@@ -1465,11 +1467,11 @@ func apply_bone_pose(v,moving):
 	var bones=v.bones
 	var step=sin(v.phase)
 	var work=sin(v.phase*2.4)
-	var arm_drop=.92
+	var arm_drop=1.22
 	if not is_adult(v):
 		pose_bone(sk,bones,"spine_01",Vector3(.04+sin(v.phase*.7)*.018,0,0))
-		pose_bone(sk,bones,"upperarm_l",Vector3(.12,0,-.82))
-		pose_bone(sk,bones,"upperarm_r",Vector3(.12,0,.82))
+		pose_bone(sk,bones,"upperarm_l",Vector3(.08,0,-1.12))
+		pose_bone(sk,bones,"upperarm_r",Vector3(.08,0,1.12))
 		pose_bone(sk,bones,"lowerarm_l",Vector3(.2+step*.05,0,-.16))
 		pose_bone(sk,bones,"lowerarm_r",Vector3(.2-step*.05,0,.16))
 		pose_bone(sk,bones,"thigh_l",Vector3.ZERO)
@@ -1486,10 +1488,10 @@ func apply_bone_pose(v,moving):
 		pose_bone(sk,bones,"foot_r",Vector3.ZERO)
 	if moving:
 		pose_bone(sk,bones,"spine_01",Vector3(-.04,0,0))
-		pose_bone(sk,bones,"upperarm_l",Vector3(step*.34,0,-arm_drop))
-		pose_bone(sk,bones,"upperarm_r",Vector3(-step*.34,0,arm_drop))
-		pose_bone(sk,bones,"lowerarm_l",Vector3(.12+max(0.0,-step)*.28,0,-.08))
-		pose_bone(sk,bones,"lowerarm_r",Vector3(.12+max(0.0,step)*.28,0,.08))
+		pose_bone(sk,bones,"upperarm_l",Vector3(step*.18,0,-arm_drop))
+		pose_bone(sk,bones,"upperarm_r",Vector3(-step*.18,0,arm_drop))
+		pose_bone(sk,bones,"lowerarm_l",Vector3(.2+max(0.0,-step)*.18,0,-.08))
+		pose_bone(sk,bones,"lowerarm_r",Vector3(.2+max(0.0,step)*.18,0,.08))
 		pose_bone(sk,bones,"thigh_l",Vector3(-step*.38,0,0))
 		pose_bone(sk,bones,"thigh_r",Vector3(step*.38,0,0))
 		pose_bone(sk,bones,"calf_l",Vector3(max(0.0,step)*.42,0,0))
@@ -1498,30 +1500,30 @@ func apply_bone_pose(v,moving):
 		pose_bone(sk,bones,"foot_r",Vector3(-max(0.0,-step)*.18,0,0))
 	elif v.job=="BUDOWA":
 		pose_bone(sk,bones,"spine_01",Vector3(-.18+work*.05,0,0))
-		pose_bone(sk,bones,"upperarm_l",Vector3(-.44+work*.2,0,-.72))
-		pose_bone(sk,bones,"upperarm_r",Vector3(-.32-work*.2,0,.72))
-		pose_bone(sk,bones,"lowerarm_l",Vector3(.72,0,-.08))
-		pose_bone(sk,bones,"lowerarm_r",Vector3(.72,0,.08))
+		pose_bone(sk,bones,"upperarm_l",Vector3(-.28+work*.16,0,-1.04))
+		pose_bone(sk,bones,"upperarm_r",Vector3(-.22-work*.16,0,1.04))
+		pose_bone(sk,bones,"lowerarm_l",Vector3(.58,0,-.08))
+		pose_bone(sk,bones,"lowerarm_r",Vector3(.58,0,.08))
 		pose_bone(sk,bones,"thigh_l",Vector3(.08,0,0))
 		pose_bone(sk,bones,"thigh_r",Vector3(-.08,0,0))
 	elif v.job in ["PATYKI","KAMIEŃ","JAGODY"]:
 		pose_bone(sk,bones,"spine_01",Vector3(-.23+work*.04,0,0))
-		pose_bone(sk,bones,"upperarm_l",Vector3(-.24+work*.16,0,-.78))
-		pose_bone(sk,bones,"upperarm_r",Vector3(-.18-work*.16,0,.78))
-		pose_bone(sk,bones,"lowerarm_l",Vector3(.52,0,-.1))
-		pose_bone(sk,bones,"lowerarm_r",Vector3(.52,0,.1))
+		pose_bone(sk,bones,"upperarm_l",Vector3(-.18+work*.12,0,-1.12))
+		pose_bone(sk,bones,"upperarm_r",Vector3(-.14-work*.12,0,1.12))
+		pose_bone(sk,bones,"lowerarm_l",Vector3(.44,0,-.1))
+		pose_bone(sk,bones,"lowerarm_r",Vector3(.44,0,.1))
 		pose_bone(sk,bones,"thigh_l",Vector3(.12,0,0))
 		pose_bone(sk,bones,"thigh_r",Vector3(-.05,0,0))
 	elif v.job=="WSPÓLNOTA":
 		pose_bone(sk,bones,"spine_01",Vector3(.02+work*.025,0,0))
-		pose_bone(sk,bones,"upperarm_l",Vector3(.08,0,-1.05))
-		pose_bone(sk,bones,"upperarm_r",Vector3(.08,0,1.05))
-		pose_bone(sk,bones,"lowerarm_l",Vector3(.18+work*.08,0,-.18))
-		pose_bone(sk,bones,"lowerarm_r",Vector3(.18-work*.08,0,.18))
+		pose_bone(sk,bones,"upperarm_l",Vector3(.04,0,-1.22))
+		pose_bone(sk,bones,"upperarm_r",Vector3(.04,0,1.22))
+		pose_bone(sk,bones,"lowerarm_l",Vector3(.16+work*.05,0,-.14))
+		pose_bone(sk,bones,"lowerarm_r",Vector3(.16-work*.05,0,.14))
 	else:
 		pose_bone(sk,bones,"spine_01",Vector3(sin(v.phase*.7)*.018,0,0))
-		pose_bone(sk,bones,"upperarm_l",Vector3(.06,0,-1.0))
-		pose_bone(sk,bones,"upperarm_r",Vector3(.06,0,1.0))
+		pose_bone(sk,bones,"upperarm_l",Vector3(.04,0,-1.28))
+		pose_bone(sk,bones,"upperarm_r",Vector3(.04,0,1.28))
 		pose_bone(sk,bones,"lowerarm_l",Vector3(.1,0,-.12))
 		pose_bone(sk,bones,"lowerarm_r",Vector3(.1,0,.12))
 		pose_bone(sk,bones,"thigh_l",Vector3.ZERO)

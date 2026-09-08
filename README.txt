@@ -1,4 +1,4 @@
-IDOL Genesis 0.7.2 - LIFE SPARK
+IDOL Genesis 0.7.3 - TOUCH HUD
 
 Prompt roboczy tej łatki:
 Zbuduj pierwszy grywalny rdzeń osady epoki kamienia. Gracz jest Idolem: wolą osady, nie dowódcą armii. Ludzie mają samodzielnie dzielić robotę, nosić surowce, budować podstawowe budynki, odpoczywać, tworzyć pierwsze więzi i odkrywać proste technologie przez zadania.
@@ -8,6 +8,13 @@ Kierunek gry:
 - ludzie nie są wojskiem do szkolenia, tylko pierwszą społecznością
 - później mają tworzyć pary, rozmnażać się, budować relacje, dzielić się na grupy i wchodzić w konflikty
 - rozwój technologii wynika z prostych zadań, które Idol zleca mieszkańcom
+
+Zmiany 0.7.3:
+- prawy panel rozkazów i mocy Idola jest teraz w dwóch kolumnach, żeby nie nachodził na prawą gałkę kamery
+- skrócona wysokość menu na Androidzie: wszystkie przyciski zostają widoczne nad panelem poruszania
+- proceduralna poza kości dostała późniejszy priorytet procesu, aby nadpisywać retargetowane animacje w tej samej klatce
+- zmniejszono agresywność machania rękami i obniżono ramiona przy chodzie, pracy, zbieraniu, zgromadzeniu i bezczynności
+- dzieci mają łagodniejszą pozę ramion, żeby wyglądały bardziej jak członkowie osady niż miniaturowi robotnicy
 
 Zmiany 0.7.2:
 - dodany pierwszy system rodziny i narodzin w osadzie
