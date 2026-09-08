@@ -1,4 +1,4 @@
-IDOL Genesis 0.7.3 - TOUCH HUD
+IDOL Genesis 0.7.4 - POSE FIX
 
 Prompt roboczy tej łatki:
 Zbuduj pierwszy grywalny rdzeń osady epoki kamienia. Gracz jest Idolem: wolą osady, nie dowódcą armii. Ludzie mają samodzielnie dzielić robotę, nosić surowce, budować podstawowe budynki, odpoczywać, tworzyć pierwsze więzi i odkrywać proste technologie przez zadania.
@@ -8,6 +8,14 @@ Kierunek gry:
 - ludzie nie są wojskiem do szkolenia, tylko pierwszą społecznością
 - później mają tworzyć pary, rozmnażać się, budować relacje, dzielić się na grupy i wchodzić w konflikty
 - rozwój technologii wynika z prostych zadań, które Idol zleca mieszkańcom
+
+Zmiany 0.7.4:
+- po analizie filmu z telefonu poprawiono warstwę proceduralnej pozy osadników
+- do cache kości dodano spine_03 oraz clavicle_l/clavicle_r, żeby resetować barki przed ustawianiem ramion
+- górny tułów i obojczyki są teraz neutralizowane w każdej klatce pozy, co ogranicza ręce unoszone przez retargetowane animacje
+- retargeter przepuszcza głównie ruch nóg, a górę ciała zostawia proceduralnej pozie osadników
+- ramiona dorosłych i dzieci są opuszczane mocniej, a machanie rękami przy chodzie i pracy jest spokojniejsze
+- łatka nie zmienia ekonomii, rodzin ani sterowania kamerą z 0.7.3
 
 Zmiany 0.7.3:
 - prawy panel rozkazów i mocy Idola jest teraz w dwóch kolumnach, żeby nie nachodził na prawą gałkę kamery

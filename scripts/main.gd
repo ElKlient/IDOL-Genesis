@@ -8,7 +8,7 @@ const WALL=preload("res://assets/village/Wall_Plaster_Straight.gltf")
 const DOOR=preload("res://assets/village/Wall_Plaster_Door_Round.gltf")
 const ROOF=preload("res://assets/village/Roof_RoundTiles_6x6.gltf")
 const RETARGETER=preload("res://scripts/retargeter.gd")
-const VERSION_TITLE="IDOL — GENESIS 0.7.3 TOUCH HUD"
+const VERSION_TITLE="IDOL — GENESIS 0.7.4 POSE FIX"
 const CAMERA_MIN_DISTANCE=5.5
 const CAMERA_MAX_DISTANCE=88.0
 const CAMERA_HEIGHT_RATIO=0.61
@@ -464,7 +464,7 @@ func cache_pose_bones(sk:Skeleton3D):
 	var bones={}
 	if not sk:
 		return bones
-	for bone_name in ["spine_01","spine_02","upperarm_l","upperarm_r","lowerarm_l","lowerarm_r","thigh_l","thigh_r","calf_l","calf_r","foot_l","foot_r"]:
+	for bone_name in ["spine_01","spine_02","spine_03","clavicle_l","clavicle_r","upperarm_l","upperarm_r","lowerarm_l","lowerarm_r","thigh_l","thigh_r","calf_l","calf_r","foot_l","foot_r"]:
 		bones[bone_name]=sk.find_bone(bone_name)
 	return bones
 
@@ -1460,6 +1460,10 @@ func pose_bone(sk,bones,bone_name,rot):
 	if idx>=0:
 		sk.set_bone_pose_rotation(idx,Quaternion.from_euler(rot))
 
+func reset_pose_frame(sk,bones):
+	for bone_name in ["spine_02","spine_03","clavicle_l","clavicle_r"]:
+		pose_bone(sk,bones,bone_name,Vector3.ZERO)
+
 func apply_bone_pose(v,moving):
 	var sk=v.skeleton
 	if not sk:
@@ -1467,11 +1471,12 @@ func apply_bone_pose(v,moving):
 	var bones=v.bones
 	var step=sin(v.phase)
 	var work=sin(v.phase*2.4)
-	var arm_drop=1.22
+	var arm_drop=1.56
+	reset_pose_frame(sk,bones)
 	if not is_adult(v):
 		pose_bone(sk,bones,"spine_01",Vector3(.04+sin(v.phase*.7)*.018,0,0))
-		pose_bone(sk,bones,"upperarm_l",Vector3(.08,0,-1.12))
-		pose_bone(sk,bones,"upperarm_r",Vector3(.08,0,1.12))
+		pose_bone(sk,bones,"upperarm_l",Vector3(.04,0,-1.48))
+		pose_bone(sk,bones,"upperarm_r",Vector3(.04,0,1.48))
 		pose_bone(sk,bones,"lowerarm_l",Vector3(.2+step*.05,0,-.16))
 		pose_bone(sk,bones,"lowerarm_r",Vector3(.2-step*.05,0,.16))
 		pose_bone(sk,bones,"thigh_l",Vector3.ZERO)
@@ -1488,8 +1493,8 @@ func apply_bone_pose(v,moving):
 		pose_bone(sk,bones,"foot_r",Vector3.ZERO)
 	if moving:
 		pose_bone(sk,bones,"spine_01",Vector3(-.04,0,0))
-		pose_bone(sk,bones,"upperarm_l",Vector3(step*.18,0,-arm_drop))
-		pose_bone(sk,bones,"upperarm_r",Vector3(-step*.18,0,arm_drop))
+		pose_bone(sk,bones,"upperarm_l",Vector3(step*.14,0,-arm_drop))
+		pose_bone(sk,bones,"upperarm_r",Vector3(-step*.14,0,arm_drop))
 		pose_bone(sk,bones,"lowerarm_l",Vector3(.2+max(0.0,-step)*.18,0,-.08))
 		pose_bone(sk,bones,"lowerarm_r",Vector3(.2+max(0.0,step)*.18,0,.08))
 		pose_bone(sk,bones,"thigh_l",Vector3(-step*.38,0,0))
@@ -1500,30 +1505,30 @@ func apply_bone_pose(v,moving):
 		pose_bone(sk,bones,"foot_r",Vector3(-max(0.0,-step)*.18,0,0))
 	elif v.job=="BUDOWA":
 		pose_bone(sk,bones,"spine_01",Vector3(-.18+work*.05,0,0))
-		pose_bone(sk,bones,"upperarm_l",Vector3(-.28+work*.16,0,-1.04))
-		pose_bone(sk,bones,"upperarm_r",Vector3(-.22-work*.16,0,1.04))
+		pose_bone(sk,bones,"upperarm_l",Vector3(-.2+work*.12,0,-1.42))
+		pose_bone(sk,bones,"upperarm_r",Vector3(-.16-work*.12,0,1.42))
 		pose_bone(sk,bones,"lowerarm_l",Vector3(.58,0,-.08))
 		pose_bone(sk,bones,"lowerarm_r",Vector3(.58,0,.08))
 		pose_bone(sk,bones,"thigh_l",Vector3(.08,0,0))
 		pose_bone(sk,bones,"thigh_r",Vector3(-.08,0,0))
 	elif v.job in ["PATYKI","KAMIEŃ","JAGODY"]:
 		pose_bone(sk,bones,"spine_01",Vector3(-.23+work*.04,0,0))
-		pose_bone(sk,bones,"upperarm_l",Vector3(-.18+work*.12,0,-1.12))
-		pose_bone(sk,bones,"upperarm_r",Vector3(-.14-work*.12,0,1.12))
+		pose_bone(sk,bones,"upperarm_l",Vector3(-.14+work*.1,0,-1.48))
+		pose_bone(sk,bones,"upperarm_r",Vector3(-.1-work*.1,0,1.48))
 		pose_bone(sk,bones,"lowerarm_l",Vector3(.44,0,-.1))
 		pose_bone(sk,bones,"lowerarm_r",Vector3(.44,0,.1))
 		pose_bone(sk,bones,"thigh_l",Vector3(.12,0,0))
 		pose_bone(sk,bones,"thigh_r",Vector3(-.05,0,0))
 	elif v.job=="WSPÓLNOTA":
 		pose_bone(sk,bones,"spine_01",Vector3(.02+work*.025,0,0))
-		pose_bone(sk,bones,"upperarm_l",Vector3(.04,0,-1.22))
-		pose_bone(sk,bones,"upperarm_r",Vector3(.04,0,1.22))
+		pose_bone(sk,bones,"upperarm_l",Vector3(.02,0,-1.52))
+		pose_bone(sk,bones,"upperarm_r",Vector3(.02,0,1.52))
 		pose_bone(sk,bones,"lowerarm_l",Vector3(.16+work*.05,0,-.14))
 		pose_bone(sk,bones,"lowerarm_r",Vector3(.16-work*.05,0,.14))
 	else:
 		pose_bone(sk,bones,"spine_01",Vector3(sin(v.phase*.7)*.018,0,0))
-		pose_bone(sk,bones,"upperarm_l",Vector3(.04,0,-1.28))
-		pose_bone(sk,bones,"upperarm_r",Vector3(.04,0,1.28))
+		pose_bone(sk,bones,"upperarm_l",Vector3(.02,0,-1.58))
+		pose_bone(sk,bones,"upperarm_r",Vector3(.02,0,1.58))
 		pose_bone(sk,bones,"lowerarm_l",Vector3(.1,0,-.12))
 		pose_bone(sk,bones,"lowerarm_r",Vector3(.1,0,.12))
 		pose_bone(sk,bones,"thigh_l",Vector3.ZERO)

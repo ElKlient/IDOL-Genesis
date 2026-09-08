@@ -5,6 +5,7 @@ var source_scene:Node
 var source_player:AnimationPlayer
 var source_skeleton:Skeleton3D
 var cache={}
+var procedural_upper_body=["spine","clavicle","upperarm","lowerarm","hand","neck","head"]
 
 func initialize():
 	var packed=load("res://assets/animations/UAL2_Standard.glb")
@@ -57,9 +58,18 @@ func attach(character:Node)->Dictionary:
 		if not src: continue
 		var anim=src.duplicate(true)
 		# Redirect skeleton bone tracks. Keep :BoneName subname unchanged.
-		for ti in range(anim.get_track_count()):
+		for ti in range(anim.get_track_count()-1,-1,-1):
 			var path=anim.track_get_path(ti)
-			var subs=path.get_concatenated_subnames()
+			var subs=String(path.get_concatenated_subnames())
+			var low=subs.to_lower()
+			var procedural=false
+			for key in procedural_upper_body:
+				if low.contains(key):
+					procedural=true
+					break
+			if procedural:
+				anim.remove_track(ti)
+				continue
 			if subs!="":
 				anim.track_set_path(ti,NodePath(String(target_path)+":"+subs))
 		lib.add_animation(state,anim)
