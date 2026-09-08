@@ -1,6 +1,22 @@
 extends Node3D
 const FEMALE=preload("res://assets/characters/Superhero_Female_FullBody.gltf")
 const MALE=preload("res://assets/characters/Superhero_Male_FullBody.gltf")
+const MINI_FEMALE_MODEL_PATHS=[
+	"res://assets/third_party_model_packs/kenney_mini_characters_glb/models/character-female-a.glb",
+	"res://assets/third_party_model_packs/kenney_mini_characters_glb/models/character-female-b.glb",
+	"res://assets/third_party_model_packs/kenney_mini_characters_glb/models/character-female-c.glb",
+	"res://assets/third_party_model_packs/kenney_mini_characters_glb/models/character-female-d.glb",
+	"res://assets/third_party_model_packs/kenney_mini_characters_glb/models/character-female-e.glb",
+	"res://assets/third_party_model_packs/kenney_mini_characters_glb/models/character-female-f.glb"
+]
+const MINI_MALE_MODEL_PATHS=[
+	"res://assets/third_party_model_packs/kenney_mini_characters_glb/models/character-male-a.glb",
+	"res://assets/third_party_model_packs/kenney_mini_characters_glb/models/character-male-b.glb",
+	"res://assets/third_party_model_packs/kenney_mini_characters_glb/models/character-male-c.glb",
+	"res://assets/third_party_model_packs/kenney_mini_characters_glb/models/character-male-d.glb",
+	"res://assets/third_party_model_packs/kenney_mini_characters_glb/models/character-male-e.glb",
+	"res://assets/third_party_model_packs/kenney_mini_characters_glb/models/character-male-f.glb"
+]
 const CRATE=preload("res://assets/village/Prop_Crate.gltf")
 const FENCE=preload("res://assets/village/Prop_WoodenFence_Single.gltf")
 const WAGON=preload("res://assets/village/Prop_Wagon.gltf")
@@ -8,7 +24,7 @@ const WALL=preload("res://assets/village/Wall_Plaster_Straight.gltf")
 const DOOR=preload("res://assets/village/Wall_Plaster_Door_Round.gltf")
 const ROOF=preload("res://assets/village/Roof_RoundTiles_6x6.gltf")
 const RETARGETER=preload("res://scripts/retargeter.gd")
-const VERSION_TITLE="IDOL — GENESIS 0.8.4 CLEAN PEOPLE"
+const VERSION_TITLE="IDOL — GENESIS 0.8.5 STABLE SETTLERS"
 const CAMERA_MIN_DISTANCE=5.5
 const CAMERA_MAX_DISTANCE=88.0
 const CAMERA_HEIGHT_RATIO=0.61
@@ -29,7 +45,7 @@ const HOME_CAPACITY=4
 const CHAPTER_HOUSES_GOAL=3
 const CHAPTER_GRANARIES_GOAL=1
 const CHAPTER_WORKSHOPS_GOAL=1
-const USE_PROCEDURAL_BONE_POSE=true
+const USE_PROCEDURAL_BONE_POSE=false
 const STOCKPILE_POS=Vector3(-5.8,0,3.6)
 const RESEARCH_POS=Vector3(2.75,0,2.25)
 const PAIR_BOND_THRESHOLD=.62
@@ -41,10 +57,16 @@ const LIFE_PROGRESS_GOAL=8.0
 const FAMILY_BOND_THRESHOLD=.68
 const PERSONAL_SPACE_ADULT=.98
 const PERSONAL_SPACE_CHILD=.66
-const USE_RETARGETED_ANIMATIONS=true
+const CLEAN_PERSONAL_SPACE_ADULT=.72
+const CLEAN_PERSONAL_SPACE_CHILD=.5
+const USE_RETARGETED_ANIMATIONS=false
+const USE_KENNEY_SETTLER_MODELS=true
 const USE_PROXY_SETTLER_BODY=false
 const USE_SETTLER_ROOT_GEAR=false
 const USE_FLOATING_CARGO=false
+const KENNEY_FEMALE_ADULT_SCALE=2.58
+const KENNEY_MALE_ADULT_SCALE=3.02
+const KENNEY_CHILD_SCALE=2.05
 const WALK_TURN_SPEED=7.5
 const OBSTACLE_CLEARANCE=.62
 const CROWD_AVOID_WEIGHT=.7
@@ -621,6 +643,81 @@ func cache_pose_bones(sk:Skeleton3D):
 		bones[bone_name]=sk.find_bone(bone_name)
 	return bones
 
+func settler_model_scene(variant,sex):
+	if USE_KENNEY_SETTLER_MODELS:
+		var paths=MINI_FEMALE_MODEL_PATHS if sex=="K" else MINI_MALE_MODEL_PATHS
+		var scene=ResourceLoader.load(paths[variant%paths.size()])
+		if scene is PackedScene:
+			return scene
+	return FEMALE if sex=="K" else MALE
+
+func make_settler_instance(variant,sex,is_child=false):
+	var scene=settler_model_scene(variant,sex)
+	var n=scene.instantiate()
+	var path=String(scene.resource_path)
+	var clean_model=USE_KENNEY_SETTLER_MODELS and path.find("kenney_mini_characters_glb")>=0
+	n.set_meta("clean_settler_model",clean_model)
+	n.name=("Osadniczka " if sex=="K" else "Osadnik ")+str(variant+1)
+	if clean_model:
+		var scale_value=KENNEY_CHILD_SCALE if is_child else (KENNEY_FEMALE_ADULT_SCALE if sex=="K" else KENNEY_MALE_ADULT_SCALE)
+		n.scale=Vector3(scale_value,scale_value,scale_value)
+	else:
+		var fallback_scale=1.08 if is_child else 2.15
+		n.scale=Vector3(fallback_scale,fallback_scale,fallback_scale)
+	return n
+
+func uses_clean_settler_model(v):
+	return v.has("clean_model") and bool(v.clean_model)
+
+func find_animation_player(n:Node)->AnimationPlayer:
+	if n is AnimationPlayer:
+		return n
+	for c in n.get_children():
+		var found=find_animation_player(c)
+		if found:
+			return found
+	return null
+
+func setup_clean_settler_animation(n:Node3D):
+	var player=find_animation_player(n)
+	if not player:
+		return null
+	player.playback_process_mode=AnimationPlayer.ANIMATION_PROCESS_IDLE
+	for anim_name in player.get_animation_list():
+		var anim=player.get_animation(anim_name)
+		if anim:
+			anim.loop_mode=Animation.LOOP_LINEAR
+	if player.has_animation("idle"):
+		player.play("idle")
+	return player
+
+func clean_settler_animation_name(v,moving):
+	if moving:
+		return "walk"
+	var job=String(v.job)
+	if job in ["BUDOWA","PATYKI","KAMIEŃ","JAGODY"]:
+		return "pick-up"
+	if job=="ODKRYCIA":
+		return "interact-right"
+	if job=="WSPÓLNOTA":
+		return "emote-yes"
+	if job=="ODPOCZYNEK":
+		return "sit"
+	return "idle"
+
+func play_clean_settler_animation(v,moving):
+	if not v.has("clean_anim"):
+		return
+	var player=v.clean_anim
+	if not player or not is_instance_valid(player):
+		return
+	var anim_name=clean_settler_animation_name(v,moving)
+	if not player.has_animation(anim_name):
+		anim_name="idle"
+	player.speed_scale=1.12 if moving else (.78 if String(v.job)=="ODPOCZYNEK" else .92)
+	if player.current_animation!=anim_name or not player.is_playing():
+		player.play(anim_name,.14)
+
 func make_person_label(parent,text,pos,font_size,color):
 	var l=Label3D.new()
 	l.text=text
@@ -639,7 +736,7 @@ func make_person_label(parent,text,pos,font_size,color):
 func make_speech_backdrop(parent,pos):
 	var n=MeshInstance3D.new()
 	var q=QuadMesh.new()
-	q.size=Vector2(1.86,.44)
+	q.size=Vector2(2.35,.56)
 	n.mesh=q
 	n.position=pos+Vector3(0,0,.018)
 	var m=StandardMaterial3D.new()
@@ -813,25 +910,29 @@ func set_carry_visual(cargo,kind):
 		c.visible=String(c.name)==kind
 
 func make_person(i):
-	var n=(FEMALE if i<5 else MALE).instantiate()
-	# Diagnostic showed source character is tiny. Correct source-to-world scale here.
-	var base_scale=Vector3(2.15,2.15,2.15)
-	n.scale=base_scale
+	var sex="K" if i<5 else "M"
+	var n=make_settler_instance(i,sex,false)
+	var clean_model=bool(n.get_meta("clean_settler_model",false))
+	var base_scale=n.scale
 	var a=TAU*i/10.0; n.position=Vector3(cos(a)*rng.randf_range(5,10),0,sin(a)*rng.randf_range(5,10)); add_child(n)
 	var body_parts={}
-	if USE_PROXY_SETTLER_BODY:
+	if USE_PROXY_SETTLER_BODY and not clean_model:
 		hide_imported_visuals(n)
 		body_parts=make_settler_body(n,i,false)
-	if USE_SETTLER_ROOT_GEAR:
+	if USE_SETTLER_ROOT_GEAR and not clean_model:
 		make_settler_gear(n,i)
 	var sk=find_skeleton(n)
-	make_head_face(sk,i)
-	var name_label=make_person_label(n,names[i],Vector3(0,1.86,0),15,Color("#fff0bc"))
-	var speech_back=make_speech_backdrop(n,Vector3(0,2.1,0))
-	var speech_label=make_person_label(n,"",Vector3(0,2.095,-.02),14,Color("#f8fbff"))
+	if not clean_model:
+		make_head_face(sk,i)
+	var label_y=2.12 if clean_model else 1.86
+	var speech_y=2.42 if clean_model else 2.1
+	var name_label=make_person_label(n,names[i],Vector3(0,label_y,0),18 if clean_model else 15,Color("#fff0bc"))
+	var speech_back=make_speech_backdrop(n,Vector3(0,speech_y,0))
+	var speech_label=make_person_label(n,"",Vector3(0,speech_y-.01,-.02),16 if clean_model else 14,Color("#f8fbff"))
 	speech_label.visible=false
 	var cargo=make_carry_node(n)
-	var v={"node":n,"skeleton":sk,"bones":cache_pose_bones(sk),"base_scale":base_scale,"phase":rng.randf_range(0,TAU),"pose_style":rng.randf_range(-1.0,1.0),"work_timer":0.0,"rest_time":rng.randf_range(1.5,3.6),"name":names[i],"trait":traits[i],"like":settler_likes[i%settler_likes.size()],"worry":settler_worries[(i*3)%settler_worries.size()],"sex":"K" if i<5 else "M","age":rng.randi_range(18,34),"adult":true,"parent_a":-1,"parent_b":-1,"family_cd":rng.randf_range(8.0,18.0),"bond":rng.randf_range(.28,.62),"partner":-1,"str":rng.randi_range(3,9),"dex":rng.randi_range(3,9),"int":rng.randi_range(3,9),"hunger":rng.randf_range(5,25),"energy":rng.randf_range(72,100),"wood":0.0,"gather":0.0,"build":0.0,"knowledge":0.0,"language":rng.randf_range(.28,.46),"last_xz":Vector2(n.position.x,n.position.z),"stuck_time":0.0,"job":"IDLE","carry":"","cargo":cargo,"target":n.position}
+	var v={"node":n,"skeleton":sk,"bones":cache_pose_bones(sk),"base_scale":base_scale,"clean_model":clean_model,"phase":rng.randf_range(0,TAU),"pose_style":rng.randf_range(-1.0,1.0),"work_timer":0.0,"rest_time":rng.randf_range(1.5,3.6),"name":names[i],"trait":traits[i],"like":settler_likes[i%settler_likes.size()],"worry":settler_worries[(i*3)%settler_worries.size()],"sex":sex,"age":rng.randi_range(18,34),"adult":true,"parent_a":-1,"parent_b":-1,"family_cd":rng.randf_range(8.0,18.0),"bond":rng.randf_range(.28,.62),"partner":-1,"str":rng.randi_range(3,9),"dex":rng.randi_range(3,9),"int":rng.randi_range(3,9),"hunger":rng.randf_range(5,25),"energy":rng.randf_range(72,100),"wood":0.0,"gather":0.0,"build":0.0,"knowledge":0.0,"language":rng.randf_range(.28,.46),"last_xz":Vector2(n.position.x,n.position.z),"stuck_time":0.0,"job":"IDLE","carry":"","cargo":cargo,"target":n.position}
+	v["clean_anim"]=setup_clean_settler_animation(n) if clean_model else null
 	v["body_parts"]=body_parts
 	v["name_label"]=name_label
 	v["speech_back"]=speech_back
@@ -873,27 +974,31 @@ func spawn_child(parent_a_idx,parent_b_idx):
 	var parent_a=people[parent_a_idx]
 	var parent_b=people[parent_b_idx]
 	var sex="K" if rng.randf()<.5 else "M"
-	var n=(FEMALE if sex=="K" else MALE).instantiate()
-	var base_scale=Vector3(1.08,1.08,1.08)
-	n.scale=base_scale
+	var n=make_settler_instance(children_born+2,sex,true)
+	var clean_model=bool(n.get_meta("clean_settler_model",false))
+	var base_scale=n.scale
 	var center=(parent_a.node.position+parent_b.node.position)*.5
 	n.position=center+Vector3(rng.randf_range(-.75,.75),0,rng.randf_range(-.75,.75))
 	add_child(n)
 	var body_parts={}
-	if USE_PROXY_SETTLER_BODY:
+	if USE_PROXY_SETTLER_BODY and not clean_model:
 		hide_imported_visuals(n)
 		body_parts=make_settler_body(n,children_born+2,true)
 	var child_name=next_child_name()
-	if USE_SETTLER_ROOT_GEAR:
+	if USE_SETTLER_ROOT_GEAR and not clean_model:
 		make_settler_gear(n,children_born+2)
 	var sk=find_skeleton(n)
-	make_head_face(sk,children_born+2)
-	var name_label=make_person_label(n,child_name,Vector3(0,1.84,0),14,Color("#fff0bc"))
-	var speech_back=make_speech_backdrop(n,Vector3(0,2.08,0))
-	var speech_label=make_person_label(n,"",Vector3(0,2.075,-.02),13,Color("#f8fbff"))
+	if not clean_model:
+		make_head_face(sk,children_born+2)
+	var label_y=1.5 if clean_model else 1.84
+	var speech_y=1.74 if clean_model else 2.08
+	var name_label=make_person_label(n,child_name,Vector3(0,label_y,0),15 if clean_model else 14,Color("#fff0bc"))
+	var speech_back=make_speech_backdrop(n,Vector3(0,speech_y,0))
+	var speech_label=make_person_label(n,"",Vector3(0,speech_y-.01,-.02),14 if clean_model else 13,Color("#f8fbff"))
 	speech_label.visible=false
 	var cargo=make_carry_node(n)
-	var v={"node":n,"skeleton":sk,"bones":cache_pose_bones(sk),"base_scale":base_scale,"phase":rng.randf_range(0,TAU),"pose_style":rng.randf_range(-.8,.8),"work_timer":0.0,"rest_time":rng.randf_range(1.8,3.8),"name":child_name,"trait":"Dziecko osady","like":settler_likes[(children_born+4)%settler_likes.size()],"worry":settler_worries[(children_born+5)%settler_worries.size()],"sex":sex,"age":1,"adult":false,"parent_a":parent_a_idx,"parent_b":parent_b_idx,"family_cd":0.0,"bond":rng.randf_range(.62,.78),"partner":-1,"str":rng.randi_range(1,3),"dex":rng.randi_range(2,5),"int":rng.randi_range(2,5),"hunger":rng.randf_range(0,12),"energy":rng.randf_range(82,100),"wood":0.0,"gather":0.0,"build":0.0,"knowledge":0.0,"language":rng.randf_range(.22,.38),"last_xz":Vector2(n.position.x,n.position.z),"stuck_time":0.0,"job":"DZIECKO","carry":"","cargo":cargo,"target":n.position}
+	var v={"node":n,"skeleton":sk,"bones":cache_pose_bones(sk),"base_scale":base_scale,"clean_model":clean_model,"phase":rng.randf_range(0,TAU),"pose_style":rng.randf_range(-.8,.8),"work_timer":0.0,"rest_time":rng.randf_range(1.8,3.8),"name":child_name,"trait":"Dziecko osady","like":settler_likes[(children_born+4)%settler_likes.size()],"worry":settler_worries[(children_born+5)%settler_worries.size()],"sex":sex,"age":1,"adult":false,"parent_a":parent_a_idx,"parent_b":parent_b_idx,"family_cd":0.0,"bond":rng.randf_range(.62,.78),"partner":-1,"str":rng.randi_range(1,3),"dex":rng.randi_range(2,5),"int":rng.randi_range(2,5),"hunger":rng.randf_range(0,12),"energy":rng.randf_range(82,100),"wood":0.0,"gather":0.0,"build":0.0,"knowledge":0.0,"language":rng.randf_range(.22,.38),"last_xz":Vector2(n.position.x,n.position.z),"stuck_time":0.0,"job":"DZIECKO","carry":"","cargo":cargo,"target":n.position}
+	v["clean_anim"]=setup_clean_settler_animation(n) if clean_model else null
 	v["body_parts"]=body_parts
 	v["name_label"]=name_label
 	v["speech_back"]=speech_back
@@ -2156,6 +2261,8 @@ func apply_bone_pose(v,moving):
 			pose_bone(sk,bones,"calf_r",Vector3.ZERO)
 
 func actor_space_radius(v):
+	if uses_clean_settler_model(v):
+		return CLEAN_PERSONAL_SPACE_ADULT if is_adult(v) else CLEAN_PERSONAL_SPACE_CHILD
 	return PERSONAL_SPACE_ADULT if is_adult(v) else PERSONAL_SPACE_CHILD
 
 func push_out_of_zone(v,center,radius,strength=1.0):
@@ -2317,7 +2424,42 @@ func apply_body_proxy_pose(v,moving):
 	set_body_part_rotation(parts,"torso",Vector3(( -3.0 if moving else 0.0)+sin(v.phase*.7)*1.2,0,0))
 	set_body_part_rotation(parts,"head",Vector3(sin(v.phase*.55)*1.8,sin(v.phase*.35)*2.0,0))
 
+func apply_clean_settler_pose(v,d,moving,flat_dir):
+	v.phase+=d*(3.85 if not is_adult(v) else (4.75 if moving else (2.05 if v.job!="IDLE" else .72)))
+	var n:Node3D=v.node
+	if not moving and v.job=="DZIECKO":
+		var look=family_point(v)-n.position
+		look.y=0
+		if look.length()>.2:
+			smooth_face_direction(n,look,d)
+	elif not moving and v.job=="WSPÓLNOTA":
+		var look=hearth_pos-n.position
+		look.y=0
+		if look.length()>.2:
+			smooth_face_direction(n,look,d)
+	elif not moving and v.job=="ODKRYCIA":
+		var look=RESEARCH_POS-n.position
+		look.y=0
+		if look.length()>.2:
+			smooth_face_direction(n,look,d)
+	var bob=0.0
+	if moving:
+		bob=abs(sin(v.phase))*0.035
+	elif v.job in ["BUDOWA","PATYKI","KAMIEŃ","JAGODY","ODKRYCIA"]:
+		bob=max(0.0,sin(v.phase*1.8))*0.012
+	else:
+		bob=sin(v.phase*.55)*0.006
+	n.position.y=bob
+	var yaw=n.rotation_degrees.y
+	n.rotation_degrees=Vector3(0,yaw,0)
+	var breath=1.0+sin(v.phase*.55)*.004
+	n.scale=Vector3(v.base_scale.x,v.base_scale.y*breath,v.base_scale.z)
+	play_clean_settler_animation(v,moving)
+
 func apply_living_pose(v,d,moving,flat_dir):
+	if uses_clean_settler_model(v):
+		apply_clean_settler_pose(v,d,moving,flat_dir)
+		return
 	v.phase+=d*(4.6 if not is_adult(v) else (5.25 if moving else (2.45 if v.job!="IDLE" else .92)))
 	var n:Node3D=v.node
 	if not moving and v.job=="DZIECKO":

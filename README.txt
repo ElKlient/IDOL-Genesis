@@ -1,4 +1,4 @@
-IDOL Genesis 0.8.4 - CLEAN PEOPLE
+IDOL Genesis 0.8.5 - STABLE SETTLERS
 
 Prompt roboczy tej łatki:
 Zbuduj pierwszy grywalny rdzeń osady epoki kamienia. Gracz jest Idolem: wolą osady, nie dowódcą armii. Ludzie mają samodzielnie dzielić robotę, nosić surowce, budować podstawowe budynki, odpoczywać, tworzyć pierwsze więzi i odkrywać proste technologie przez zadania.
@@ -8,6 +8,15 @@ Kierunek gry:
 - ludzie nie są wojskiem do szkolenia, tylko pierwszą społecznością
 - później mają tworzyć pary, rozmnażać się, budować relacje, dzielić się na grupy i wchodzić w konflikty
 - rozwój technologii wynika z prostych zadań, które Idol zleca mieszkańcom
+
+Zmiany 0.8.5:
+- główne postacie osady przełączone na stabilne low-poly modele Kenney Mini Characters z twarzami, włosami/ubraniami i własnymi klipami animacji
+- stary import Superhero zostaje jako awaryjny fallback, ale domyślnie nie łamie już ludzi przez retarget i proceduralne kręcenie kości
+- chód, stanie, praca, odpoczynek i proste gesty korzystają teraz z wbudowanych animacji walk/idle/pick-up/sit/interact/emote
+- root postaci ma tylko obrót w kierunku ruchu, lekki krok i oddech; usunięto przechyły całego ciała, które robiły powyginane sylwetki
+- dopasowano skalę dorosłych i dzieci do chat oraz zmniejszono promień osobisty nowych modeli, żeby mniej klinowali się na ognisku, Idolu i budowie
+- dodano brakującą ścieżkę tekstury colormap dla mini postaci, żeby modele nie importowały się jako blade, puste bryły
+- dymki rozmów są większe i wyższe dla nowej sylwetki, ale bez ogromnych napisów zasłaniających całą scenę
 
 Zmiany 0.8.4:
 - zdjęto z importowanych ludzi prowizoryczne rootowe doczepki: pływające włosy, paski, torby i widoczne ładunki nie będą już rozwalać sylwetki
