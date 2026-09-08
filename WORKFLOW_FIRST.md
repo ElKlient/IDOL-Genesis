@@ -34,6 +34,35 @@ Log aktualizuj po waznym odkryciu, zmianie workflow, tescie Godota albo wypchnie
 - nastepne kroki,
 - komenda Termux przekazana uzytkownikowi.
 
+## Obowiazkowy raport po analizie
+
+Jesli kontener dostal zadanie analizy albo pomocy przy grze, po zakonczeniu pierwszego przegladu musi dopisac raport do swojego logu:
+
+- Kontener B: `docs/container_logs/CONTAINER_B_LOG.md`
+- Kontener C: `docs/container_logs/CONTAINER_C_LOG.md`
+- Kontener D: `docs/container_logs/CONTAINER_D_LOG.md`
+- Kontener E: `docs/container_logs/CONTAINER_E_LOG.md`
+
+Raport po analizie ma zawierac:
+
+1. co kontener sprawdzil,
+2. jakie pliki/funkcje sa wazne,
+3. czy cos zmienil,
+4. commit SHA, jesli wypchnal zmiany,
+5. ryzyka i rzeczy do przetestowania,
+6. co Kontener A ma zintegrowac, odrzucic albo zostawic na pozniej.
+
+Po raporcie kontener ma zapisac log na GitHubie. Nie wystarczy odpowiedz w czacie, bo nastepny kontener musi widziec stan w repo.
+
+Kolejnosc integracji przez Kontener A:
+
+1. Kontener D - stabilnosc Android/Godot/import/build.
+2. Kontener B - ludzie, chód, rece, osie kosci i bezpieczenstwo animacji.
+3. Kontener C - assety, swiat, otoczenie i optymalizacja wizualna.
+4. Kontener E - gameplay osady, zasoby, budynki, UI i zycie spoleczne.
+
+Kontener A nie ma merge'owac na slepo. Ma najpierw przeczytac raport/log danego kontenera albo obejrzec jego commit.
+
 ## Kolejnosc czytania
 
 1. `WORKFLOW_FIRST.md`
