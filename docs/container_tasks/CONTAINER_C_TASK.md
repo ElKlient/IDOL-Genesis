@@ -6,6 +6,18 @@ Owner lane: model packs, selected assets, settlement environment, mobile-safe vi
 
 Find the best lightweight path to improve the world visually without killing Android performance.
 
+## Round 0.8.20 instruction from Container A
+
+After the `Living World` patch lands, do the first real asset promotion plan:
+
+1. Choose only 4-6 tiny GLB assets from the Container C shortlist.
+2. Prefer resource wood, resource stone, workbench, bedroll, canoe/paddle, campfire or fence.
+3. Create a plan for a normal game asset folder, not direct use from `.gdignore` vendor source.
+4. Estimate import/FPS risk for Android.
+5. Do not replace the current people model or add animated animals yet.
+
+If you implement, promote only a tiny set and keep procedural fallbacks in `scripts/main.gd`.
+
 Read first:
 
 1. `WORKFLOW_FIRST.md`
@@ -25,9 +37,9 @@ Focus areas:
 - `make_wild_deer()`
 - vendor source under `assets/third_party_model_packs/`
 
-## 35 minute check
+## 30 minute check
 
-While active or waiting, every 35 minutes check this file and `WORKFLOW_FIRST.md` for new Container A instructions.
+While active or waiting, every 30 minutes check this file and `WORKFLOW_FIRST.md` for new Container A instructions.
 
 ## Subagents allowed
 

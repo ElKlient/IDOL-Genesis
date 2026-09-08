@@ -8,6 +8,17 @@ Improve confidence around the settlers' walking animation without replacing the 
 
 Start with analysis, then do a small patch only if it is clearly isolated.
 
+## Round 0.8.20 instruction from Container A
+
+After the `Living World` patch lands, verify people against the new world and hunt loop:
+
+1. Watch settlers in AUTO while they walk between Idol, hearth, stockpile, hide yard, homes, resource sources and hunt targets.
+2. Check that `ŁOWY`, meat cargo and hides delivery do not break arm swing or cargo posture.
+3. If movement still looks stupid, tune only the smallest safe part of `apply_bone_pose()`, `pose_walk_arm()` or `pose_walk_leg()`.
+4. Do not touch terrain, resource balance, HUD or asset imports.
+
+Report whether the new obstacles/palisade/hide yard cause pathing or animation issues.
+
 Read first:
 
 1. `WORKFLOW_FIRST.md`
@@ -25,9 +36,9 @@ Focus functions:
 - `pose_walk_arm()`
 - `pose_walk_leg()`
 
-## 35 minute check
+## 30 minute check
 
-While active or waiting, every 35 minutes check this file and `WORKFLOW_FIRST.md` for new Container A instructions.
+While active or waiting, every 30 minutes check this file and `WORKFLOW_FIRST.md` for new Container A instructions.
 
 ## Subagents allowed
 

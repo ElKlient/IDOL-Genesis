@@ -1,6 +1,6 @@
 START DLA KONTENEROW: najpierw przeczytaj WORKFLOW_FIRST.md.
 
-IDOL Genesis 0.8.19 - HUNT AND HIDES
+IDOL Genesis 0.8.20 - LIVING WORLD
 
 Prompt roboczy tej łatki:
 Zbuduj pierwszy grywalny rdzeń osady epoki kamienia. Gracz jest Idolem: wolą osady, nie dowódcą armii. Ludzie mają samodzielnie dzielić robotę, nosić surowce, budować podstawowe budynki, odpoczywać, tworzyć pierwsze więzi i odkrywać proste technologie przez zadania.
@@ -10,6 +10,13 @@ Kierunek gry:
 - ludzie nie są wojskiem do szkolenia, tylko pierwszą społecznością
 - później mają tworzyć pary, rozmnażać się, budować relacje, dzielić się na grupy i wchodzić w konflikty
 - rozwój technologii wynika z prostych zadań, które Idol zleca mieszkańcom
+
+Zmiany 0.8.20:
+- dodano drugi pass świata: palisada na obrzeżu osady, brama przy rzece, przejście po kamieniach, wydeptane ślady, posłania, stosy drewna, pniaki i bardziej żywe obejścia domów
+- dodano strefę obróbki skór jako czytelne miejsce pracy między suszarniami, jeleniami i centrum osady; obecne skóry pochodzą z łowów
+- dopracowano widoczny zwitek skór jako lekki ładunek osadnika, spójny z mięsem, patykami, kamieniem i jagodami
+- zadania B/C/D/E zostały doprecyzowane: D ma sprawdzić Android/Godot, B ludzi przy nowych przeszkodach i ładunkach, C pierwszą małą promocję assetów, E dalszy rozwój łowów/skór
+- workflow kontenerów mówi teraz wprost: B/C/D/E sprawdzają nowe instrukcje co 30 minut i mogą uruchamiać własnych subagentów w swojej dziedzinie
 
 Zmiany 0.8.19:
 - dodano lekki gameplay łowiectwa bez nowych ciężkich assetów: istniejące jelenie są teraz żywą listą zwierzyny z odnowieniem po czasie

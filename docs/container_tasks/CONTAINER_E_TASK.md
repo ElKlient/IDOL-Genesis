@@ -6,6 +6,17 @@ Owner lane: settlement gameplay, resources, buildings, tasks, UI, life/social sy
 
 Expand gameplay carefully after stability and people/world work are understood. Start by mapping current systems and proposing one safe next gameplay vertical.
 
+## Round 0.8.20 instruction from Container A
+
+After the `Living World` patch lands, review the hunt/hides loop:
+
+1. Check `stock.meat`, `stock.hides`, `wildlife`, `assign_hunt(v)`, `finish_hunt(v)`, `choose_work(v)`, `job_duration(v)` and `deposit_carry(v)`.
+2. Decide whether hides should become clothing warmth/comfort, workshop material, or a later tanning chain using the existing hide yard.
+3. Keep the next gameplay change small: no expanded hunting system until D confirms Android stability and B confirms people still move well.
+4. Do not add a new big UI panel. Use concise HUD/status text only.
+
+Report one recommended next gameplay vertical for Container A to approve.
+
 Read first:
 
 1. `WORKFLOW_FIRST.md`
@@ -28,9 +39,9 @@ Focus functions:
 - `set_order(s)`
 - `update_settler_chat(d)`
 
-## 35 minute check
+## 30 minute check
 
-While active or waiting, every 35 minutes check this file and `WORKFLOW_FIRST.md` for new Container A instructions.
+While active or waiting, every 30 minutes check this file and `WORKFLOW_FIRST.md` for new Container A instructions.
 
 ## Subagents allowed
 

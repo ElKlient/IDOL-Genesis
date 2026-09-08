@@ -19,7 +19,7 @@ Kontener A zostawia konkretne zadania w `docs/container_tasks/`. Kazdy kontener 
 - D: `docs/container_tasks/CONTAINER_D_TASK.md`
 - E: `docs/container_tasks/CONTAINER_E_TASK.md`
 
-Jesli kontener jest aktywny albo czeka, ma co 35 minut sprawdzac `WORKFLOW_FIRST.md`, swoj task file i swoj log. Jesli host nie pozwala na samodzielne wybudzanie, kontener ma to powiedziec uzytkownikowi w statusie.
+Jesli kontener jest aktywny albo czeka, ma co 30 minut sprawdzac `WORKFLOW_FIRST.md`, swoj task file i swoj log. Jesli host nie pozwala na samodzielne wybudzanie, kontener ma to powiedziec uzytkownikowi w statusie.
 
 Kontenery B/C/D/E moga uruchamiac swoich subagentow do waskich analiz albo malych rozlacznych zadan w swojej dziedzinie. Subagenci nie sa osobnymi wlascicielami integracji. Za log, commit, push i decyzje odpowiada glowny kontener.
 
@@ -62,25 +62,64 @@ Po `git pull` uzytkownik otwiera projekt z aplikacji Godot na Androidzie, z fold
 
 ## Dostep do Godota w kontenerach
 
-Nie zakladaj od razu, ze w kontenerze nie ma Godota. Ten projekt byl juz testowany z binarka Godot 4.7.2 znaleziona w scratchu innego kontenera:
+Nie zakladaj od razu, ze w kontenerze nie ma Godota. Ten projekt byl juz testowany z binarka Godot 4.7.2 znaleziona w scratchu. Sciezka zalezy od kontenera, wiec szukaj jej dynamicznie.
+
+Znane przyklady:
 
 - `/workspace/scratch/ad3cb27c6389/tools/godot/Godot_v4.7.2-stable_linux.x86_64`
+- `/workspace/scratch/fca424588312/tools/godot/Godot_v4.7.2-stable_linux.x86_64`
 
 Jesli `command -v godot` i `command -v godot4` nic nie zwracaja, najpierw przeszukaj scratch:
 
 - `find /workspace/scratch -maxdepth 5 -type f -iname '*godot*'`
 
-Na swiezym checkoutcie surowe `.gltf` moga jeszcze nie miec importu. Wtedy zwykle `--headless --path . --quit` moze pokazac parse error typu `has no resource loaders`. Nie koncz na tym. Najpierw wymus import w trybie edytora:
+Na swiezym checkoutcie surowe `.gltf` moga jeszcze nie miec importu. Wtedy zwykle `--headless --path . --quit` moze pokazac parse error typu `has no resource loaders`. Nie koncz na tym. Najpierw ustaw binarke:
 
-- `/workspace/scratch/ad3cb27c6389/tools/godot/Godot_v4.7.2-stable_linux.x86_64 --headless --editor --path . --quit`
+- `GODOT_BIN="$(command -v godot || command -v godot4 || find /workspace/scratch -maxdepth 5 -type f -iname 'Godot_v*-stable_linux.x86_64' | head -n 1)"`
+
+Potem wymus import w trybie edytora:
+
+- `"$GODOT_BIN" --headless --editor --path . --quit`
 
 Potem odpal walidacje runtime ta sama binarka:
 
-- `/workspace/scratch/ad3cb27c6389/tools/godot/Godot_v4.7.2-stable_linux.x86_64 --headless --path . --quit`
+- `"$GODOT_BIN" --headless --path . --quit`
 
 Jezeli ta sciezka w danym kontenerze nie istnieje, dopiero wtedy raportuj brak lokalnego Godota albo pobieraj/odtwarzaj narzedzie, jesli masz do tego dostep.
 
 Godot 4.7 moze po imporcie utworzyc pliki `*.gd.uid`. Nie stage'uj ich automatem razem z naprawa gameplayu/scenerii. Najpierw zdecyduj, czy aktualny task faktycznie dotyczy migracji UID / polityki repo.
+
+## Stan po passcie `0.8.20 Living World`
+
+Kontener A scalil `0.8.19 Hunt and Hides` z drugim lekkim passem swiata. Obecna baza ma juz lowy, mieso, skory, zywa zwierzyne oraz czytelniejsze otoczenie osady.
+
+Zmienione elementy:
+
+- `VERSION_TITLE` ustawione na `IDOL — GENESIS 0.8.20 LIVING WORLD`.
+- `project.godot` ustawione na `IDOL Genesis 0.8.20 Living World`.
+- `_ready()` po `make_ancient_settlement_scene()` wywoluje `make_world_depth_pass(home_a, home_b)`.
+- Zachowano gameplay `ŁOWY` z `meat`, `hides`, `wildlife`, `finish_hunt(v)`, `assign_hunt(v)` i HUD-em zwierzyny.
+- Dodano druga warstwe swiata: palisada, brama przy rzece, obejscia domow, poslania, stosy drewna, przeprawa po kamieniach, slady stop, strefa obrobki skor i pniaki.
+- Skory ekonomicznie pochodza z lowow; strefa obrobki skor jest teraz przede wszystkim czytelnym miejscem swiata i punktem pod przyszly gameplay rzemiosla.
+- `make_carry_node()` pokazuje mieso i bardziej czytelny zwitek skor.
+- `deposit_carry()` zachowuje `carry_amount` oraz `extra_hides` z lowow i dodaje maly efekt wspolnoty przy dostarczeniu skor.
+- Biezace zadania sa rozdane w `docs/container_tasks/`; B/C/D/E maja sprawdzac nowe instrukcje co 30 minut, prowadzic logi i uruchamiac wlasnych subagentow w swoich dziedzinach.
+
+Dodane helpery scenerii:
+
+- `make_world_depth_pass(home_a, home_b)`
+- `rotated_offset(x, z, rot)`
+- `make_settlement_palisade()`
+- `make_palisade_gate(p, rot)`
+- `make_home_yard(home_pos, rot, side)`
+- `make_firewood_stack(p, rot)`
+- `make_bedroll(p, rot, col)`
+- `make_hide_processing_yard()`
+- `add_hide_work_point(p)`
+- `make_scraped_hide(p, rot, col)`
+- `make_river_crossing()`
+- `make_footprint_marks(a, b, count)`
+- `make_story_stump(p, rot)`
 
 ## Stan po passcie `0.8.19 Hunt and Hides`
 
@@ -207,7 +246,7 @@ Gra dziala na Androidzie, wiec tekst ma byc czytelny, przyciski duze, bez drobny
 Minimum sprawdzen:
 
 - `git diff --check`
-- Godot headless. Najpierw `command -v godot`, potem `command -v godot4`, a jesli ich nie ma, szukaj w `/workspace/scratch`. Na swiezym checkoutcie najpierw uruchom import: `/workspace/scratch/ad3cb27c6389/tools/godot/Godot_v4.7.2-stable_linux.x86_64 --headless --editor --path . --quit`, potem runtime: `/workspace/scratch/ad3cb27c6389/tools/godot/Godot_v4.7.2-stable_linux.x86_64 --headless --path . --quit`
+- Godot headless. Najpierw `command -v godot`, potem `command -v godot4`, a jesli ich nie ma, szukaj w `/workspace/scratch`. Na swiezym checkoutcie ustaw `GODOT_BIN`, najpierw uruchom import: `"$GODOT_BIN" --headless --editor --path . --quit`, potem runtime: `"$GODOT_BIN" --headless --path . --quit`.
 - Otworzyc scene i sprawdzic, czy nie ma szarego ekranu ani parse error.
 - Sprawdzic, czy ludzie dalej chodza, pracuja, omijaja przeszkody i nie gubia rak.
 - Sprawdzic na Androidzie/FPS, jesli zmiana dodaje duzo obiektow.
@@ -224,4 +263,4 @@ Minimum sprawdzen:
 
 ## Gotowy prompt do wklejenia dla nowego kontenera
 
-Masz pracowac nad `ElKlient/IDOL-Genesis`, Godot 4.x Android, branch `main`. Najpierw przeczytaj `project.godot`, `main.tscn`, `scripts/main.gd`, `scripts/retargeter.gd` i `assets/third_party_model_packs/README.md`. Aktualny klimat to `0.8.19 Hunt and Hides`: lekka niskopoligonowa osada epoki kamienia / wczesnego sredniowiecza z idolem, ludzmi, patykami, kamieniem, jagodami, lowami, miesem, skorami, suszarniami skor, narzedziami kamiennymi, jeleniami i zapowiedzia pozniejszej stali. Nie zakladaj nowego projektu i nie psuj dzialajacych ludzi. Mechaniki ludzi, zasobow, budowy, rodzin, idola, kamery, UI oraz lowow sa glownie w `scripts/main.gd`. Jesli uzytkownik pyta co wkleic w Termux, podaj aktywna sciezke `/storage/emulated/0/IDOL-Genesis/IDOL-Genesis` i komende: `cd /storage/emulated/0/IDOL-Genesis/IDOL-Genesis && git config --global --add safe.directory /storage/emulated/0/IDOL-Genesis/IDOL-Genesis && git stash push -m "backup przed update" && git pull origin main && git --no-pager log -5 --oneline`. Jesli zadanie dotyczy scenerii, pracuj przez proceduralne helpery `make_...`; jesli ludzi, przeczytaj funkcje pozy kosci i `retargeter.gd`; jesli assetow, promuj tylko wybrane `.glb/.gltf` do wlasnych assetow gry, vendor paczki zostaw w `assets/third_party_model_packs/`. Po zmianach sprawdz `git diff --check` oraz Godota headless. Jesli `godot` nie jest w PATH, nie koncz na tym: szukaj binarki w `/workspace/scratch`; znana sciezka to `/workspace/scratch/ad3cb27c6389/tools/godot/Godot_v4.7.2-stable_linux.x86_64`. Na swiezym checkoutcie najpierw zrob import: `... --headless --editor --path . --quit`, potem runtime: `... --headless --path . --quit`. Staguj tylko pliki, ktore faktycznie zmieniles.
+Masz pracowac nad `ElKlient/IDOL-Genesis`, Godot 4.x Android, branch `main`. Najpierw przeczytaj `WORKFLOW_FIRST.md`, `project.godot`, `main.tscn`, `scripts/main.gd`, `scripts/retargeter.gd` i `assets/third_party_model_packs/README.md`. Aktualny klimat to `0.8.20 Living World`: lekka niskopoligonowa osada epoki kamienia / wczesnego sredniowiecza z idolem, ludzmi, patykami, kamieniem, jagodami, lowami, miesem, skorami, suszarniami skor, palisada, brama, przeprawa przez rzeke, slady stop, narzedziami kamiennymi, jeleniami i zapowiedzia pozniejszej stali. Nie zakladaj nowego projektu i nie psuj dzialajacych ludzi. Mechaniki ludzi, zasobow, budowy, rodzin, idola, kamery, UI, lowow i lekkiej scenerii sa glownie w `scripts/main.gd`. Jesli uzytkownik pyta co wkleic w Termux, podaj aktywna sciezke `/storage/emulated/0/IDOL-Genesis/IDOL-Genesis` i komende: `cd /storage/emulated/0/IDOL-Genesis/IDOL-Genesis && git config --global --add safe.directory /storage/emulated/0/IDOL-Genesis/IDOL-Genesis && git stash push -m "backup przed update" && git pull origin main && git --no-pager log -5 --oneline`. Jesli jestes kontenerem B/C/D/E, sprawdz swoj task w `docs/container_tasks/`, sprawdzaj nowe instrukcje co 30 minut i prowadz log w `docs/container_logs/`. Jesli zadanie dotyczy scenerii, pracuj przez proceduralne helpery `make_...`; jesli ludzi, przeczytaj funkcje pozy kosci i `retargeter.gd`; jesli assetow, promuj tylko wybrane `.glb/.gltf` do wlasnych assetow gry, vendor paczki zostaw w `assets/third_party_model_packs/`. Po zmianach sprawdz `git diff --check` oraz Godota headless. Jesli `godot` nie jest w PATH, nie koncz na tym: szukaj binarki w `/workspace/scratch`, ustaw `GODOT_BIN` i na swiezym checkoutcie najpierw zrob import: `"$GODOT_BIN" --headless --editor --path . --quit`, potem runtime: `"$GODOT_BIN" --headless --path . --quit`. Staguj tylko pliki, ktore faktycznie zmieniles.

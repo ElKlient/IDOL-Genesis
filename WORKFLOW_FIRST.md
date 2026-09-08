@@ -46,7 +46,7 @@ Kontener A moze zostawiac biezace zadania w:
 
 Jesli jestes kontenerem B/C/D/E, sprawdz swoj plik zadania zaraz po przeczytaniu tego workflow.
 
-Jesli jestes aktywny, zapauzowany albo czekasz na dalsza prace, sprawdzaj co 35 minut, czy Kontener A nie zostawil nowych instrukcji. Minimum: pobierz najnowszy `main`, przeczytaj ten plik, swoj plik zadania i swoj log.
+Jesli jestes aktywny, zapauzowany albo czekasz na dalsza prace, sprawdzaj co 30 minut, czy Kontener A nie zostawil nowych instrukcji. Minimum: pobierz najnowszy `main`, przeczytaj ten plik, swoj plik zadania i swoj log.
 
 Mozesz uruchamiac wlasnych subagentow do waskich zadan w swojej dziedzinie. Subagent nie powinien samodzielnie pchac zmian na `main`; glowny kontener odpowiada za decyzje, log, commit i push.
 
@@ -112,10 +112,13 @@ Po update uzytkownik otwiera projekt w aplikacji Godot na Androidzie z folderu, 
 
 ## Kontener Codex
 
-Godot moze nie byc w PATH, ale byl juz znaleziony w scratchu:
+Godot moze nie byc w PATH, ale byl juz znaleziony w scratchu. Sciezka moze zalezec od kontenera, wiec nie zakladaj jednej stalej lokalizacji.
+
+Znane przyklady:
 
 ```bash
 /workspace/scratch/ad3cb27c6389/tools/godot/Godot_v4.7.2-stable_linux.x86_64
+/workspace/scratch/fca424588312/tools/godot/Godot_v4.7.2-stable_linux.x86_64
 ```
 
 Jesli `command -v godot` i `command -v godot4` nic nie zwracaja, szukaj:
@@ -124,22 +127,28 @@ Jesli `command -v godot` i `command -v godot4` nic nie zwracaja, szukaj:
 find /workspace/scratch -maxdepth 5 -type f -iname '*godot*'
 ```
 
+Najpierw ustaw lokalna zmienna na dostepna binarke:
+
+```bash
+GODOT_BIN="$(command -v godot || command -v godot4 || find /workspace/scratch -maxdepth 5 -type f -iname 'Godot_v*-stable_linux.x86_64' | head -n 1)"
+```
+
 Na swiezym checkoutcie najpierw wymus import assetow:
 
 ```bash
-/workspace/scratch/ad3cb27c6389/tools/godot/Godot_v4.7.2-stable_linux.x86_64 --headless --editor --path . --quit
+"$GODOT_BIN" --headless --editor --path . --quit
 ```
 
 Potem sprawdz runtime:
 
 ```bash
-/workspace/scratch/ad3cb27c6389/tools/godot/Godot_v4.7.2-stable_linux.x86_64 --headless --path . --quit
+"$GODOT_BIN" --headless --path . --quit
 ```
 
 Mozesz tez odpalic krotki test startu:
 
 ```bash
-timeout 8s /workspace/scratch/ad3cb27c6389/tools/godot/Godot_v4.7.2-stable_linux.x86_64 --headless --path .
+timeout 8s "$GODOT_BIN" --headless --path .
 ```
 
 ## GitHub i zapisywanie wiedzy
@@ -173,6 +182,8 @@ Jesli zmieniasz kod/scenerie/importy, odpal Godota wedlug sekcji `Kontener Codex
 
 ## Aktualna baza gry
 
-Aktualny kierunek: `0.8.19 Hunt and Hides` - lekka niskopoligonowa osada epoki kamienia / wczesnego sredniowiecza z Idolem, ludzmi, praca, zasobami, lowami, miesem, skorami, narzedziami kamiennymi, jeleniami i zapowiedzia pozniejszej stali.
+Aktualny kierunek: `0.8.20 Living World` - lekka niskopoligonowa osada epoki kamienia / wczesnego sredniowiecza z Idolem, ludzmi, praca, zasobami, lowami, miesem, skorami, palisada, brama osady, slady przy sciezkach, przeprawa przez rzeke, narzedziami kamiennymi, jeleniami i zapowiedzia pozniejszej stali.
+
+Najnowszy pass Kontenera A polaczyl `0.8.19 Hunt and Hides` z druga warstwa swiata: palisade/gate, podworka chat, legowiska, stosy drewna, przeprawe, slady stop i strefe obrobki skor. Kontenery B/C/D/E maja po pullu sprawdzic swoje pliki zadan w `docs/container_tasks/`.
 
 Ludzie sa kluczowi. Nie wymieniaj modelu, szkieletu, retargetera ani proceduralnego chodu, jesli zadanie tego wprost nie dotyczy.

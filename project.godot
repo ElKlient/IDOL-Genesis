@@ -1,5 +1,5 @@
 [application]
-config/name="IDOL Genesis 0.8.19 Hunt and Hides"
+config/name="IDOL Genesis 0.8.20 Living World"
 run/main_scene="res://main.tscn"
 
 [display]

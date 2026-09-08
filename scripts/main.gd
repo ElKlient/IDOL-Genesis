@@ -8,7 +8,7 @@ const WALL=preload("res://assets/village/Wall_Plaster_Straight.gltf")
 const DOOR=preload("res://assets/village/Wall_Plaster_Door_Round.gltf")
 const ROOF=preload("res://assets/village/Roof_RoundTiles_6x6.gltf")
 const RETARGETER=preload("res://scripts/retargeter.gd")
-const VERSION_TITLE="IDOL — GENESIS 0.8.19 HUNT AND HIDES"
+const VERSION_TITLE="IDOL — GENESIS 0.8.20 LIVING WORLD"
 const CAMERA_MIN_DISTANCE=5.5
 const CAMERA_MAX_DISTANCE=88.0
 const CAMERA_HEIGHT_RATIO=0.61
@@ -79,6 +79,7 @@ var stick_sources=[]
 var stone_sources=[]
 var berry_sources=[]
 var wildlife=[]
+var hide_work_points=[]
 var hearth_pos=Vector3(-2.8,0,2.6)
 var social_bond=34.0
 var discoveries={"OGIEŃ":false,"NARZĘDZIA":false,"ŁOWY":false,"MAGAZYN":false,"WIĘZI":false,"OSADA":false,"RODZINA":false}
@@ -197,6 +198,7 @@ func _ready():
 	make_world_details(home_a,home_b)
 	make_camp_clutter()
 	make_ancient_settlement_scene()
+	make_world_depth_pass(home_a,home_b)
 
 	for i in range(10): make_person(i)
 	make_selection_marker()
@@ -701,6 +703,159 @@ func make_river_camp_details():
 		for i in range(4):
 			sphere(p+Vector3(rng.randf_range(-.16,.16),.5,rng.randf_range(-.12,.12)),.055,Color("#96324a"))
 
+func rotated_offset(x,z,rot):
+	var a=deg_to_rad(rot)
+	return Vector3(x*cos(a)-z*sin(a),0,x*sin(a)+z*cos(a))
+
+func make_world_depth_pass(home_a,home_b):
+	make_settlement_palisade()
+	make_palisade_gate(Vector3(12.4,0,1.0),-84)
+	make_home_yard(home_a,8,-1.0)
+	make_home_yard(home_b,-12,1.0)
+	make_hide_processing_yard()
+	make_river_crossing()
+	make_footprint_marks(Vector3.ZERO,hearth_pos,12)
+	make_footprint_marks(hearth_pos,STOCKPILE_POS,13)
+	make_footprint_marks(hearth_pos,Vector3(5.9,0,8.6),11)
+	make_footprint_marks(STOCKPILE_POS,Vector3(-19,0,9),10)
+	make_footprint_marks(RESEARCH_POS,Vector3(12.6,0,4.8),9)
+	for p in [Vector3(-14.5,0,12.8),Vector3(-16.8,0,-5.8),Vector3(13.5,0,-12.2),Vector3(20.5,0,20.5)]:
+		make_story_stump(p,rng.randf_range(0,180))
+
+func make_settlement_palisade():
+	var angles=[-154,-137,-120,-103,-86,-69,-52,54,72,90,108,126,144,162]
+	for i in range(angles.size()):
+		var a=deg_to_rad(float(angles[i]))
+		var p=Vector3(cos(a)*15.2,0,sin(a)*12.7)
+		var post=cyl(p+Vector3(0,.72,0),.075,1.42,Color("#513722"))
+		post.rotation_degrees=Vector3(rng.randf_range(-3,3),0,rng.randf_range(-3,3))
+		var cap=cone_in(self,p+Vector3(0,1.55,0),.13,.3,Color("#3f2b1c"))
+		cap.rotation_degrees.y=rng.randf_range(0,180)
+		if i%2==0:
+			add_obstacle(p,.38)
+		if i<angles.size()-1 and i%2==0:
+			var next_a=deg_to_rad(float(angles[i+1]))
+			var q=Vector3(cos(next_a)*15.2,0,sin(next_a)*12.7)
+			var d=q-p
+			var length=max(.1,Vector2(d.x,d.z).length())
+			var rail=box((p+q)*.5+Vector3(0,.92,0),Vector3(.08,.09,length),Color("#604027"))
+			rail.rotation_degrees.y=rad_to_deg(atan2(d.x,d.z))
+
+func make_palisade_gate(p,rot):
+	var gate=Node3D.new()
+	gate.name="Brama osady"
+	gate.position=p
+	gate.rotation_degrees.y=rot
+	add_child(gate)
+	add_obstacle(p,1.15)
+	for x in [-.72,.72]:
+		cyl_in(gate,Vector3(x,.9,0),.11,1.8,Color("#4f3421"))
+		cone_in(gate,Vector3(x,1.92,0),.18,.36,Color("#3f2a1b"))
+	box_in(gate,Vector3(0,1.68,0),Vector3(1.7,.16,.14),Color("#624028"))
+	for x in [-.48,.48]:
+		var torch=cyl_in(gate,Vector3(x,1.35,-.18),.025,.54,Color("#372419"))
+		torch.rotation_degrees.x=18
+		cone_in(gate,Vector3(x,1.68,-.28),.08,.22,Color("#d56a2c"))
+		cone_in(gate,Vector3(x,1.81,-.29),.045,.14,Color("#ffd36b"))
+
+func make_home_yard(home_pos,rot,side):
+	var base=home_pos+rotated_offset(side*2.8,2.4,rot)
+	make_ground_patch(base,Vector2(3.9,2.1),Color("#615238"),rot+rng.randf_range(-8,8))
+	make_firewood_stack(base+rotated_offset(-.8,.25,rot),rot+12)
+	make_bedroll(base+rotated_offset(.65,.45,rot),rot-18,Color("#7d5c3c"))
+	make_bedroll(base+rotated_offset(1.1,-.38,rot),rot+8,Color("#a18a67"))
+	var pot=cyl(base+rotated_offset(-1.25,-.52,rot)+Vector3(0,.24,0),.22,.34,Color("#55483a"))
+	pot.scale.x=1.15
+	for i in range(4):
+		var pebble=box(base+rotated_offset(rng.randf_range(-1.55,1.55),rng.randf_range(-.95,.95),rot)+Vector3(0,.12,0),Vector3(.18,.08,.16),Color("#74766f"))
+		pebble.rotation_degrees.y=rng.randf_range(0,180)
+
+func make_firewood_stack(p,rot):
+	var root=Node3D.new()
+	root.name="Szczapy drewna"
+	root.position=p
+	root.rotation_degrees.y=rot
+	add_child(root)
+	for i in range(5):
+		var log=box_in(root,Vector3(-.48+float(i)*.24,.2+float(i%2)*.12,0),Vector3(.16,.14,1.05),Color("#71492b"))
+		log.rotation_degrees.y=rng.randf_range(-5,5)
+	for x in [-.68,.68]:
+		var stake=cyl_in(root,Vector3(x,.42,0),.035,.72,Color("#4b3120"))
+		stake.rotation_degrees.z=8*x
+
+func make_bedroll(p,rot,col):
+	var roll=Node3D.new()
+	roll.name="Posłanie"
+	roll.position=p
+	roll.rotation_degrees.y=rot
+	add_child(roll)
+	box_in(roll,Vector3(0,.09,0),Vector3(1.05,.08,.58),col)
+	var head=cyl_in(roll,Vector3(-.42,.17,0),.12,.56,col.darkened(.08))
+	head.rotation_degrees.z=90
+	box_in(roll,Vector3(.12,.15,0),Vector3(.45,.06,.48),Color("#d4bd88"))
+
+func make_hide_processing_yard():
+	var center=Vector3(4.8,0,11.6)
+	make_ground_patch(center,Vector2(5.4,3.1),Color("#604f35"),-10)
+	add_hide_work_point(center+Vector3(-1.15,0,.28))
+	add_hide_work_point(Vector3(21.5,0,11.8))
+	add_hide_work_point(Vector3(7.2,0,9.2))
+	make_scraped_hide(center+Vector3(-1.05,0,.35),-16,Color("#9a714f"))
+	make_scraped_hide(center+Vector3(.62,0,-.42),9,Color("#b7a07a"))
+	make_firewood_stack(center+Vector3(1.55,0,.7),8)
+	for i in range(6):
+		var chip=box(center+Vector3(rng.randf_range(-2.4,2.2),.13,rng.randf_range(-1.25,1.25)),Vector3(.14,.055,.24),Color("#d0bc8a"))
+		chip.rotation_degrees.y=rng.randf_range(0,180)
+
+func add_hide_work_point(p):
+	hide_work_points.append({"pos":p})
+
+func make_scraped_hide(p,rot,col):
+	var root=Node3D.new()
+	root.name="Skóra do wyprawienia"
+	root.position=p
+	root.rotation_degrees.y=rot
+	add_child(root)
+	add_obstacle(p,.72)
+	box_in(root,Vector3(0,.06,0),Vector3(1.25,.05,.85),Color("#5f4b32"))
+	var hide=box_in(root,Vector3(0,.16,0),Vector3(.92,.055,.62),col)
+	hide.rotation_degrees.z=rng.randf_range(-3,3)
+	for x in [-.52,.52]:
+		var peg=cyl_in(root,Vector3(x,.25,-.32),.025,.34,Color("#d6c095"))
+		peg.rotation_degrees.x=90
+
+func make_river_crossing():
+	var z=1.8
+	var x=river_x_at_z(z)
+	for i in range(6):
+		var px=x-2.45+float(i)*.98+rng.randf_range(-.12,.12)
+		var stone=box(Vector3(px,.11,z+rng.randf_range(-.28,.28)),Vector3(.72,.12,.48),Color("#7b7d76"))
+		stone.rotation_degrees.y=rng.randf_range(-18,18)
+	for i in range(3):
+		var ripple=box(Vector3(x+rng.randf_range(-1.6,1.6),.115,z+rng.randf_range(-.85,.85)),Vector3(.95,.018,.04),Color("#d1e7e7"))
+		ripple.rotation_degrees.y=rng.randf_range(-12,12)
+
+func make_footprint_marks(a,b,count):
+	var d=b-a
+	var flat=Vector2(d.x,d.z)
+	if flat.length()<.1:
+		return
+	var dir=Vector3(d.x,0,d.z).normalized()
+	var side=Vector3(-dir.z,0,dir.x)
+	for i in range(count):
+		var t=(float(i)+.5)/float(count)
+		var p=a.lerp(b,t)+side*((-.16 if i%2==0 else .16)+rng.randf_range(-.04,.04))
+		var mark=box(Vector3(p.x,.066,p.z),Vector3(.16,.025,.34),Color("#4f4732"))
+		mark.rotation_degrees.y=rad_to_deg(atan2(d.x,d.z))+rng.randf_range(-7,7)
+
+func make_story_stump(p,rot):
+	var stump=cyl(p+Vector3(0,.32,0),.32,.64,Color("#5b3d28"))
+	stump.rotation_degrees.y=rot
+	add_obstacle(p,.58)
+	for i in range(3):
+		var ring=cyl(p+Vector3(0,.68+float(i)*.025,0),.22+float(i)*.035,.02,Color("#8a6944"))
+		ring.scale.x=1.25
+
 func make_idol():
 	add_obstacle(Vector3.ZERO,2.35)
 	box(Vector3(0,.18,0),Vector3(3.0,.36,2.35),Color("#5f615b"))
@@ -1101,8 +1256,10 @@ func make_carry_node(parent):
 	var hides=Node3D.new()
 	hides.name="hides"
 	cargo.add_child(hides)
-	var hide=box_in(hides,Vector3(0,.055,0),Vector3(.34,.055,.22),Color("#8b6141"))
-	hide.rotation_degrees.y=16
+	var roll=box_in(hides,Vector3(0,.04,0),Vector3(.34,.07,.2),Color("#9a714f"))
+	roll.rotation_degrees.y=-12
+	var strap=box_in(hides,Vector3(0,.09,0),Vector3(.08,.035,.24),Color("#4f3524"))
+	strap.rotation_degrees.y=-12
 	set_carry_visual(cargo,"")
 	return cargo
 
@@ -1440,6 +1597,8 @@ func building_cost(kind):
 	return {"sticks":BUILD_COST_STICKS,"stone":BUILD_COST_STONE,"work":BUILD_WORK}
 
 func resource_capacity(kind):
+	if kind=="hides":
+		return 8+buildings.granaries*4
 	var cap=34+buildings.granaries*18
 	if discoveries["MAGAZYN"]:
 		cap+=18
@@ -2286,7 +2445,7 @@ func start_delivery(v,kind,amount=-1,extra_hides=0):
 
 func carry_yield(v,kind):
 	var amount=1
-	if discoveries["NARZĘDZIA"] and kind!="berries" and rng.randf()<.34:
+	if discoveries["NARZĘDZIA"] and kind in ["sticks","stone"] and rng.randf()<.34:
 		amount+=1
 	if discoveries["OGIEŃ"] and kind=="berries" and rng.randf()<.22:
 		amount+=1
@@ -2299,16 +2458,23 @@ func carry_yield(v,kind):
 func deposit_carry(v):
 	if v.carry=="":
 		return
-	var delivered=carry_yield(v,v.carry)
+	var kind=v.carry
+	var delivered=carry_yield(v,kind)
 	if v.has("carry_amount"):
 		delivered=int(v.carry_amount)
 		v.erase("carry_amount")
-	add_stock(v.carry,delivered)
+	add_stock(kind,delivered)
+	var delivered_hides=0
 	if v.has("extra_hides"):
-		add_stock("hides",int(v.extra_hides))
+		delivered_hides=int(v.extra_hides)
+		add_stock("hides",delivered_hides)
 		v.erase("extra_hides")
 	v.carry=""
 	set_carry_visual(v.cargo,"")
+	if kind=="hides" or delivered_hides>0:
+		social_bond=min(100.0,social_bond+.12)
+		if rng.randf()<.38:
+			set_notice("%s odkłada skóry przy suszarni" % v.name)
 	try_fund_plans()
 	check_discoveries()
 

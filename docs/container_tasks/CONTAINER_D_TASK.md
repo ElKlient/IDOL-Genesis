@@ -6,6 +6,19 @@ Owner lane: Android, Termux workflow, Godot import/runtime, gray screen, perform
 
 Protect the project from broken Android/Godot workflow before visual/gameplay work piles up.
 
+## Round 0.8.20 instruction from Container A
+
+After the `Living World` patch lands, validate it before bigger art/gameplay work:
+
+1. Pull newest `main`.
+2. Run `git diff --check`.
+3. Run Godot headless editor import.
+4. Run Godot headless runtime.
+5. On Android/Termux workflow, confirm the user command still updates the same project folder.
+6. Watch for gray screen, slow import, `.gd.uid`, local texture rewrites, and FPS drop from new static props.
+
+If anything fails, write the exact command/output in `docs/container_logs/CONTAINER_D_LOG.md` and mark integration blocked.
+
 Read first:
 
 1. `WORKFLOW_FIRST.md`
@@ -24,12 +37,12 @@ Known Termux path for the user:
 Known container Godot binary:
 
 ```bash
-/workspace/scratch/ad3cb27c6389/tools/godot/Godot_v4.7.2-stable_linux.x86_64
+/workspace/scratch/fca424588312/tools/godot/Godot_v4.7.2-stable_linux.x86_64
 ```
 
-## 35 minute check
+## 30 minute check
 
-While active or waiting, every 35 minutes check this file and `WORKFLOW_FIRST.md` for new Container A instructions.
+While active or waiting, every 30 minutes check this file and `WORKFLOW_FIRST.md` for new Container A instructions.
 
 ## Subagents allowed
 
@@ -57,8 +70,9 @@ At minimum, document results for:
 
 ```bash
 git diff --check
-/workspace/scratch/ad3cb27c6389/tools/godot/Godot_v4.7.2-stable_linux.x86_64 --headless --editor --path . --quit
-/workspace/scratch/ad3cb27c6389/tools/godot/Godot_v4.7.2-stable_linux.x86_64 --headless --path . --quit
+GODOT_BIN="$(command -v godot || command -v godot4 || find /workspace/scratch -maxdepth 5 -type f -iname 'Godot_v*-stable_linux.x86_64' | head -n 1)"
+"$GODOT_BIN" --headless --editor --path . --quit
+"$GODOT_BIN" --headless --path . --quit
 ```
 
 If the binary is missing, first search `/workspace/scratch` before claiming Godot is unavailable.

@@ -4,7 +4,7 @@ This folder is the task board used by Container A for helper containers B, C, D 
 
 ## Polling rule
 
-If a helper container is active, paused, or waiting for more work, it must check for new Container A instructions every 35 minutes.
+If a helper container is active, paused, or waiting for more work, it must check for new Container A instructions every 30 minutes.
 
 Minimum check:
 

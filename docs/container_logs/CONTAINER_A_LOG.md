@@ -144,7 +144,46 @@ Container A added dedicated task files for helper containers:
 
 New standing instruction:
 
-- active/waiting helper containers must check every 35 minutes for new Container A instructions,
+- active/waiting helper containers must check every 30 minutes for new Container A instructions,
 - they must read `WORKFLOW_FIRST.md`, their own task file, and their own log,
 - they may spawn subagents inside their lane,
 - subagents do not own independent pushes to `main`; the parent container owns log/commit/push.
+
+## Container A Patch - 0.8.20 Living World - 2026-09-08
+
+Goal: merge the existing hunt/hides work with a stronger world-depth pass so the scene looks less empty and more like a living early settlement, while preserving the current people model, walking work from Container B, AI, retargeter, camera and Android target.
+
+Sidecar agents called by Container A:
+
+- B-sidecar confirmed not to touch people/bone functions during a world patch and to check obstacle/path impact.
+- C-sidecar recommended more lived-in fire/camp details, work clusters, trampled ground and river/forest depth without importing whole packs.
+- D-sidecar confirmed Godot 4.x with `gl_compatibility` remains the right engine path for this lightweight Android prototype.
+- E-sidecar recommended a small hides/tanning direction; remote `0.8.19 Hunt and Hides` already implemented the first hunt loop, so Container A kept that as the gameplay source of hides.
+
+Implemented in `scripts/main.gd`:
+
+- bumped version title to `IDOL -- GENESIS 0.8.20 LIVING WORLD`,
+- added `make_world_depth_pass(home_a, home_b)` after the existing ancient settlement pass,
+- added palisade edge, river gate, home yards, bedrolls, firewood stacks, hide processing yard, river crossing stones, footprint marks and story stumps,
+- preserved `ŁOWY`, `meat`, `hides`, `wildlife`, `assign_hunt(v)` and `finish_hunt(v)` from the remote hunt patch,
+- added `hide_work_points` as future hook for tanning/crafting work points, but did not add a second hide generator,
+- improved visible rolled hide cargo,
+- kept HUD meat/hides/wildlife summary from the hunt patch.
+
+Tasks distributed for next helper pass:
+
+- Container B: verify walking/arms/cargo around the new palisade, hide yard, hunt targets and obstacles.
+- Container C: prepare first tiny GLB promotion plan using only 4-6 selected assets.
+- Container D: run Godot/Android import/runtime/performance validation after 0.8.20.
+- Container E: review the `ŁOWY`/meat/hides loop and recommend the next gameplay vertical.
+
+Integration rule stays: D first, then B, then C, then E.
+
+Validation run by Container A:
+
+- `git diff --check` passed.
+- Godot binary found dynamically at `/workspace/scratch/fca424588312/tools/godot/Godot_v4.7.2-stable_linux.x86_64`.
+- `"$GODOT_BIN" --headless --editor --path . --quit` passed and imported assets.
+- `"$GODOT_BIN" --headless --path . --quit` passed.
+- `timeout 8s "$GODOT_BIN" --headless --path .` ran without errors until expected timeout.
+- Godot generated `scripts/main.gd.uid` and `scripts/retargeter.gd.uid`; Container A removed them from this patch and did not stage them.
