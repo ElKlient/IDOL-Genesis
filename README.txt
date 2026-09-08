@@ -1,4 +1,4 @@
-IDOL Genesis 0.8.15 - ARM SWING
+IDOL Genesis 0.8.16 - ARM AIM
 
 Prompt roboczy tej łatki:
 Zbuduj pierwszy grywalny rdzeń osady epoki kamienia. Gracz jest Idolem: wolą osady, nie dowódcą armii. Ludzie mają samodzielnie dzielić robotę, nosić surowce, budować podstawowe budynki, odpoczywać, tworzyć pierwsze więzi i odkrywać proste technologie przez zadania.
@@ -8,6 +8,12 @@ Kierunek gry:
 - ludzie nie są wojskiem do szkolenia, tylko pierwszą społecznością
 - później mają tworzyć pary, rozmnażać się, budować relacje, dzielić się na grupy i wchodzić w konflikty
 - rozwój technologii wynika z prostych zadań, które Idol zleca mieszkańcom
+
+Zmiany 0.8.16:
+- po stopklatkach z filmu 0.8.15 przebudowano chód rąk: bark nie dostaje już zgadywanego Eulera, tylko celuje kość ramienia w wyliczony kierunek dół + przód/tył
+- wymach ramion działa jako rzeczywiste wahadło w płaszczyźnie barku, więc ma ruszać ręką przez przestrzeń, a nie skręcać ją wokół własnej osi
+- wyłączono doklejane prymitywy twarzy do kości głowy, bo z kamery telefonu wyglądały jak wystające losowe przedmioty
+- przy zwykłych poprawkach kodu nie trzeba kasować `.godot`; kasowanie cache zostaje tylko na ciężkie zmiany modeli lub assetów
 
 Zmiany 0.8.15:
 - przeniesiono wymach chodzących ramion z osi X na oś prostopadłą do skrętu kości, żeby ręce pracowały przód-tył zamiast obracać się wokół siebie
