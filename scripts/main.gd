@@ -2,20 +2,20 @@ extends Node3D
 const FEMALE=preload("res://assets/characters/Superhero_Female_FullBody.gltf")
 const MALE=preload("res://assets/characters/Superhero_Male_FullBody.gltf")
 const MINI_FEMALE_MODEL_PATHS=[
-	"res://assets/third_party_model_packs/kenney_mini_characters_glb/models/character-female-a.glb",
-	"res://assets/third_party_model_packs/kenney_mini_characters_glb/models/character-female-b.glb",
-	"res://assets/third_party_model_packs/kenney_mini_characters_glb/models/character-female-c.glb",
-	"res://assets/third_party_model_packs/kenney_mini_characters_glb/models/character-female-d.glb",
-	"res://assets/third_party_model_packs/kenney_mini_characters_glb/models/character-female-e.glb",
-	"res://assets/third_party_model_packs/kenney_mini_characters_glb/models/character-female-f.glb"
+	"res://assets/characters/settlers/character-female-a.glb",
+	"res://assets/characters/settlers/character-female-b.glb",
+	"res://assets/characters/settlers/character-female-c.glb",
+	"res://assets/characters/settlers/character-female-d.glb",
+	"res://assets/characters/settlers/character-female-e.glb",
+	"res://assets/characters/settlers/character-female-f.glb"
 ]
 const MINI_MALE_MODEL_PATHS=[
-	"res://assets/third_party_model_packs/kenney_mini_characters_glb/models/character-male-a.glb",
-	"res://assets/third_party_model_packs/kenney_mini_characters_glb/models/character-male-b.glb",
-	"res://assets/third_party_model_packs/kenney_mini_characters_glb/models/character-male-c.glb",
-	"res://assets/third_party_model_packs/kenney_mini_characters_glb/models/character-male-d.glb",
-	"res://assets/third_party_model_packs/kenney_mini_characters_glb/models/character-male-e.glb",
-	"res://assets/third_party_model_packs/kenney_mini_characters_glb/models/character-male-f.glb"
+	"res://assets/characters/settlers/character-male-a.glb",
+	"res://assets/characters/settlers/character-male-b.glb",
+	"res://assets/characters/settlers/character-male-c.glb",
+	"res://assets/characters/settlers/character-male-d.glb",
+	"res://assets/characters/settlers/character-male-e.glb",
+	"res://assets/characters/settlers/character-male-f.glb"
 ]
 const CRATE=preload("res://assets/village/Prop_Crate.gltf")
 const FENCE=preload("res://assets/village/Prop_WoodenFence_Single.gltf")
@@ -24,7 +24,7 @@ const WALL=preload("res://assets/village/Wall_Plaster_Straight.gltf")
 const DOOR=preload("res://assets/village/Wall_Plaster_Door_Round.gltf")
 const ROOF=preload("res://assets/village/Roof_RoundTiles_6x6.gltf")
 const RETARGETER=preload("res://scripts/retargeter.gd")
-const VERSION_TITLE="IDOL — GENESIS 0.8.5 STABLE SETTLERS"
+const VERSION_TITLE="IDOL — GENESIS 0.8.6 ANDROID MODEL HOTFIX"
 const CAMERA_MIN_DISTANCE=5.5
 const CAMERA_MAX_DISTANCE=88.0
 const CAMERA_HEIGHT_RATIO=0.61
@@ -646,16 +646,18 @@ func cache_pose_bones(sk:Skeleton3D):
 func settler_model_scene(variant,sex):
 	if USE_KENNEY_SETTLER_MODELS:
 		var paths=MINI_FEMALE_MODEL_PATHS if sex=="K" else MINI_MALE_MODEL_PATHS
-		var scene=ResourceLoader.load(paths[variant%paths.size()])
-		if scene is PackedScene:
-			return scene
+		var model_path=paths[variant%paths.size()]
+		if ResourceLoader.exists(model_path):
+			var scene=ResourceLoader.load(model_path)
+			if scene is PackedScene:
+				return scene
 	return FEMALE if sex=="K" else MALE
 
 func make_settler_instance(variant,sex,is_child=false):
 	var scene=settler_model_scene(variant,sex)
 	var n=scene.instantiate()
 	var path=String(scene.resource_path)
-	var clean_model=USE_KENNEY_SETTLER_MODELS and path.find("kenney_mini_characters_glb")>=0
+	var clean_model=USE_KENNEY_SETTLER_MODELS and path.find("assets/characters/settlers")>=0
 	n.set_meta("clean_settler_model",clean_model)
 	n.name=("Osadniczka " if sex=="K" else "Osadnik ")+str(variant+1)
 	if clean_model:

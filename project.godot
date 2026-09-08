@@ -1,5 +1,5 @@
 [application]
-config/name="IDOL Genesis 0.8.5 Stable Settlers"
+config/name="IDOL Genesis 0.8.6 Android Model Hotfix"
 run/main_scene="res://main.tscn"
 
 [display]

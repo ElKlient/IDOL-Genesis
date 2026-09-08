@@ -1,0 +1,1 @@
+Reference packs stay in git, but Godot should not import every prototype asset on Android.
