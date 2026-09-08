@@ -141,3 +141,11 @@ Paste this in Termux on the phone after the commit is pushed:
 ```bash
 cd /storage/emulated/0/IDOL-Genesis/IDOL-Genesis && git config --global --add safe.directory /storage/emulated/0/IDOL-Genesis/IDOL-Genesis && git stash push -m "backup przed update" && git pull origin main && git --no-pager log -5 --oneline
 ```
+
+## Follow-up - GitHub Instruction Compliance - 2026-09-08
+
+- Re-read latest GitHub workflow files and `docs/container_tasks/CONTAINER_C_TASK.md` after Container A's task-board update.
+- Added `docs/assets/ENVIRONMENT_ASSET_PLAN.md` as the concrete Container C integration plan for lightweight environment upgrades.
+- Kept the follow-up in documentation only: no people, animation, AI, gameplay balance, retargeter, scene, or imported asset changes.
+- Recommendation: integrate the plan now, then wait for Container D's Android/import result and Container B's animation stabilization before promoting the first real GLB assets.
+- Required check for this docs-only follow-up: `git diff --check`.
