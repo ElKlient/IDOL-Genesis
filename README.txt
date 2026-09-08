@@ -1,4 +1,4 @@
-IDOL Genesis 0.8.1 - SETTLER VOICES
+IDOL Genesis 0.8.2 - QUIET SETTLERS
 
 Prompt roboczy tej łatki:
 Zbuduj pierwszy grywalny rdzeń osady epoki kamienia. Gracz jest Idolem: wolą osady, nie dowódcą armii. Ludzie mają samodzielnie dzielić robotę, nosić surowce, budować podstawowe budynki, odpoczywać, tworzyć pierwsze więzi i odkrywać proste technologie przez zadania.
@@ -8,6 +8,13 @@ Kierunek gry:
 - ludzie nie są wojskiem do szkolenia, tylko pierwszą społecznością
 - później mają tworzyć pary, rozmnażać się, budować relacje, dzielić się na grupy i wchodzić w konflikty
 - rozwój technologii wynika z prostych zadań, które Idol zleca mieszkańcom
+
+Zmiany 0.8.2:
+- zmniejszono imiona i teksty nad mieszkańcami; dymek rozmowy ma krótką treść i ciemną tabliczkę pod spodem
+- spowolniono rozmowy: działa globalny cooldown osady oraz cooldown odbiorcy, więc postacie nie odpowiadają natychmiast jedna po drugiej
+- czat osady jest mniejszy, pokazuje mniej linii i skraca długie wiadomości, żeby dało się go czytać na telefonie
+- wyłączono proceduralne ruszanie kośćmi importowanego modelu i dodano stabilne proste ciało osadnika z własnym ruchem rąk i nóg
+- problematyczna siatka importowanego modelu jest ukryta w runtime, ale assety zostają w repo do późniejszego porządnego retargetu
 
 Zmiany 0.8.1:
 - domyślnie wyłączono chaotyczny retarget klipów i zostawiono stabilniejszy proceduralny chód jako bazę do dalszego mapowania animacji

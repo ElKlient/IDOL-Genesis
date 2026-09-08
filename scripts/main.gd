@@ -8,7 +8,7 @@ const WALL=preload("res://assets/village/Wall_Plaster_Straight.gltf")
 const DOOR=preload("res://assets/village/Wall_Plaster_Door_Round.gltf")
 const ROOF=preload("res://assets/village/Roof_RoundTiles_6x6.gltf")
 const RETARGETER=preload("res://scripts/retargeter.gd")
-const VERSION_TITLE="IDOL — GENESIS 0.8.1 SETTLER VOICES"
+const VERSION_TITLE="IDOL — GENESIS 0.8.2 QUIET SETTLERS"
 const CAMERA_MIN_DISTANCE=5.5
 const CAMERA_MAX_DISTANCE=88.0
 const CAMERA_HEIGHT_RATIO=0.61
@@ -29,7 +29,7 @@ const HOME_CAPACITY=4
 const CHAPTER_HOUSES_GOAL=3
 const CHAPTER_GRANARIES_GOAL=1
 const CHAPTER_WORKSHOPS_GOAL=1
-const USE_PROCEDURAL_BONE_POSE=true
+const USE_PROCEDURAL_BONE_POSE=false
 const STOCKPILE_POS=Vector3(-5.8,0,3.6)
 const RESEARCH_POS=Vector3(2.75,0,2.25)
 const PAIR_BOND_THRESHOLD=.62
@@ -44,9 +44,11 @@ const PERSONAL_SPACE_CHILD=.58
 const USE_RETARGETED_ANIMATIONS=false
 const WALK_TURN_SPEED=7.5
 const OBSTACLE_CLEARANCE=.72
-const CHAT_INTERVAL_MIN=2.8
-const CHAT_INTERVAL_MAX=5.4
-const SPEECH_TIME=3.8
+const CHAT_INTERVAL_MIN=9.0
+const CHAT_INTERVAL_MAX=17.0
+const CHAT_GLOBAL_COOLDOWN=4.5
+const CHAT_REPLY_COOLDOWN=8.0
+const SPEECH_TIME=4.6
 
 var rng=RandomNumberGenerator.new()
 var people=[]
@@ -67,6 +69,7 @@ var discovery_sequence=["OGIEŃ","NARZĘDZIA","MAGAZYN","WIĘZI","OSADA","RODZIN
 var insight_progress=0.0
 var life_progress=0.0
 var children_born=0
+var global_chat_cd=2.0
 var world_env:WorldEnvironment
 var sun:DirectionalLight3D
 var day_clock=0.22
@@ -611,15 +614,91 @@ func make_person_label(parent,text,pos,font_size,color):
 	l.text=text
 	l.position=pos
 	l.font_size=font_size
-	l.pixel_size=.0045
+	l.pixel_size=.0019
 	l.modulate=color
-	l.outline_size=5
+	l.outline_size=2
 	l.outline_modulate=Color(0,0,0,.86)
 	l.billboard=BaseMaterial3D.BILLBOARD_ENABLED
 	l.no_depth_test=true
-	l.fixed_size=true
+	l.fixed_size=false
 	parent.add_child(l)
 	return l
+
+func make_speech_backdrop(parent,pos):
+	var n=MeshInstance3D.new()
+	var q=QuadMesh.new()
+	q.size=Vector2(.95,.18)
+	n.mesh=q
+	n.position=pos+Vector3(0,0,.018)
+	var m=StandardMaterial3D.new()
+	m.albedo_color=Color(.08,.08,.075,.68)
+	m.roughness=1.0
+	m.transparency=BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.billboard_mode=BaseMaterial3D.BILLBOARD_ENABLED
+	m.no_depth_test=true
+	n.material_override=m
+	n.visible=false
+	parent.add_child(n)
+	return n
+
+func short_speech(actor,msg):
+	var text="%s: %s" % [actor.name,msg]
+	if text.length()>28:
+		text=text.substr(0,25)+"..."
+	return text
+
+func hide_imported_visuals(root):
+	for c in root.get_children():
+		if c is MeshInstance3D:
+			c.visible=false
+		hide_imported_visuals(c)
+
+func make_limb(parent,pos,radius,height,color):
+	var limb=cyl_in(parent,pos,radius,height,color)
+	return limb
+
+func make_settler_body(parent,i,is_child=false):
+	var body=Node3D.new()
+	body.name="Ciało osadnika"
+	parent.add_child(body)
+	var skin=Color("#c98d62") if i%2==0 else Color("#d0a078")
+	var skin_dark=Color("#a77351")
+	var cloth=Color("#262b30") if i%2==0 else Color("#2f3034")
+	var body_scale=1.0
+	body.scale=Vector3(body_scale,body_scale,body_scale)
+	var hips=box_in(body,Vector3(0,.58,0),Vector3(.34,.22,.22),cloth)
+	hips.name="hips"
+	var torso=cyl_in(body,Vector3(0,1.0,0),.18,.68,skin)
+	torso.name="torso"
+	torso.scale.x=1.18
+	var chest=box_in(body,Vector3(0,1.05,-.06),Vector3(.42,.48,.12),skin)
+	chest.name="chest"
+	var neck=cyl_in(body,Vector3(0,1.36,0),.055,.16,skin_dark)
+	neck.name="neck"
+	var head=sphere_in(body,Vector3(0,1.52,-.035),.16,skin)
+	head.name="head"
+	head.scale=Vector3(.92,1.05,.86)
+	var arm_l=make_limb(body,Vector3(-.29,.94,0),.04,.72,skin)
+	arm_l.name="arm_l"
+	arm_l.rotation_degrees=Vector3(0,0,-11)
+	var arm_r=make_limb(body,Vector3(.29,.94,0),.04,.72,skin)
+	arm_r.name="arm_r"
+	arm_r.rotation_degrees=Vector3(0,0,11)
+	var hand_l=sphere_in(body,Vector3(-.37,.54,-.02),.055,skin)
+	hand_l.name="hand_l"
+	var hand_r=sphere_in(body,Vector3(.37,.54,-.02),.055,skin)
+	hand_r.name="hand_r"
+	var leg_l=make_limb(body,Vector3(-.105,.24,0),.052,.58,skin)
+	leg_l.name="leg_l"
+	var leg_r=make_limb(body,Vector3(.105,.24,0),.052,.58,skin)
+	leg_r.name="leg_r"
+	var foot_l=box_in(body,Vector3(-.105,-.06,-.07),Vector3(.12,.055,.22),skin_dark)
+	foot_l.name="foot_l"
+	var foot_r=box_in(body,Vector3(.105,-.06,-.07),Vector3(.12,.055,.22),skin_dark)
+	foot_r.name="foot_r"
+	var skirt=box_in(body,Vector3(0,.47,-.025),Vector3(.46,.22,.16),cloth.darkened(.08))
+	skirt.name="lower_cloth"
+	return {"body":body,"torso":torso,"head":head,"arm_l":arm_l,"arm_r":arm_r,"hand_l":hand_l,"hand_r":hand_r,"leg_l":leg_l,"leg_r":leg_r,"foot_l":foot_l,"foot_r":foot_r}
 
 func make_settler_face(parent,i):
 	var skin_shadow=Color("#9d6a48")
@@ -702,14 +781,19 @@ func make_person(i):
 	var base_scale=Vector3(2.15,2.15,2.15)
 	n.scale=base_scale
 	var a=TAU*i/10.0; n.position=Vector3(cos(a)*rng.randf_range(5,10),0,sin(a)*rng.randf_range(5,10)); add_child(n)
+	hide_imported_visuals(n)
+	var body_parts=make_settler_body(n,i,false)
 	make_settler_gear(n,i)
-	var name_label=make_person_label(n,names[i],Vector3(0,1.84,0),18,Color("#f8e9b4"))
-	var speech_label=make_person_label(n,"",Vector3(0,2.02,0),15,Color("#d8f3ff"))
+	var name_label=make_person_label(n,names[i],Vector3(0,1.78,0),9,Color("#f8e9b4"))
+	var speech_back=make_speech_backdrop(n,Vector3(0,1.97,0))
+	var speech_label=make_person_label(n,"",Vector3(0,1.965,-.02),8,Color("#f4fbff"))
 	speech_label.visible=false
 	var cargo=make_carry_node(n)
 	var sk=find_skeleton(n)
 	var v={"node":n,"skeleton":sk,"bones":cache_pose_bones(sk),"base_scale":base_scale,"phase":rng.randf_range(0,TAU),"pose_style":rng.randf_range(-1.0,1.0),"work_timer":0.0,"rest_time":rng.randf_range(1.5,3.6),"name":names[i],"trait":traits[i],"sex":"K" if i<5 else "M","age":rng.randi_range(18,34),"adult":true,"parent_a":-1,"parent_b":-1,"family_cd":rng.randf_range(8.0,18.0),"bond":rng.randf_range(.28,.62),"partner":-1,"str":rng.randi_range(3,9),"dex":rng.randi_range(3,9),"int":rng.randi_range(3,9),"hunger":rng.randf_range(5,25),"energy":rng.randf_range(72,100),"wood":0.0,"gather":0.0,"build":0.0,"knowledge":0.0,"job":"IDLE","carry":"","cargo":cargo,"target":n.position}
+	v["body_parts"]=body_parts
 	v["name_label"]=name_label
+	v["speech_back"]=speech_back
 	v["speech_label"]=speech_label
 	v["speech_timer"]=0.0
 	v["chat_cd"]=rng.randf_range(CHAT_INTERVAL_MIN,CHAT_INTERVAL_MAX)
@@ -754,15 +838,20 @@ func spawn_child(parent_a_idx,parent_b_idx):
 	var center=(parent_a.node.position+parent_b.node.position)*.5
 	n.position=center+Vector3(rng.randf_range(-.75,.75),0,rng.randf_range(-.75,.75))
 	add_child(n)
+	hide_imported_visuals(n)
+	var body_parts=make_settler_body(n,children_born+2,true)
 	make_settler_gear(n,children_born+2)
 	var child_name=next_child_name()
-	var name_label=make_person_label(n,child_name,Vector3(0,1.82,0),17,Color("#f8e9b4"))
-	var speech_label=make_person_label(n,"",Vector3(0,2.0,0),14,Color("#d8f3ff"))
+	var name_label=make_person_label(n,child_name,Vector3(0,1.78,0),8,Color("#f8e9b4"))
+	var speech_back=make_speech_backdrop(n,Vector3(0,1.96,0))
+	var speech_label=make_person_label(n,"",Vector3(0,1.955,-.02),7,Color("#f4fbff"))
 	speech_label.visible=false
 	var cargo=make_carry_node(n)
 	var sk=find_skeleton(n)
 	var v={"node":n,"skeleton":sk,"bones":cache_pose_bones(sk),"base_scale":base_scale,"phase":rng.randf_range(0,TAU),"pose_style":rng.randf_range(-.8,.8),"work_timer":0.0,"rest_time":rng.randf_range(1.8,3.8),"name":child_name,"trait":"Dziecko osady","sex":sex,"age":1,"adult":false,"parent_a":parent_a_idx,"parent_b":parent_b_idx,"family_cd":0.0,"bond":rng.randf_range(.62,.78),"partner":-1,"str":rng.randi_range(1,3),"dex":rng.randi_range(2,5),"int":rng.randi_range(2,5),"hunger":rng.randf_range(0,12),"energy":rng.randf_range(82,100),"wood":0.0,"gather":0.0,"build":0.0,"knowledge":0.0,"job":"DZIECKO","carry":"","cargo":cargo,"target":n.position}
+	v["body_parts"]=body_parts
 	v["name_label"]=name_label
+	v["speech_back"]=speech_back
 	v["speech_label"]=speech_label
 	v["speech_timer"]=0.0
 	v["chat_cd"]=rng.randf_range(CHAT_INTERVAL_MIN,CHAT_INTERVAL_MAX)
@@ -813,8 +902,8 @@ func make_ui():
 		var b=Button.new(); b.text=action; b.custom_minimum_size=Vector2(172,24); b.pressed.connect(func(): handle_idol_action(action)); grid.add_child(b)
 	var ibg=ColorRect.new(); ibg.position=Vector2(14,158); ibg.size=Vector2(402,178); ibg.color=Color(0.02,0.02,0.015,.66); layer.add_child(ibg)
 	info=Label.new(); info.position=Vector2(28,168); info.add_theme_font_size_override("font_size",11); layer.add_child(info)
-	var chat_bg=ColorRect.new(); chat_bg.position=Vector2(float(vp.x)*.36,float(vp.y)-128.0); chat_bg.size=Vector2(float(vp.x)*.28,102); chat_bg.color=Color(0.02,0.02,0.015,.54); layer.add_child(chat_bg)
-	chat_feed=Label.new(); chat_feed.position=chat_bg.position+Vector2(10,7); chat_feed.size=chat_bg.size-Vector2(18,10); chat_feed.add_theme_font_size_override("font_size",10); chat_feed.text="ROZMOWY OSADY\n..."; layer.add_child(chat_feed)
+	var chat_bg=ColorRect.new(); chat_bg.position=Vector2(float(vp.x)*.39,float(vp.y)-104.0); chat_bg.size=Vector2(float(vp.x)*.24,78); chat_bg.color=Color(0.02,0.02,0.015,.48); layer.add_child(chat_bg)
+	chat_feed=Label.new(); chat_feed.position=chat_bg.position+Vector2(8,5); chat_feed.size=chat_bg.size-Vector2(14,8); chat_feed.add_theme_font_size_override("font_size",8); chat_feed.text="ROZMOWY OSADY\n..."; layer.add_child(chat_feed)
 	make_camera_sticks(layer)
 
 func make_round_panel(pos,size,fill,border):
@@ -1200,17 +1289,19 @@ func refresh_chat_feed():
 
 func post_chat(a,b,msg,positive):
 	var state="zgoda" if positive else "spór"
-	chat_lines.insert(0,"%s -> %s [%s]: %s" % [a.name,b.name,state,msg])
-	while chat_lines.size()>4:
+	var line="%s -> %s [%s]: %s" % [a.name,b.name,state,msg]
+	if line.length()>62:
+		line=line.substr(0,59)+"..."
+	chat_lines.insert(0,line)
+	while chat_lines.size()>3:
 		chat_lines.pop_back()
 	if a.has("speech_label") and is_instance_valid(a.speech_label):
-		a.speech_label.text=msg
+		a.speech_label.text=short_speech(a,msg)
 		a.speech_label.visible=true
 		a.speech_timer=SPEECH_TIME
-	if b.has("speech_label") and is_instance_valid(b.speech_label):
-		b.speech_label.text="Dobrze." if positive else "Nie wiem."
-		b.speech_label.visible=true
-		b.speech_timer=max(1.5,SPEECH_TIME*.55)
+	if a.has("speech_back") and is_instance_valid(a.speech_back):
+		a.speech_back.visible=true
+	b.chat_cd=max(float(b.get("chat_cd",0.0)),CHAT_REPLY_COOLDOWN)
 	if positive:
 		a.bond=min(1.0,a.bond+.01)
 		b.bond=min(1.0,b.bond+.008)
@@ -1220,7 +1311,8 @@ func post_chat(a,b,msg,positive):
 	refresh_chat_feed()
 
 func update_settler_chat(d):
-	var did_speak=false
+	if global_chat_cd>0.0:
+		global_chat_cd=max(0.0,global_chat_cd-d)
 	for v in people:
 		if not v.has("chat_cd"):
 			v.chat_cd=rng.randf_range(CHAT_INTERVAL_MIN,CHAT_INTERVAL_MAX)
@@ -1228,16 +1320,17 @@ func update_settler_chat(d):
 			v.speech_timer=max(0.0,v.speech_timer-d)
 			if v.speech_timer<=0.0 and v.has("speech_label") and is_instance_valid(v.speech_label):
 				v.speech_label.visible=false
+				if v.has("speech_back") and is_instance_valid(v.speech_back):
+					v.speech_back.visible=false
 		v.chat_cd-=d
-		if v.chat_cd<=0.0:
-			if not did_speak:
-				var partner=chat_partner_for(v)
-				if partner!=null:
-					var same_job=v.job==partner.job and v.job!="IDLE"
-					var chance=clamp(.48+v.bond*.26+social_bond*.002+( .12 if same_job else 0.0),.18,.92)
-					var positive=rng.randf()<chance
-					post_chat(v,partner,chat_line_for(v,partner,positive),positive)
-					did_speak=true
+		if v.chat_cd<=0.0 and global_chat_cd<=0.0:
+			var partner=chat_partner_for(v)
+			if partner!=null:
+				var same_job=v.job==partner.job and v.job!="IDLE"
+				var chance=clamp(.48+v.bond*.26+social_bond*.002+( .12 if same_job else 0.0),.18,.92)
+				var positive=rng.randf()<chance
+				post_chat(v,partner,chat_line_for(v,partner,positive),positive)
+				global_chat_cd=CHAT_GLOBAL_COOLDOWN
 			v.chat_cd=rng.randf_range(CHAT_INTERVAL_MIN,CHAT_INTERVAL_MAX)
 
 func family_point(v):
@@ -1981,6 +2074,54 @@ func apply_settlement_spacing():
 				nb.position.x-=dir.x*strength
 				nb.position.z-=dir.z*strength
 
+func set_body_part_rotation(parts,key,rot):
+	if parts.has(key) and is_instance_valid(parts[key]):
+		parts[key].rotation_degrees=rot
+
+func set_body_part_position(parts,key,pos):
+	if parts.has(key) and is_instance_valid(parts[key]):
+		parts[key].position=pos
+
+func apply_body_proxy_pose(v,moving):
+	if not v.has("body_parts"):
+		return
+	var parts=v.body_parts
+	var step=sin(v.phase)
+	var work=max(0.0,sin(v.phase*2.2))
+	var arm_swing=step*10.0 if moving else sin(v.phase*.8)*2.2
+	var leg_swing=step*15.0 if moving else 0.0
+	var job=String(v.job)
+	var arm_l=Vector3(arm_swing,0,-10)
+	var arm_r=Vector3(-arm_swing,0,10)
+	var hand_l=Vector3(-.37,.54,-.02-step*.035)
+	var hand_r=Vector3(.37,.54,-.02+step*.035)
+	if job=="BUDOWA":
+		arm_l=Vector3(-18+work*8,0,-12)
+		arm_r=Vector3(-16-work*8,0,12)
+		hand_l=Vector3(-.34,.68,-.18)
+		hand_r=Vector3(.34,.68,-.18)
+	elif job in ["PATYKI","KAMIEŃ","JAGODY"]:
+		arm_l=Vector3(-12+work*5,0,-11)
+		arm_r=Vector3(-11-work*5,0,11)
+		hand_l=Vector3(-.35,.6,-.16)
+		hand_r=Vector3(.35,.6,-.16)
+	elif job=="WSPÓLNOTA":
+		arm_l=Vector3(sin(v.phase*.75)*3,0,-9)
+		arm_r=Vector3(-sin(v.phase*.75)*3,0,9)
+	elif job=="ODPOCZYNEK":
+		arm_l=Vector3(2,0,-8)
+		arm_r=Vector3(2,0,8)
+	set_body_part_rotation(parts,"arm_l",arm_l)
+	set_body_part_rotation(parts,"arm_r",arm_r)
+	set_body_part_rotation(parts,"leg_l",Vector3(leg_swing,0,0))
+	set_body_part_rotation(parts,"leg_r",Vector3(-leg_swing,0,0))
+	set_body_part_position(parts,"hand_l",hand_l)
+	set_body_part_position(parts,"hand_r",hand_r)
+	set_body_part_position(parts,"foot_l",Vector3(-.105,-.06,-.07-step*.045 if moving else -.07))
+	set_body_part_position(parts,"foot_r",Vector3(.105,-.06,-.07+step*.045 if moving else -.07))
+	set_body_part_rotation(parts,"torso",Vector3(( -3.0 if moving else 0.0)+sin(v.phase*.7)*1.2,0,0))
+	set_body_part_rotation(parts,"head",Vector3(sin(v.phase*.55)*1.8,sin(v.phase*.35)*2.0,0))
+
 func apply_living_pose(v,d,moving,flat_dir):
 	v.phase+=d*(5.4 if not is_adult(v) else (6.4 if moving else (3.6 if v.job!="IDLE" else 1.05)))
 	var n:Node3D=v.node
@@ -2041,6 +2182,7 @@ func apply_living_pose(v,d,moving,flat_dir):
 	n.rotation_degrees=Vector3(pitch,yaw,roll)
 	var breath=1.0+sin(v.phase*.7)*.006
 	n.scale=Vector3(v.base_scale.x,v.base_scale.y*breath,v.base_scale.z)
+	apply_body_proxy_pose(v,moving)
 	if USE_PROCEDURAL_BONE_POSE:
 		apply_bone_pose(v,moving)
 
