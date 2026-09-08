@@ -8,7 +8,7 @@ const WALL=preload("res://assets/village/Wall_Plaster_Straight.gltf")
 const DOOR=preload("res://assets/village/Wall_Plaster_Door_Round.gltf")
 const ROOF=preload("res://assets/village/Roof_RoundTiles_6x6.gltf")
 const RETARGETER=preload("res://scripts/retargeter.gd")
-const VERSION_TITLE="IDOL — GENESIS 0.8.0 SETTLEMENT FLOW"
+const VERSION_TITLE="IDOL — GENESIS 0.8.1 SETTLER VOICES"
 const CAMERA_MIN_DISTANCE=5.5
 const CAMERA_MAX_DISTANCE=88.0
 const CAMERA_HEIGHT_RATIO=0.61
@@ -41,6 +41,12 @@ const LIFE_PROGRESS_GOAL=8.0
 const FAMILY_BOND_THRESHOLD=.68
 const PERSONAL_SPACE_ADULT=.86
 const PERSONAL_SPACE_CHILD=.58
+const USE_RETARGETED_ANIMATIONS=false
+const WALK_TURN_SPEED=7.5
+const OBSTACLE_CLEARANCE=.72
+const CHAT_INTERVAL_MIN=2.8
+const CHAT_INTERVAL_MAX=5.4
+const SPEECH_TIME=3.8
 
 var rng=RandomNumberGenerator.new()
 var people=[]
@@ -50,6 +56,7 @@ var buildings={"houses":2,"granaries":0,"workshops":0}
 var build_plans=[]
 var build_spots=[]
 var home_spots=[]
+var obstacle_points=[]
 var stick_sources=[]
 var stone_sources=[]
 var berry_sources=[]
@@ -84,6 +91,8 @@ var retargeter
 var anim_ready=false
 var hud:Label
 var info:Label
+var chat_feed:Label
+var chat_lines=[]
 var selected_marker:Node3D
 var move_stick=Vector2.ZERO
 var rotate_stick=Vector2.ZERO
@@ -122,6 +131,9 @@ func sphere(p,r,c):
 	var n=MeshInstance3D.new(); var m=SphereMesh.new(); m.radius=r; m.height=r*2.0; n.mesh=m; n.position=p; n.material_override=mat(c); add_child(n); return n
 func sphere_in(parent,p,r,c):
 	var n=MeshInstance3D.new(); var m=SphereMesh.new(); m.radius=r; m.height=r*2.0; n.mesh=m; n.position=p; n.material_override=mat(c); parent.add_child(n); return n
+
+func add_obstacle(p,radius):
+	obstacle_points.append({"pos":p,"radius":radius})
 
 func _ready():
 	rng.seed=5302026
@@ -167,7 +179,7 @@ func _ready():
 
 	retargeter=RETARGETER.new()
 	add_child(retargeter)
-	anim_ready=retargeter.initialize()
+	anim_ready=USE_RETARGETED_ANIMATIONS and retargeter.initialize()
 	if anim_ready:
 		for v in people:
 			attach_person_animation(v)
@@ -192,6 +204,7 @@ func make_river():
 			make_reeds(Vector3(x+3.8,.08,z+rng.randf_range(-1.1,1.1)))
 
 func make_tree(p,scale):
+	add_obstacle(p,.82*scale)
 	var trunk=cyl(p+Vector3(0,1.35*scale,0),.18*scale,2.7*scale,Color("#5f422c"))
 	trunk.rotation_degrees=Vector3(rng.randf_range(-3,3),rng.randf_range(0,180),rng.randf_range(-4,4))
 	var crown=sphere(p+Vector3(0,3.0*scale,0),.88*scale,Color("#274f2c"))
@@ -264,6 +277,7 @@ func make_hearth():
 	h.name="Krąg wspólnoty"
 	h.position=hearth_pos
 	add_child(h)
+	add_obstacle(hearth_pos,1.45)
 	box_in(h,Vector3(0,.04,0),Vector3(4.1,.08,3.7),Color("#65583d"))
 	for i in range(10):
 		var a=TAU*float(i)/10.0
@@ -287,6 +301,7 @@ func make_stockpile():
 	s.name="Skład osady"
 	s.position=STOCKPILE_POS
 	add_child(s)
+	add_obstacle(STOCKPILE_POS,2.2)
 	box_in(s,Vector3(0,.045,0),Vector3(4.8,.09,3.2),Color("#5f5138"))
 	for i in range(4):
 		var rack=box_in(s,Vector3(-1.75+i*.45,.32,-.78),Vector3(.12,.25,1.55),Color("#725031"))
@@ -310,6 +325,7 @@ func make_research_stones():
 	r.name="Kamienie odkryć"
 	r.position=RESEARCH_POS
 	add_child(r)
+	add_obstacle(RESEARCH_POS,1.55)
 	box_in(r,Vector3(0,.04,0),Vector3(3.1,.08,2.2),Color("#696144"))
 	for i in range(4):
 		var a=TAU*float(i)/4.0+PI*.25
@@ -327,6 +343,7 @@ func make_workshop(p):
 	w.position=p
 	w.rotation_degrees.y=rng.randf_range(-160,160)
 	add_child(w)
+	add_obstacle(p,3.05)
 	box_in(w,Vector3(0,.08,0),Vector3(4.8,.16,3.8),Color("#65573c"))
 	for x in [-1.9,1.9]:
 		for z in [-1.45,1.45]:
@@ -403,7 +420,7 @@ func make_world_details(home_a,home_b):
 func make_camp_clutter():
 	for i in range(8):
 		var a=TAU*float(i)/8.0
-		var seat=box(hearth_pos+Vector3(cos(a)*2.45,.18,sin(a)*2.05),Vector3(.72,.28,.28),Color("#68472c"))
+		var seat=box(hearth_pos+Vector3(cos(a)*3.25,.18,sin(a)*2.7),Vector3(.58,.24,.24),Color("#68472c"))
 		seat.rotation_degrees.y=rad_to_deg(a)+90
 	for i in range(7):
 		var p=STOCKPILE_POS+Vector3(rng.randf_range(-2.1,2.1),.14,rng.randf_range(-1.55,1.55))
@@ -425,6 +442,7 @@ func make_camp_clutter():
 		cone_in(self,p+Vector3(0,.86,0),.16,.36,Color("#d56a2c"))
 
 func make_idol():
+	add_obstacle(Vector3.ZERO,2.35)
 	box(Vector3(0,.18,0),Vector3(3.0,.36,2.35),Color("#5f615b"))
 	box(Vector3(0,.58,0),Vector3(2.35,.42,1.75),Color("#707167"))
 	box(Vector3(0,2.05,0),Vector3(1.45,3.0,1.05),Color("#77786f"))
@@ -502,6 +520,7 @@ func select_person_at_screen(pos):
 
 func make_house(p,rot):
 	var h=Node3D.new(); h.position=p; h.rotation_degrees.y=rot; h.scale=Vector3(1.05,1.05,1.05); add_child(h)
+	add_obstacle(p,3.15)
 	box_in(h,Vector3(0,.08,-.42),Vector3(4.9,.16,4.35),Color("#65583d"))
 	var a=WALL.instantiate(); a.position=Vector3(-1.8,0,0); h.add_child(a)
 	var b=WALL.instantiate(); b.position=Vector3(1.8,0,0); h.add_child(b)
@@ -518,6 +537,7 @@ func make_house(p,rot):
 	return h
 
 func make_granary(p):
+	add_obstacle(p,2.9)
 	box(p+Vector3(0,.18,0),Vector3(4.4,.35,3.4),Color("#6b5034"))
 	for x in [-1.8,1.8]:
 		for z in [-1.35,1.35]:
@@ -536,6 +556,7 @@ func make_build_site(p,kind):
 	site.name="Plan budowy "+kind
 	site.position=p
 	add_child(site)
+	add_obstacle(p,2.65)
 	box_in(site,Vector3(0,.05,0),Vector3(4.7,.1,3.9),Color("#9b875e"))
 	box_in(site,Vector3(-2.0,.22,-1.5),Vector3(.55,.35,.55),Color("#686a64"))
 	box_in(site,Vector3(2.0,.22,1.5),Vector3(.55,.35,.55),Color("#686a64"))
@@ -585,6 +606,38 @@ func cache_pose_bones(sk:Skeleton3D):
 		bones[bone_name]=sk.find_bone(bone_name)
 	return bones
 
+func make_person_label(parent,text,pos,font_size,color):
+	var l=Label3D.new()
+	l.text=text
+	l.position=pos
+	l.font_size=font_size
+	l.pixel_size=.0045
+	l.modulate=color
+	l.outline_size=5
+	l.outline_modulate=Color(0,0,0,.86)
+	l.billboard=BaseMaterial3D.BILLBOARD_ENABLED
+	l.no_depth_test=true
+	l.fixed_size=true
+	parent.add_child(l)
+	return l
+
+func make_settler_face(parent,i):
+	var skin_shadow=Color("#9d6a48")
+	var dark=Color("#191613")
+	var eye_y=1.45
+	var face_z=-.235
+	var left_eye=sphere_in(parent,Vector3(-.055,eye_y,face_z),.024,dark)
+	left_eye.scale=Vector3(.8,.58,.36)
+	var right_eye=sphere_in(parent,Vector3(.055,eye_y,face_z),.024,dark)
+	right_eye.scale=Vector3(.8,.58,.36)
+	var nose=box_in(parent,Vector3(0,1.39,face_z-.018),Vector3(.028,.075,.024),skin_shadow)
+	nose.rotation_degrees.x=-8
+	var mouth=box_in(parent,Vector3(0,1.325,face_z-.02),Vector3(.09,.014,.018),Color("#4a241d"))
+	if i%2==0:
+		mouth.rotation_degrees.z=3
+	else:
+		mouth.rotation_degrees.z=-3
+
 func make_settler_gear(parent,i):
 	var gear=Node3D.new()
 	gear.name="Ubranie osadnika"
@@ -593,45 +646,46 @@ func make_settler_gear(parent,i):
 	var col=cloth_cols[i%cloth_cols.size()]
 	var hair_cols=[Color("#2d211a"),Color("#4a2f1e"),Color("#6b4628"),Color("#1f1b18")]
 	var hair=hair_cols[i%hair_cols.size()]
-	var belt=cyl_in(gear,Vector3(0,.66,0),.22,.08,Color("#3b2a1f"))
+	var belt=cyl_in(gear,Vector3(0,.64,0),.18,.055,Color("#3b2a1f"))
 	belt.rotation_degrees.y=rng.randf_range(-18,18)
-	var strap=box_in(gear,Vector3(.05,.96,-.18),Vector3(.075,.72,.055),Color("#3f2b1d"))
+	var strap=box_in(gear,Vector3(.04,.93,-.18),Vector3(.058,.62,.046),Color("#3f2b1d"))
 	strap.rotation_degrees.z=-23 if i%2==0 else 23
 	box_in(gear,Vector3(0,.52,-.15),Vector3(.34,.35,.045),col)
 	box_in(gear,Vector3(0,.38,-.13),Vector3(.28,.28,.05),col.darkened(.12))
-	var pouch=box_in(gear,Vector3(.19,.6,-.18),Vector3(.12,.15,.055),Color("#4e3523"))
+	var pouch=box_in(gear,Vector3(.17,.58,-.18),Vector3(.095,.12,.05),Color("#4e3523"))
 	pouch.rotation_degrees.z=-8
-	var hair_cap=sphere_in(gear,Vector3(0,1.58,-.03),.16,hair)
-	hair_cap.scale=Vector3(1.05,.56,.9)
+	make_settler_face(gear,i)
+	var hair_cap=sphere_in(gear,Vector3(0,1.525,-.035),.095,hair)
+	hair_cap.scale=Vector3(1.05,.36,.78)
 	if i%3==0:
-		var tail=sphere_in(gear,Vector3(0,1.42,.12),.09,hair)
-		tail.scale=Vector3(.72,1.1,.72)
+		var tail=sphere_in(gear,Vector3(0,1.37,.13),.052,hair)
+		tail.scale=Vector3(.76,1.18,.72)
 	if i%4==0:
-		cyl_in(gear,Vector3(0,1.37,-.18),.13,.035,Color("#d5c083"))
+		cyl_in(gear,Vector3(0,1.47,-.18),.095,.026,Color("#d5c083"))
 
 func make_carry_node(parent):
 	var cargo=Node3D.new()
 	cargo.name="Ładunek"
-	cargo.position=Vector3(.27,.83,-.28)
+	cargo.position=Vector3(.19,.69,-.2)
+	cargo.scale=Vector3(.72,.72,.72)
 	parent.add_child(cargo)
 	var sticks=Node3D.new()
 	sticks.name="sticks"
 	cargo.add_child(sticks)
-	for i in range(3):
-		var stick=box_in(sticks,Vector3(0,.03*i,0),Vector3(.055,.055,.58),Color("#8a5c32"))
-		stick.rotation_degrees=Vector3(0,-22+i*20,0)
+	for i in range(2):
+		var stick=box_in(sticks,Vector3(0,.035*i,0),Vector3(.045,.045,.46),Color("#8a5c32"))
+		stick.rotation_degrees=Vector3(0,-15+i*22,0)
 	var stone=Node3D.new()
 	stone.name="stone"
 	cargo.add_child(stone)
-	for i in range(3):
-		var rock=box_in(stone,Vector3(rng.randf_range(-.09,.09),.03*i,rng.randf_range(-.08,.08)),Vector3(.16,.11,.14),Color("#7b7d76"))
-		rock.rotation_degrees=Vector3(rng.randf_range(-8,8),rng.randf_range(0,180),rng.randf_range(-8,8))
+	var rock=box_in(stone,Vector3(0,.04,0),Vector3(.18,.13,.16),Color("#7b7d76"))
+	rock.rotation_degrees=Vector3(-7,28,5)
 	var berries=Node3D.new()
 	berries.name="berries"
 	cargo.add_child(berries)
-	cyl_in(berries,Vector3(0,.02,0),.16,.12,Color("#6f4b2c"))
-	for i in range(5):
-		sphere_in(berries,Vector3(rng.randf_range(-.1,.1),.11,rng.randf_range(-.09,.09)),.035,Color("#98243d"))
+	cyl_in(berries,Vector3(0,.02,0),.11,.08,Color("#6f4b2c"))
+	for i in range(3):
+		sphere_in(berries,Vector3(-.05+i*.05,.085,0),.028,Color("#98243d"))
 	set_carry_visual(cargo,"")
 	return cargo
 
@@ -649,9 +703,16 @@ func make_person(i):
 	n.scale=base_scale
 	var a=TAU*i/10.0; n.position=Vector3(cos(a)*rng.randf_range(5,10),0,sin(a)*rng.randf_range(5,10)); add_child(n)
 	make_settler_gear(n,i)
+	var name_label=make_person_label(n,names[i],Vector3(0,1.84,0),18,Color("#f8e9b4"))
+	var speech_label=make_person_label(n,"",Vector3(0,2.02,0),15,Color("#d8f3ff"))
+	speech_label.visible=false
 	var cargo=make_carry_node(n)
 	var sk=find_skeleton(n)
 	var v={"node":n,"skeleton":sk,"bones":cache_pose_bones(sk),"base_scale":base_scale,"phase":rng.randf_range(0,TAU),"pose_style":rng.randf_range(-1.0,1.0),"work_timer":0.0,"rest_time":rng.randf_range(1.5,3.6),"name":names[i],"trait":traits[i],"sex":"K" if i<5 else "M","age":rng.randi_range(18,34),"adult":true,"parent_a":-1,"parent_b":-1,"family_cd":rng.randf_range(8.0,18.0),"bond":rng.randf_range(.28,.62),"partner":-1,"str":rng.randi_range(3,9),"dex":rng.randi_range(3,9),"int":rng.randi_range(3,9),"hunger":rng.randf_range(5,25),"energy":rng.randf_range(72,100),"wood":0.0,"gather":0.0,"build":0.0,"knowledge":0.0,"job":"IDLE","carry":"","cargo":cargo,"target":n.position}
+	v["name_label"]=name_label
+	v["speech_label"]=speech_label
+	v["speech_timer"]=0.0
+	v["chat_cd"]=rng.randf_range(CHAT_INTERVAL_MIN,CHAT_INTERVAL_MAX)
 	people.append(v)
 	return v
 
@@ -694,10 +755,17 @@ func spawn_child(parent_a_idx,parent_b_idx):
 	n.position=center+Vector3(rng.randf_range(-.75,.75),0,rng.randf_range(-.75,.75))
 	add_child(n)
 	make_settler_gear(n,children_born+2)
+	var child_name=next_child_name()
+	var name_label=make_person_label(n,child_name,Vector3(0,1.82,0),17,Color("#f8e9b4"))
+	var speech_label=make_person_label(n,"",Vector3(0,2.0,0),14,Color("#d8f3ff"))
+	speech_label.visible=false
 	var cargo=make_carry_node(n)
 	var sk=find_skeleton(n)
-	var child_name=next_child_name()
 	var v={"node":n,"skeleton":sk,"bones":cache_pose_bones(sk),"base_scale":base_scale,"phase":rng.randf_range(0,TAU),"pose_style":rng.randf_range(-.8,.8),"work_timer":0.0,"rest_time":rng.randf_range(1.8,3.8),"name":child_name,"trait":"Dziecko osady","sex":sex,"age":1,"adult":false,"parent_a":parent_a_idx,"parent_b":parent_b_idx,"family_cd":0.0,"bond":rng.randf_range(.62,.78),"partner":-1,"str":rng.randi_range(1,3),"dex":rng.randi_range(2,5),"int":rng.randi_range(2,5),"hunger":rng.randf_range(0,12),"energy":rng.randf_range(82,100),"wood":0.0,"gather":0.0,"build":0.0,"knowledge":0.0,"job":"DZIECKO","carry":"","cargo":cargo,"target":n.position}
+	v["name_label"]=name_label
+	v["speech_label"]=speech_label
+	v["speech_timer"]=0.0
+	v["chat_cd"]=rng.randf_range(CHAT_INTERVAL_MIN,CHAT_INTERVAL_MAX)
 	people.append(v)
 	children_born+=1
 	stock.berries=max(0,stock.berries-CHILD_FOOD_COST)
@@ -745,6 +813,8 @@ func make_ui():
 		var b=Button.new(); b.text=action; b.custom_minimum_size=Vector2(172,24); b.pressed.connect(func(): handle_idol_action(action)); grid.add_child(b)
 	var ibg=ColorRect.new(); ibg.position=Vector2(14,158); ibg.size=Vector2(402,178); ibg.color=Color(0.02,0.02,0.015,.66); layer.add_child(ibg)
 	info=Label.new(); info.position=Vector2(28,168); info.add_theme_font_size_override("font_size",11); layer.add_child(info)
+	var chat_bg=ColorRect.new(); chat_bg.position=Vector2(float(vp.x)*.36,float(vp.y)-128.0); chat_bg.size=Vector2(float(vp.x)*.28,102); chat_bg.color=Color(0.02,0.02,0.015,.54); layer.add_child(chat_bg)
+	chat_feed=Label.new(); chat_feed.position=chat_bg.position+Vector2(10,7); chat_feed.size=chat_bg.size-Vector2(18,10); chat_feed.add_theme_font_size_override("font_size",10); chat_feed.text="ROZMOWY OSADY\n..."; layer.add_child(chat_feed)
 	make_camera_sticks(layer)
 
 func make_round_panel(pos,size,fill,border):
@@ -1074,6 +1144,102 @@ func carry_label(kind):
 		return "jagody"
 	return "brak"
 
+func flat_actor_distance(a,b):
+	var pa:Vector3=a.node.position
+	var pb:Vector3=b.node.position
+	return Vector2(pa.x,pa.z).distance_to(Vector2(pb.x,pb.z))
+
+func chat_partner_for(v):
+	if v.partner>=0 and v.partner<people.size():
+		var partner=people[v.partner]
+		if flat_actor_distance(v,partner)<7.5:
+			return partner
+	var best=null
+	var best_dist=5.8
+	for other in people:
+		if other.node==v.node:
+			continue
+		var dist=flat_actor_distance(v,other)
+		if dist<best_dist:
+			best=other
+			best_dist=dist
+	return best
+
+func chat_line_for(a,b,positive):
+	if not positive:
+		var friction=["Nie tak. Zróbmy inaczej.","Za ciasno tu, odsuń się.","Nie rozumiem tego zadania.","Idol patrzy, ale ja mam wątpliwość."]
+		return friction[rng.randi_range(0,friction.size()-1)]
+	if a.job==b.job and a.job!="IDLE":
+		if a.job=="BUDOWA":
+			return "Ty trzymaj belki, ja układam kamień."
+		if a.job in ["PATYKI","KAMIEŃ","JAGODY"]:
+			return "Zbierzmy to razem i zanieśmy do składu."
+		if a.job=="WSPÓLNOTA":
+			return "Przy ogniu łatwiej się dogadać."
+		if a.job=="ODKRYCIA":
+			return "Patrz na znaki, może coś odkryjemy."
+	if a.carry!="":
+		return "Niosę %s. Zrób mi przejście." % carry_label(a.carry)
+	if not is_adult(a):
+		return "Patrzę i uczę się osady."
+	if a.partner==people.find(b):
+		return "Trzymajmy się razem."
+	var lines=["Ja biorę jedną robotę, ty drugą.","Osada rośnie, musimy się dzielić pracą.","Najpierw zapas, potem domy.","Słyszałeś rozkaz Idola?"]
+	return lines[rng.randi_range(0,lines.size()-1)]
+
+func refresh_chat_feed():
+	if not chat_feed:
+		return
+	if chat_lines.is_empty():
+		chat_feed.text="ROZMOWY OSADY\n..."
+		return
+	var packed=PackedStringArray()
+	for line in chat_lines:
+		packed.append(line)
+	chat_feed.text="ROZMOWY OSADY\n"+"\n".join(packed)
+
+func post_chat(a,b,msg,positive):
+	var state="zgoda" if positive else "spór"
+	chat_lines.insert(0,"%s -> %s [%s]: %s" % [a.name,b.name,state,msg])
+	while chat_lines.size()>4:
+		chat_lines.pop_back()
+	if a.has("speech_label") and is_instance_valid(a.speech_label):
+		a.speech_label.text=msg
+		a.speech_label.visible=true
+		a.speech_timer=SPEECH_TIME
+	if b.has("speech_label") and is_instance_valid(b.speech_label):
+		b.speech_label.text="Dobrze." if positive else "Nie wiem."
+		b.speech_label.visible=true
+		b.speech_timer=max(1.5,SPEECH_TIME*.55)
+	if positive:
+		a.bond=min(1.0,a.bond+.01)
+		b.bond=min(1.0,b.bond+.008)
+		social_bond=min(100.0,social_bond+.08)
+	else:
+		social_bond=max(0.0,social_bond-.035)
+	refresh_chat_feed()
+
+func update_settler_chat(d):
+	var did_speak=false
+	for v in people:
+		if not v.has("chat_cd"):
+			v.chat_cd=rng.randf_range(CHAT_INTERVAL_MIN,CHAT_INTERVAL_MAX)
+		if v.has("speech_timer") and v.speech_timer>0.0:
+			v.speech_timer=max(0.0,v.speech_timer-d)
+			if v.speech_timer<=0.0 and v.has("speech_label") and is_instance_valid(v.speech_label):
+				v.speech_label.visible=false
+		v.chat_cd-=d
+		if v.chat_cd<=0.0:
+			if not did_speak:
+				var partner=chat_partner_for(v)
+				if partner!=null:
+					var same_job=v.job==partner.job and v.job!="IDLE"
+					var chance=clamp(.48+v.bond*.26+social_bond*.002+( .12 if same_job else 0.0),.18,.92)
+					var positive=rng.randf()<chance
+					post_chat(v,partner,chat_line_for(v,partner,positive),positive)
+					did_speak=true
+			v.chat_cd=rng.randf_range(CHAT_INTERVAL_MIN,CHAT_INTERVAL_MAX)
+
 func family_point(v):
 	var idx=people.find(v)
 	var base=hearth_pos
@@ -1205,6 +1371,22 @@ func pick_source_point(sources,radius):
 func person_index(v):
 	return max(0,people.find(v))
 
+func keep_point_outside_obstacles(p,extra=.45):
+	var result=p
+	for ob in obstacle_points:
+		var center:Vector3=ob.pos
+		var delta=Vector3(result.x-center.x,0,result.z-center.z)
+		var dist=delta.length()
+		var limit=float(ob.radius)+extra
+		if dist<.001:
+			delta=Vector3(1,0,0)
+			dist=1.0
+		if dist<limit:
+			var pushed=center+delta.normalized()*limit
+			result.x=pushed.x
+			result.z=pushed.z
+	return result
+
 func spaced_ring_point(base,idx,rx,rz,twist=0.0):
 	var safe_idx=max(0,idx)
 	var ring=int(floor(float(safe_idx)/8.0))
@@ -1212,26 +1394,26 @@ func spaced_ring_point(base,idx,rx,rz,twist=0.0):
 	var a=TAU*float(slot)/8.0+twist+float(ring)*.37
 	var ring_rx=rx+float(ring)*.78
 	var ring_rz=rz+float(ring)*.56
-	return base+Vector3(cos(a)*ring_rx,0,sin(a)*ring_rz)
+	return keep_point_outside_obstacles(base+Vector3(cos(a)*ring_rx,0,sin(a)*ring_rz))
 
 func meeting_point(v):
-	return spaced_ring_point(hearth_pos,person_index(v),2.65,2.05,.15)
+	return spaced_ring_point(hearth_pos,person_index(v),2.75,2.25,.15)
 
 func depot_point(v):
-	return spaced_ring_point(STOCKPILE_POS,person_index(v),2.15,1.55,.55)
+	return spaced_ring_point(STOCKPILE_POS,person_index(v),3.05,2.15,.55)
 
 func research_point(v):
-	return spaced_ring_point(RESEARCH_POS,person_index(v),1.95,1.35,.9)
+	return spaced_ring_point(RESEARCH_POS,person_index(v),2.35,1.75,.9)
 
 func rest_point(v):
 	var idx=person_index(v)
 	if not home_spots.is_empty():
 		var home=home_spots[idx%home_spots.size()]
-		return spaced_ring_point(home,idx,2.3,1.65,.3)
+		return spaced_ring_point(home,idx,3.45,2.45,.3)
 	return meeting_point(v)
 
 func build_work_point(v,plan):
-	return spaced_ring_point(plan.pos,person_index(v),2.15,1.55,.25)
+	return spaced_ring_point(plan.pos,person_index(v),3.2,2.25,.25)
 
 func find_pair_candidate(v):
 	if v.partner!=-1:
@@ -1615,7 +1797,7 @@ func reset_pose_frame(sk,bones):
 		pose_bone(sk,bones,bone_name,Vector3.ZERO)
 
 func has_retarget_motion(v):
-	return anim_ready and v.has("anim") and not v.anim.is_empty()
+	return USE_RETARGETED_ANIMATIONS and anim_ready and v.has("anim") and not v.anim.is_empty()
 
 func animation_state_for(v,moving):
 	if moving:
@@ -1729,10 +1911,55 @@ func push_out_of_zone(v,center,radius):
 		n.position.x+=push.x
 		n.position.z+=push.z
 
+func obstacle_avoidance(v):
+	var n:Node3D=v.node
+	var steer=Vector3.ZERO
+	for ob in obstacle_points:
+		var center:Vector3=ob.pos
+		var delta=Vector3(n.position.x-center.x,0,n.position.z-center.z)
+		var dist=delta.length()
+		var limit=float(ob.radius)+OBSTACLE_CLEARANCE
+		if dist<.001:
+			var idx=person_index(v)
+			var a=TAU*float(idx+1)/max(1.0,float(people.size()))
+			delta=Vector3(cos(a),0,sin(a))
+			dist=1.0
+		if dist<limit:
+			steer+=delta.normalized()*((limit-dist)/limit)
+	return steer
+
+func crowd_avoidance(v):
+	var n:Node3D=v.node
+	var steer=Vector3.ZERO
+	for other in people:
+		if other.node==v.node:
+			continue
+		var delta=Vector3(n.position.x-other.node.position.x,0,n.position.z-other.node.position.z)
+		var dist=delta.length()
+		var limit=actor_space_radius(v)+actor_space_radius(other)
+		if dist>.001 and dist<limit:
+			steer+=delta.normalized()*((limit-dist)/limit)
+	return steer
+
+func desired_move_direction(v,dir):
+	if dir.length()<.001:
+		return Vector3.ZERO
+	var desired=dir.normalized()
+	var steer=desired+crowd_avoidance(v)*.85+obstacle_avoidance(v)*1.25
+	if steer.length()<.05:
+		return desired
+	return steer.normalized()
+
+func smooth_face_direction(n,dir,d):
+	if dir.length()<.05:
+		return
+	var target_yaw=atan2(dir.x,dir.z)
+	n.rotation.y=lerp_angle(n.rotation.y,target_yaw,clamp(d*WALK_TURN_SPEED,0.0,1.0))
+
 func apply_settlement_spacing():
 	for v in people:
-		push_out_of_zone(v,Vector3.ZERO,2.25)
-		push_out_of_zone(v,hearth_pos,.95)
+		for ob in obstacle_points:
+			push_out_of_zone(v,ob.pos,float(ob.radius)+actor_space_radius(v)*.28)
 	for i in range(people.size()):
 		var a=people[i]
 		var na:Node3D=a.node
@@ -1741,7 +1968,7 @@ func apply_settlement_spacing():
 			var nb:Node3D=b.node
 			var delta=Vector3(na.position.x-nb.position.x,0,na.position.z-nb.position.z)
 			var dist=delta.length()
-			var min_dist=(actor_space_radius(a)+actor_space_radius(b))*.5
+			var min_dist=(actor_space_radius(a)+actor_space_radius(b))*.86
 			if dist<.001:
 				var ang=TAU*float(i+j+1)/max(1.0,float(people.size()))
 				delta=Vector3(cos(ang),0,sin(ang))
@@ -1761,17 +1988,17 @@ func apply_living_pose(v,d,moving,flat_dir):
 		var look=family_point(v)-n.position
 		look.y=0
 		if look.length()>.2:
-			n.look_at(n.position+look,Vector3.UP)
+			smooth_face_direction(n,look,d)
 	elif not moving and v.job=="WSPÓLNOTA":
 		var look=hearth_pos-n.position
 		look.y=0
 		if look.length()>.2:
-			n.look_at(n.position+look,Vector3.UP)
+			smooth_face_direction(n,look,d)
 	elif not moving and v.job=="ODKRYCIA":
 		var look=RESEARCH_POS-n.position
 		look.y=0
 		if look.length()>.2:
-			n.look_at(n.position+look,Vector3.UP)
+			smooth_face_direction(n,look,d)
 	var bob=0.0
 	var pitch=0.0
 	var roll=0.0
@@ -1850,10 +2077,11 @@ func _process(d):
 		if moving:
 			v.work_timer=0.0
 			var speed=(.8+v.dex*.04)*(1.0 if adult else .72)
-			n.position+=dir.normalized()*d*speed
-			n.look_at(n.position+dir,Vector3.UP)
+			var move_dir=desired_move_direction(v,dir)
+			n.position+=move_dir*d*speed
+			smooth_face_direction(n,move_dir,d)
 			if anim_ready and v.has("anim"): retargeter.play(v.anim,animation_state_for(v,true),d)
-			apply_living_pose(v,d,true,dir)
+			apply_living_pose(v,d,true,move_dir)
 		else:
 			v.work_timer+=d
 			if v.job!="IDLE":
@@ -1872,6 +2100,7 @@ func _process(d):
 	apply_settlement_spacing()
 	update_life_growth(d)
 	update_build_sites()
+	update_settler_chat(d)
 	update_selection_marker()
 	apply_camera_sticks(d)
 	if notice_timer>0.0:

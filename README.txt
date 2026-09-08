@@ -1,4 +1,4 @@
-IDOL Genesis 0.8.0 - SETTLEMENT FLOW
+IDOL Genesis 0.8.1 - SETTLER VOICES
 
 Prompt roboczy tej łatki:
 Zbuduj pierwszy grywalny rdzeń osady epoki kamienia. Gracz jest Idolem: wolą osady, nie dowódcą armii. Ludzie mają samodzielnie dzielić robotę, nosić surowce, budować podstawowe budynki, odpoczywać, tworzyć pierwsze więzi i odkrywać proste technologie przez zadania.
@@ -8,6 +8,13 @@ Kierunek gry:
 - ludzie nie są wojskiem do szkolenia, tylko pierwszą społecznością
 - później mają tworzyć pary, rozmnażać się, budować relacje, dzielić się na grupy i wchodzić w konflikty
 - rozwój technologii wynika z prostych zadań, które Idol zleca mieszkańcom
+
+Zmiany 0.8.1:
+- domyślnie wyłączono chaotyczny retarget klipów i zostawiono stabilniejszy proceduralny chód jako bazę do dalszego mapowania animacji
+- postacie dostały proste twarze, mniejsze włosy oraz mniejsze ładunki przy ciele, żeby nie wyglądały jak losowe bryły przyklejone do manekina
+- nad mieszkańcami pojawiają się imiona, a przy rozmowie także krótki dymek
+- dodano pierwszy log rozmów osady: widać kto do kogo mówi oraz czy rozmowa daje zgodę czy spór
+- ruch korzysta z omijania ludzi i przeszkód, a punkty pracy są wypychane poza promienie budynków, Idola, ogniska i składu
 
 Zmiany 0.8.0:
 - po screenie z 0.7.9 kolejnym krokiem jest życie osady, nie menu: mieszkańcy dostają większe kręgi stanowisk
