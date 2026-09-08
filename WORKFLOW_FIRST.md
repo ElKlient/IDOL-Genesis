@@ -34,6 +34,22 @@ Log aktualizuj po waznym odkryciu, zmianie workflow, tescie Godota albo wypchnie
 - nastepne kroki,
 - komenda Termux przekazana uzytkownikowi.
 
+## Instrukcje od Kontenera A
+
+Kontener A moze zostawiac biezace zadania w:
+
+- `docs/container_tasks/README.md`
+- `docs/container_tasks/CONTAINER_B_TASK.md`
+- `docs/container_tasks/CONTAINER_C_TASK.md`
+- `docs/container_tasks/CONTAINER_D_TASK.md`
+- `docs/container_tasks/CONTAINER_E_TASK.md`
+
+Jesli jestes kontenerem B/C/D/E, sprawdz swoj plik zadania zaraz po przeczytaniu tego workflow.
+
+Jesli jestes aktywny, zapauzowany albo czekasz na dalsza prace, sprawdzaj co 35 minut, czy Kontener A nie zostawil nowych instrukcji. Minimum: pobierz najnowszy `main`, przeczytaj ten plik, swoj plik zadania i swoj log.
+
+Mozesz uruchamiac wlasnych subagentow do waskich zadan w swojej dziedzinie. Subagent nie powinien samodzielnie pchac zmian na `main`; glowny kontener odpowiada za decyzje, log, commit i push.
+
 ## Obowiazkowy raport po analizie
 
 Jesli kontener dostal zadanie analizy albo pomocy przy grze, po zakonczeniu pierwszego przegladu musi dopisac raport do swojego logu:
