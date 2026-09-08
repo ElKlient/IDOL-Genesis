@@ -173,6 +173,6 @@ Jesli zmieniasz kod/scenerie/importy, odpal Godota wedlug sekcji `Kontener Codex
 
 ## Aktualna baza gry
 
-Aktualny kierunek: `0.8.18 Ancient Settlement` - lekka niskopoligonowa osada epoki kamienia / wczesnego sredniowiecza z Idolem, ludzmi, praca, zasobami, skorami, narzedziami kamiennymi, jeleniami i zapowiedzia pozniejszej stali.
+Aktualny kierunek: `0.8.19 Hunt and Hides` - lekka niskopoligonowa osada epoki kamienia / wczesnego sredniowiecza z Idolem, ludzmi, praca, zasobami, lowami, miesem, skorami, narzedziami kamiennymi, jeleniami i zapowiedzia pozniejszej stali.
 
 Ludzie sa kluczowi. Nie wymieniaj modelu, szkieletu, retargetera ani proceduralnego chodu, jesli zadanie tego wprost nie dotyczy.

@@ -1,6 +1,6 @@
 START DLA KONTENEROW: najpierw przeczytaj WORKFLOW_FIRST.md.
 
-IDOL Genesis 0.8.18 - ANCIENT SETTLEMENT
+IDOL Genesis 0.8.19 - HUNT AND HIDES
 
 Prompt roboczy tej łatki:
 Zbuduj pierwszy grywalny rdzeń osady epoki kamienia. Gracz jest Idolem: wolą osady, nie dowódcą armii. Ludzie mają samodzielnie dzielić robotę, nosić surowce, budować podstawowe budynki, odpoczywać, tworzyć pierwsze więzi i odkrywać proste technologie przez zadania.
@@ -10,6 +10,14 @@ Kierunek gry:
 - ludzie nie są wojskiem do szkolenia, tylko pierwszą społecznością
 - później mają tworzyć pary, rozmnażać się, budować relacje, dzielić się na grupy i wchodzić w konflikty
 - rozwój technologii wynika z prostych zadań, które Idol zleca mieszkańcom
+
+Zmiany 0.8.19:
+- dodano lekki gameplay łowiectwa bez nowych ciężkich assetów: istniejące jelenie są teraz żywą listą zwierzyny z odnowieniem po czasie
+- dodano rozkaz Idola `ŁOWY`; osadnicy mogą rezerwować zwierzynę, podejść na skraj łąki i wrócić do składu z mięsem oraz skórami
+- dodano zasoby `meat` i `hides`; mięso karmi lepiej niż jagody, a żywność dla dziecka może pochodzić z jagód i mięsa
+- AUTO wysyła maksymalnie paru łowców tylko przy niedoborze jedzenia, więc łowy nie zabierają całej osady od budowy i zbierania
+- HUD pokazuje mięso, skóry, stan zwierzyny oraz liczbę łowców; panel osoby pokazuje prostą umiejętność łowiecką
+- zachowano model ludzi, retargeter, chód, kamera i dotychczasowy obieg pracy bez przebudowy
 
 Zmiany 0.8.17:
 - po filmie 0.8.16 poprawiono pełny cykl chodu dorosłych: nogi nie są już prostym sinusem, tylko mają fazę wymachu, podparcia, wybicia palcami i stawiania pięty

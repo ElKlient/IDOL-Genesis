@@ -82,6 +82,34 @@ Jezeli ta sciezka w danym kontenerze nie istnieje, dopiero wtedy raportuj brak l
 
 Godot 4.7 moze po imporcie utworzyc pliki `*.gd.uid`. Nie stage'uj ich automatem razem z naprawa gameplayu/scenerii. Najpierw zdecyduj, czy aktualny task faktycznie dotyczy migracji UID / polityki repo.
 
+## Stan po passcie `0.8.19 Hunt and Hides`
+
+Kontener E dopial pierwszy lekki gameplay zwierzyny i jedzenia w `scripts/main.gd`, bez wymiany modeli ludzi i bez ruszania retargetera.
+
+Zmienione elementy:
+
+- `VERSION_TITLE` ustawione na `IDOL — GENESIS 0.8.19 HUNT AND HIDES`.
+- `project.godot` ustawione na `IDOL Genesis 0.8.19 Hunt and Hides`.
+- Jelenie tworzone przez `make_wild_deer(...)` trafiaja teraz do tablicy `wildlife` i maja stan `alive`, `recover`, `target`, `reserved_by`.
+- Dodane zasoby `meat` i `hides`; mieso liczy sie jako mocniejsze jedzenie, a skory sa zapasem pod kolejne budynki/rzemioslo.
+- Dodany rozkaz `ŁOWY` w UI oraz AUTO-priorytet: przy niedoborze jedzenia osada wysyla maksymalnie paru lowcow, jesli jest zywa zwierzyna.
+- Dodane funkcje gameplayu:
+  - `herd_roam_point(home, radius)`
+  - `active_deer_count()`
+  - `wildlife_summary()`
+  - `update_wildlife(d)`
+  - `food_units()`
+  - `consume_child_food(amount)`
+  - `feed_person(v, adult)`
+  - `find_available_deer_index(origin)`
+  - `clear_hunt_reservation(v)`
+  - `assign_hunt(v)`
+  - `finish_hunt(v)`
+- HUD pokazuje teraz mieso, skory, stan zwierzyny i liczbe lowcow; panel osoby pokazuje umiejetnosc lowiecka.
+- Rodziny/dzieci korzystaja z lacznej zywnosci, nie tylko z jagod.
+
+Nie zmieniono: modelu ludzi, retargetera, osi kosci, kamery, paczek assetow ani bazowego systemu budowy.
+
 ## Stan po passcie `0.8.18 Ancient Settlement`
 
 Ten kontener wdrozyl klimat jako lekka proceduralna warstwe swiata w `scripts/main.gd`. Nie byly dodawane ciezkie assety ani nowe zewnetrzne importy.
@@ -115,9 +143,9 @@ Najwazniejsze: dekoracyjne klastry dodaja `add_obstacle(...)`, zeby obecne AI lu
 Centralny plik gry to `scripts/main.gd`. Tam sa obecnie:
 
 - 10 osadnikow startowych.
-- Zasoby: `sticks`, `stone`, `berries`.
+- Zasoby: `sticks`, `stone`, `berries`, `meat`, `hides`.
 - Budynki: domy, spichlerz, warsztat.
-- Akcje/tryby: `AUTO`, `PATYKI`, `KAMIEŃ`, `JAGODY`, `BUDOWA`, `WSPÓLNOTA`, `ODKRYCIA`, `DZIECKO`.
+- Akcje/tryby: `AUTO`, `PATYKI`, `KAMIEŃ`, `JAGODY`, `ŁOWY`, `BUDOWA`, `WSPÓLNOTA`, `ODKRYCIA`, `DZIECKO`.
 - Idol, wola Idola, blogoslawienstwo, postep odkryc, wiezi spoleczne, rodziny i dzieci.
 - Ruch ludzi, unikanie tlumu i przeszkod, wybieranie postaci, kamera mobilna, pinch zoom i sticki ekranowe.
 - Proceduralna poza kosci ludzi przy `USE_PROCEDURAL_BONE_POSE=true`.
@@ -196,4 +224,4 @@ Minimum sprawdzen:
 
 ## Gotowy prompt do wklejenia dla nowego kontenera
 
-Masz pracowac nad `ElKlient/IDOL-Genesis`, Godot 4.x Android, branch `main`. Najpierw przeczytaj `project.godot`, `main.tscn`, `scripts/main.gd`, `scripts/retargeter.gd` i `assets/third_party_model_packs/README.md`. Aktualny klimat to `0.8.18 Ancient Settlement`: lekka niskopoligonowa osada epoki kamienia / wczesnego sredniowiecza z idolem, ludzmi, patykami, kamieniem, jagodami, skorami, suszarniami skor, narzedziami kamiennymi, jeleniami i zapowiedzia pozniejszej stali. Nie zakladaj nowego projektu i nie psuj dzialajacych ludzi. Mechaniki ludzi, zasobow, budowy, rodzin, idola, kamery i UI sa glownie w `scripts/main.gd`. Jesli uzytkownik pyta co wkleic w Termux, podaj aktywna sciezke `/storage/emulated/0/IDOL-Genesis/IDOL-Genesis` i komende: `cd /storage/emulated/0/IDOL-Genesis/IDOL-Genesis && git config --global --add safe.directory /storage/emulated/0/IDOL-Genesis/IDOL-Genesis && git stash push -m "backup przed update" && git pull origin main && git --no-pager log -5 --oneline`. Jesli zadanie dotyczy scenerii, pracuj przez proceduralne helpery `make_...`; jesli ludzi, przeczytaj funkcje pozy kosci i `retargeter.gd`; jesli assetow, promuj tylko wybrane `.glb/.gltf` do wlasnych assetow gry, vendor paczki zostaw w `assets/third_party_model_packs/`. Po zmianach sprawdz `git diff --check` oraz Godota headless. Jesli `godot` nie jest w PATH, nie koncz na tym: szukaj binarki w `/workspace/scratch`; znana sciezka to `/workspace/scratch/ad3cb27c6389/tools/godot/Godot_v4.7.2-stable_linux.x86_64`. Na swiezym checkoutcie najpierw zrob import: `... --headless --editor --path . --quit`, potem runtime: `... --headless --path . --quit`. Staguj tylko pliki, ktore faktycznie zmieniles.
+Masz pracowac nad `ElKlient/IDOL-Genesis`, Godot 4.x Android, branch `main`. Najpierw przeczytaj `project.godot`, `main.tscn`, `scripts/main.gd`, `scripts/retargeter.gd` i `assets/third_party_model_packs/README.md`. Aktualny klimat to `0.8.19 Hunt and Hides`: lekka niskopoligonowa osada epoki kamienia / wczesnego sredniowiecza z idolem, ludzmi, patykami, kamieniem, jagodami, lowami, miesem, skorami, suszarniami skor, narzedziami kamiennymi, jeleniami i zapowiedzia pozniejszej stali. Nie zakladaj nowego projektu i nie psuj dzialajacych ludzi. Mechaniki ludzi, zasobow, budowy, rodzin, idola, kamery, UI oraz lowow sa glownie w `scripts/main.gd`. Jesli uzytkownik pyta co wkleic w Termux, podaj aktywna sciezke `/storage/emulated/0/IDOL-Genesis/IDOL-Genesis` i komende: `cd /storage/emulated/0/IDOL-Genesis/IDOL-Genesis && git config --global --add safe.directory /storage/emulated/0/IDOL-Genesis/IDOL-Genesis && git stash push -m "backup przed update" && git pull origin main && git --no-pager log -5 --oneline`. Jesli zadanie dotyczy scenerii, pracuj przez proceduralne helpery `make_...`; jesli ludzi, przeczytaj funkcje pozy kosci i `retargeter.gd`; jesli assetow, promuj tylko wybrane `.glb/.gltf` do wlasnych assetow gry, vendor paczki zostaw w `assets/third_party_model_packs/`. Po zmianach sprawdz `git diff --check` oraz Godota headless. Jesli `godot` nie jest w PATH, nie koncz na tym: szukaj binarki w `/workspace/scratch`; znana sciezka to `/workspace/scratch/ad3cb27c6389/tools/godot/Godot_v4.7.2-stable_linux.x86_64`. Na swiezym checkoutcie najpierw zrob import: `... --headless --editor --path . --quit`, potem runtime: `... --headless --path . --quit`. Staguj tylko pliki, ktore faktycznie zmieniles.
