@@ -1,5 +1,5 @@
 [application]
-config/name="IDOL Genesis 0.8.13 Gait Arms"
+config/name="IDOL Genesis 0.8.14 Arm Axis"
 run/main_scene="res://main.tscn"
 
 [display]

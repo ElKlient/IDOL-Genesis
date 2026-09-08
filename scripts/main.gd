@@ -8,7 +8,7 @@ const WALL=preload("res://assets/village/Wall_Plaster_Straight.gltf")
 const DOOR=preload("res://assets/village/Wall_Plaster_Door_Round.gltf")
 const ROOF=preload("res://assets/village/Roof_RoundTiles_6x6.gltf")
 const RETARGETER=preload("res://scripts/retargeter.gd")
-const VERSION_TITLE="IDOL — GENESIS 0.8.13 GAIT ARMS"
+const VERSION_TITLE="IDOL — GENESIS 0.8.14 ARM AXIS"
 const CAMERA_MIN_DISTANCE=5.5
 const CAMERA_MAX_DISTANCE=88.0
 const CAMERA_HEIGHT_RATIO=0.61
@@ -2130,6 +2130,30 @@ func pose_bone_delta(v,bone_name,rot):
 		base=v.pose_bases[bone_name]
 	sk.set_bone_pose_rotation(idx,base*Quaternion.from_euler(rot))
 
+func pose_bone_delta_quat(v,bone_name,q:Quaternion):
+	var sk=v.skeleton
+	if not sk:
+		return
+	var bones=v.bones
+	var idx=bones.get(bone_name,-1)
+	if idx<0:
+		return
+	var base=sk.get_bone_pose_rotation(idx)
+	if v.has("pose_bases") and v.pose_bases.has(bone_name):
+		base=v.pose_bases[bone_name]
+	sk.set_bone_pose_rotation(idx,base*q)
+
+func pose_walk_arm(v,left:bool,arm_swing:float,elbow_swing:float,drop:float):
+	var upper_name="upperarm_l" if left else "upperarm_r"
+	var lower_name="lowerarm_l" if left else "lowerarm_r"
+	var hand_name="hand_l" if left else "hand_r"
+	var side=-1.0 if left else 1.0
+	var drop_q=Quaternion.from_euler(Vector3(0,0,side*drop))
+	var swing_q=Quaternion.from_euler(Vector3(-side*arm_swing,0,0))
+	pose_bone_delta_quat(v,upper_name,drop_q*swing_q)
+	pose_bone_delta(v,lower_name,Vector3(.16+side*elbow_swing,0,side*.025))
+	pose_bone_delta(v,hand_name,Vector3(side*arm_swing*.09,0,0))
+
 func has_retarget_motion(v):
 	return USE_RETARGETED_ANIMATIONS and anim_ready and v.has("anim") and not v.anim.is_empty()
 
@@ -2163,12 +2187,8 @@ func apply_bone_pose(v,moving):
 	if not is_adult(v):
 		var child_arm=arm_step*.52
 		pose_bone_delta(v,"spine_01",Vector3(.018+sin(v.phase*.7)*.01,0,0))
-		pose_bone_delta(v,"upperarm_l",Vector3(child_arm,0,-1.18))
-		pose_bone_delta(v,"upperarm_r",Vector3(-child_arm,0,1.18))
-		pose_bone_delta(v,"lowerarm_l",Vector3(.11-child_arm*.32,0,-.02))
-		pose_bone_delta(v,"lowerarm_r",Vector3(.11+child_arm*.32,0,.02))
-		pose_bone_delta(v,"hand_l",Vector3(-child_arm*.08,0,0))
-		pose_bone_delta(v,"hand_r",Vector3(child_arm*.08,0,0))
+		pose_walk_arm(v,true,child_arm,child_arm*.24,1.18)
+		pose_walk_arm(v,false,child_arm,child_arm*.24,1.18)
 		if not use_anim_lower:
 			pose_bone_delta(v,"thigh_l",Vector3(-step*.27,0,0))
 			pose_bone_delta(v,"thigh_r",Vector3(step*.27,0,0))
@@ -2183,17 +2203,13 @@ func apply_bone_pose(v,moving):
 		pose_bone_delta(v,"foot_l",Vector3.ZERO)
 		pose_bone_delta(v,"foot_r",Vector3.ZERO)
 	if moving:
-		var arm_swing=arm_step*.98
-		var elbow_swing=arm_step*.27
+		var arm_swing=arm_step*.82
+		var elbow_swing=arm_step*.24
 		pose_bone_delta(v,"spine_01",Vector3(-.012,0,0))
 		pose_bone_delta(v,"clavicle_l",Vector3(-.01+arm_step*.055,0,-shoulder_drop-arm_step*.018))
 		pose_bone_delta(v,"clavicle_r",Vector3(-.01-arm_step*.055,0,shoulder_drop-arm_step*.018))
-		pose_bone_delta(v,"upperarm_l",Vector3(arm_swing,0,-arm_drop+abs(arm_step)*.035))
-		pose_bone_delta(v,"upperarm_r",Vector3(-arm_swing,0,arm_drop-abs(arm_step)*.035))
-		pose_bone_delta(v,"lowerarm_l",Vector3(.16-elbow_swing,0,-.025))
-		pose_bone_delta(v,"lowerarm_r",Vector3(.16+elbow_swing,0,.025))
-		pose_bone_delta(v,"hand_l",Vector3(-arm_step*.1,0,0))
-		pose_bone_delta(v,"hand_r",Vector3(arm_step*.1,0,0))
+		pose_walk_arm(v,true,arm_swing,elbow_swing,arm_drop-abs(arm_step)*.035)
+		pose_walk_arm(v,false,arm_swing,elbow_swing,arm_drop-abs(arm_step)*.035)
 		if not use_anim_lower:
 			pose_bone_delta(v,"thigh_l",Vector3(-step*.46,0,0))
 			pose_bone_delta(v,"thigh_r",Vector3(step*.46,0,0))

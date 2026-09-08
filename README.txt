@@ -1,4 +1,4 @@
-IDOL Genesis 0.8.13 - GAIT ARMS
+IDOL Genesis 0.8.14 - ARM AXIS
 
 Prompt roboczy tej łatki:
 Zbuduj pierwszy grywalny rdzeń osady epoki kamienia. Gracz jest Idolem: wolą osady, nie dowódcą armii. Ludzie mają samodzielnie dzielić robotę, nosić surowce, budować podstawowe budynki, odpoczywać, tworzyć pierwsze więzi i odkrywać proste technologie przez zadania.
@@ -8,6 +8,11 @@ Kierunek gry:
 - ludzie nie są wojskiem do szkolenia, tylko pierwszą społecznością
 - później mają tworzyć pary, rozmnażać się, budować relacje, dzielić się na grupy i wchodzić w konflikty
 - rozwój technologii wynika z prostych zadań, które Idol zleca mieszkańcom
+
+Zmiany 0.8.14:
+- naprawiono oś ruchu ramion: ręce nie powinny już kręcić się wokół własnej osi przy chodzeniu
+- wymach ramienia jest składany quaternionowo: najpierw opuszczenie przy tułowiu, potem ruch barku przód-tył
+- zachowano przeciwfazę względem nóg i widoczny zakres ruchu, ale bez ruszania UI, dymków ani logiki osady
 
 Zmiany 0.8.13:
 - przerobiono chód ramion: barki i łokcie pracują teraz w przeciwfazie do nóg z lekkim opóźnieniem, żeby marsz był płynniejszy
