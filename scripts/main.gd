@@ -8,7 +8,7 @@ const WALL=preload("res://assets/village/Wall_Plaster_Straight.gltf")
 const DOOR=preload("res://assets/village/Wall_Plaster_Door_Round.gltf")
 const ROOF=preload("res://assets/village/Roof_RoundTiles_6x6.gltf")
 const RETARGETER=preload("res://scripts/retargeter.gd")
-const VERSION_TITLE="IDOL — GENESIS 0.8.17 NATURAL WALK"
+const VERSION_TITLE="IDOL — GENESIS 0.8.18 ANCIENT SETTLEMENT"
 const CAMERA_MIN_DISTANCE=5.5
 const CAMERA_MAX_DISTANCE=88.0
 const CAMERA_HEIGHT_RATIO=0.61
@@ -43,8 +43,8 @@ const PERSONAL_SPACE_ADULT=.62
 const PERSONAL_SPACE_CHILD=.42
 const USE_RETARGETED_ANIMATIONS=false
 const USE_PROXY_SETTLER_BODY=false
-const USE_SETTLER_ROOT_GEAR=false
-const USE_FLOATING_CARGO=false
+const USE_SETTLER_ROOT_GEAR=true
+const USE_FLOATING_CARGO=true
 const USE_HEAD_FACE_ATTACHMENTS=false
 const HUMAN_FEMALE_ADULT_SCALE=1.16
 const HUMAN_MALE_ADULT_SCALE=1.22
@@ -193,6 +193,7 @@ func _ready():
 		var f=FENCE.instantiate(); f.position=Vector3(-9+i*2.4,0,10); add_child(f)
 	make_world_details(home_a,home_b)
 	make_camp_clutter()
+	make_ancient_settlement_scene()
 
 	for i in range(10): make_person(i)
 	make_selection_marker()
@@ -259,6 +260,12 @@ func make_terrain_layers():
 	make_ground_patch(Vector3(-2,0,2),Vector2(11.0,8.0),Color("#665d3f"),8)
 	make_ground_patch(Vector3(-6,0,4),Vector2(7.5,5.0),Color("#5d5339"),-13)
 	make_ground_patch(Vector3(7,0,-7),Vector2(8.4,5.2),Color("#6a6042"),17)
+	make_ground_patch(Vector3(-10.5,0,7.0),Vector2(8.8,4.6),Color("#67573a"),-8)
+	make_ground_patch(Vector3(5.5,0,8.0),Vector2(7.2,3.8),Color("#5b583d"),18)
+	make_ground_patch(Vector3(12.5,0,4.8),Vector2(6.6,3.6),Color("#625239"),-17)
+	make_ground_patch(Vector3(22.0,0,11.0),Vector2(9.5,5.4),Color("#485d39"),6)
+	for i in range(6):
+		make_ground_patch(Vector3(-29.0+i*10.6,0,31.0+rng.randf_range(-.8,.8)),Vector2(8.0,2.7),Color("#40543a"),rng.randf_range(-8,8))
 
 func make_river_ripple(p,rot):
 	var ripple=box(p,Vector3(rng.randf_range(.85,1.7),.018,.045),Color("#b8d8d8"))
@@ -420,11 +427,15 @@ func make_world_details(home_a,home_b):
 	make_path(Vector3.ZERO,Vector3(9,0,3),.7)
 	make_path(hearth_pos,STOCKPILE_POS,.72)
 	make_path(hearth_pos,RESEARCH_POS,.62)
-	for p in [Vector3(-19,0,9),Vector3(-17,0,-18),Vector3(18,0,-6),Vector3(4,0,22)]:
+	make_path(hearth_pos,Vector3(-10.8,0,7.0),.58)
+	make_path(hearth_pos,Vector3(6.8,0,8.6),.5)
+	make_path(STOCKPILE_POS,Vector3(-12.0,0,5.6),.48)
+	make_path(RESEARCH_POS,Vector3(12.6,0,4.8),.44)
+	for p in [Vector3(-19,0,9),Vector3(-17,0,-18),Vector3(18,0,-6),Vector3(4,0,22),Vector3(-24,0,15)]:
 		add_stick_source(p)
-	for p in [Vector3(15,0,-14),Vector3(18,0,13),Vector3(-22,0,-7),Vector3(3,0,18)]:
+	for p in [Vector3(15,0,-14),Vector3(18,0,13),Vector3(-22,0,-7),Vector3(3,0,18),Vector3(24,0,7)]:
 		add_stone_source(p)
-	for p in [Vector3(-14,0,2),Vector3(15,0,8),Vector3(-5,0,-21),Vector3(21,0,18)]:
+	for p in [Vector3(-14,0,2),Vector3(15,0,8),Vector3(-5,0,-21),Vector3(21,0,18),Vector3(25,0,13)]:
 		add_berry_source(p)
 	for i in range(128):
 		var p=Vector3(rng.randf_range(-31,31),.08,rng.randf_range(-31,31))
@@ -460,6 +471,181 @@ func make_camp_clutter():
 	for p in [Vector3(-4.0,0,6.5),Vector3(-5.2,0,1.1),Vector3(2.4,0,3.0)]:
 		cyl(p+Vector3(0,.34,0),.035,.68,Color("#4d3625"))
 		cone_in(self,p+Vector3(0,.86,0),.16,.36,Color("#d56a2c"))
+
+func make_ancient_settlement_scene():
+	make_distant_ridge()
+	make_smoke_column(Vector3(-9.2,2.35,-7.8),.86)
+	make_smoke_column(Vector3(8.1,2.35,-8.6),.82)
+	make_hide_rack_at(Vector3(5.9,0,8.6),24,Color("#8b6141"))
+	make_hide_rack_at(Vector3(7.7,0,9.8),-17,Color("#b09a78"))
+	make_hide_rack_at(Vector3(-10.7,0,7.2),10,Color("#6f4e34"))
+	make_tool_yard(Vector3(-12.0,0,5.7),-22)
+	make_spear_bundle(Vector3(9.8,0,9.2),-10)
+	make_spear_bundle(Vector3(11.0,0,7.1),16)
+	make_bone_offering(Vector3(.0,0,-2.35),0)
+	make_bone_offering(Vector3(-1.25,0,-1.95),-18)
+	make_wild_deer(Vector3(22.0,0,10.6),-58,.92,false)
+	make_wild_deer(Vector3(25.0,0,12.6),-72,1.12,true)
+	make_wild_deer(Vector3(18.6,0,16.0),-112,.72,false)
+	make_iron_age_hint(Vector3(12.6,0,4.8),-18)
+	make_river_camp_details()
+
+func make_distant_ridge():
+	for i in range(7):
+		var x=-30.0+float(i)*10.0+rng.randf_range(-1.0,1.0)
+		var h=rng.randf_range(1.2,2.4)
+		var hill=cone_in(self,Vector3(x,h*.5,32.4+rng.randf_range(-.8,.7)),rng.randf_range(2.4,4.5),h,Color("#3d4f3a"))
+		hill.scale.z=rng.randf_range(.38,.62)
+		hill.rotation_degrees.y=rng.randf_range(0,180)
+	for p in [Vector3(-28,0,27),Vector3(-23,0,29),Vector3(24,0,27),Vector3(29,0,24)]:
+		make_tree(p,rng.randf_range(.75,1.0))
+
+func make_smoke_column(p,scale):
+	for i in range(4):
+		var puff=sphere(p+Vector3(rng.randf_range(-.18,.18)*scale,float(i)*.42*scale,rng.randf_range(-.12,.12)*scale),.24*scale+float(i)*.045,Color(0.72,0.72,0.68,.18))
+		puff.scale=Vector3(1.25+float(i)*.18,.72,1.0)
+
+func make_hide_rack_at(p,rot,hide_col):
+	var rack=Node3D.new()
+	rack.name="Suszarnia skór"
+	rack.position=p
+	rack.rotation_degrees.y=rot
+	add_child(rack)
+	add_obstacle(p,1.05)
+	for x in [-.95,.95]:
+		var post=box_in(rack,Vector3(x,.78,0),Vector3(.13,1.55,.13),Color("#5b3d28"))
+		post.rotation_degrees.z=5*x
+	box_in(rack,Vector3(0,1.5,0),Vector3(2.15,.12,.12),Color("#62422b"))
+	for x in [-.38,.38]:
+		var hide=box_in(rack,Vector3(x,.88,.035),Vector3(.72,.82,.055),hide_col)
+		hide.rotation_degrees.z=rng.randf_range(-4,4)
+		box_in(rack,Vector3(x,.88,.075),Vector3(.44,.36,.025),hide_col.darkened(.18))
+	for i in range(3):
+		var peg=cyl_in(rack,Vector3(-.7+float(i)*.7,1.25,.08),.022,.28,Color("#d6c095"))
+		peg.rotation_degrees.x=90
+
+func make_tool_yard(p,rot):
+	var yard=Node3D.new()
+	yard.name="Plac narzędzi kamiennych"
+	yard.position=p
+	yard.rotation_degrees.y=rot
+	add_child(yard)
+	add_obstacle(p,1.65)
+	box_in(yard,Vector3(0,.05,0),Vector3(3.8,.1,2.6),Color("#65573c"))
+	box_in(yard,Vector3(-.95,.42,.25),Vector3(1.45,.32,.74),Color("#6f4d31"))
+	for i in range(8):
+		var chip=box_in(yard,Vector3(rng.randf_range(-1.55,1.45),.18,rng.randf_range(-1.0,1.0)),Vector3(rng.randf_range(.12,.25),.06,rng.randf_range(.1,.22)),Color("#85877f"))
+		chip.rotation_degrees.y=rng.randf_range(0,180)
+	make_stone_axe(yard,Vector3(-.96,.72,.25),-18)
+	make_stone_axe(yard,Vector3(-.46,.72,.16),24)
+	for i in range(4):
+		var shaft=box_in(yard,Vector3(.55+float(i)*.22,.45,-.48+rng.randf_range(-.07,.07)),Vector3(.055,.055,1.15),Color("#6b4328"))
+		shaft.rotation_degrees=Vector3(0,rng.randf_range(-18,18),rng.randf_range(8,20))
+		var head=box_in(yard,Vector3(.55+float(i)*.22,.52,-1.08),Vector3(.13,.08,.22),Color("#777a72"))
+		head.rotation_degrees=Vector3(0,shaft.rotation_degrees.y,0)
+	for i in range(3):
+		var basket=cyl_in(yard,Vector3(1.25,.28,.55+float(i)*.18),.2,.32,Color("#72502f"))
+		basket.scale.x=1.18
+
+func make_stone_axe(parent,p,rot):
+	var shaft=box_in(parent,p,Vector3(.075,.075,.92),Color("#6b4328"))
+	shaft.rotation_degrees=Vector3(0,rot,20)
+	var head=box_in(parent,p+Vector3(.03,.08,-.34),Vector3(.28,.12,.18),Color("#777a72"))
+	head.rotation_degrees=Vector3(0,rot,8)
+
+func make_spear_bundle(p,rot):
+	var root=Node3D.new()
+	root.name="Wiązka oszczepów"
+	root.position=p
+	root.rotation_degrees.y=rot
+	add_child(root)
+	for i in range(6):
+		var x=-.38+float(i)*.15
+		var spear=cyl_in(root,Vector3(x,.92,rng.randf_range(-.08,.08)),.022,1.85,Color("#5b3b24"))
+		spear.rotation_degrees.z=rng.randf_range(-8,8)
+		var tip=cone_in(root,Vector3(x,1.92,rng.randf_range(-.08,.08)),.07,.22,Color("#8b8e86"))
+		tip.rotation_degrees.z=spear.rotation_degrees.z
+	box_in(root,Vector3(0,.38,0),Vector3(1.05,.08,.1),Color("#3d2a1b"))
+
+func make_bone_offering(p,rot):
+	var root=Node3D.new()
+	root.name="Ofiara przy Idolu"
+	root.position=p
+	root.rotation_degrees.y=rot
+	add_child(root)
+	var skull=box_in(root,Vector3(0,.22,0),Vector3(.42,.25,.28),Color("#d7c79b"))
+	skull.rotation_degrees.y=rng.randf_range(-8,8)
+	for sx in [-1.0,1.0]:
+		var horn=cyl_in(root,Vector3(.18*sx,.43,-.04),.022,.52,Color("#d7c79b"))
+		horn.rotation_degrees=Vector3(0,0,34*sx)
+		var branch=box_in(root,Vector3(.32*sx,.58,-.02),Vector3(.035,.28,.035),Color("#d7c79b"))
+		branch.rotation_degrees.z=52*sx
+	for i in range(3):
+		var flower=sphere_in(root,Vector3(-.28+float(i)*.24,.12,.22),.045,Color("#e5d36b"))
+		flower.scale.y=.62
+
+func make_wild_deer(p,rot,scale,stag=false):
+	var deer=Node3D.new()
+	deer.name="Jeleń" if stag else "Łania"
+	deer.position=p
+	deer.rotation_degrees.y=rot
+	deer.scale=Vector3(scale,scale,scale)
+	add_child(deer)
+	var coat=Color("#8a5d38") if stag else Color("#9b7047")
+	var dark=Color("#5c3f2b")
+	var body=cyl_in(deer,Vector3(0,.74,0),.19,.92,coat)
+	body.rotation_degrees.x=90
+	sphere_in(deer,Vector3(0,.82,-.44),.2,coat.darkened(.04))
+	var neck=cyl_in(deer,Vector3(0,1.03,-.55),.08,.42,coat)
+	neck.rotation_degrees.x=-30
+	var head=sphere_in(deer,Vector3(0,1.16,-.77),.14,coat)
+	head.scale=Vector3(.78,1.0,1.18)
+	for x in [-.13,.13]:
+		for z in [-.32,.28]:
+			var leg=cyl_in(deer,Vector3(x,.36,z),.033,.72,dark)
+			leg.rotation_degrees.z=rng.randf_range(-2,2)
+			box_in(deer,Vector3(x,.04,z-.02),Vector3(.08,.045,.14),Color("#2f241b"))
+	box_in(deer,Vector3(0,.84,.5),Vector3(.08,.08,.18),Color("#e2d6b8"))
+	for x in [-.07,.07]:
+		var ear=cone_in(deer,Vector3(x,1.32,-.75),.045,.16,coat.darkened(.05))
+		ear.rotation_degrees.z=22 if x>0 else -22
+	if stag:
+		for sx in [-1.0,1.0]:
+			var horn=cyl_in(deer,Vector3(.08*sx,1.43,-.78),.017,.38,Color("#dcc89a"))
+			horn.rotation_degrees.z=18*sx
+			for j in range(2):
+				var branch=box_in(deer,Vector3((.17+float(j)*.11)*sx,1.51+float(j)*.08,-.78),Vector3(.025,.22,.025),Color("#dcc89a"))
+				branch.rotation_degrees.z=(45+float(j)*16)*sx
+
+func make_iron_age_hint(p,rot):
+	var forge=Node3D.new()
+	forge.name="Zalążek przyszłej kuźni"
+	forge.position=p
+	forge.rotation_degrees.y=rot
+	add_child(forge)
+	add_obstacle(p,1.9)
+	box_in(forge,Vector3(0,.05,0),Vector3(3.7,.1,2.7),Color("#5c5038"))
+	for x in [-1.45,1.45]:
+		cyl_in(forge,Vector3(x,.72,-.8),.09,1.45,Color("#4d3423"))
+	box_in(forge,Vector3(0,1.42,-.8),Vector3(3.2,.14,.16),Color("#62422b"))
+	for i in range(5):
+		var ore=box_in(forge,Vector3(-1.15+float(i)*.32,.24,.55+rng.randf_range(-.12,.12)),Vector3(.24,.12,.18),Color("#343536"))
+		ore.rotation_degrees.y=rng.randf_range(-16,16)
+	box_in(forge,Vector3(.86,.32,-.08),Vector3(.75,.28,.48),Color("#72746f"))
+	make_stone_axe(forge,Vector3(.74,.62,-.18),12)
+	cone_in(forge,Vector3(-.72,.56,-.25),.22,.5,Color("#d56a2c"))
+	cone_in(forge,Vector3(-.68,.72,-.27),.13,.32,Color("#ffd36b"))
+
+func make_river_camp_details():
+	for z in [-14,-7,8,16,24]:
+		var x=river_x_at_z(z)
+		var pier=box(Vector3(x-4.2,.12,z),Vector3(1.35,.16,.42),Color("#604027"))
+		pier.rotation_degrees.y=rng.randf_range(-12,12)
+	for p in [Vector3(14,0,10.2),Vector3(15.6,0,9.5),Vector3(17.4,0,9.8)]:
+		var basket=cyl(p+Vector3(0,.25,0),.24,.38,Color("#715031"))
+		basket.scale.x=1.16
+		for i in range(4):
+			sphere(p+Vector3(rng.randf_range(-.16,.16),.5,rng.randf_range(-.12,.12)),.055,Color("#96324a"))
 
 func make_idol():
 	add_obstacle(Vector3.ZERO,2.35)
@@ -797,16 +983,26 @@ func make_settler_gear(parent,i):
 	parent.add_child(gear)
 	var cloth_cols=[Color("#7c5b38"),Color("#6b6740"),Color("#8a6a3c"),Color("#6d5841"),Color("#7d4f35")]
 	var col=cloth_cols[i%cloth_cols.size()]
+	var fur_cols=[Color("#a98255"),Color("#8b6141"),Color("#6e5137"),Color("#b09a78")]
+	var fur=fur_cols[(i*2+1)%fur_cols.size()]
 	var hair_cols=[Color("#2d211a"),Color("#4a2f1e"),Color("#6b4628"),Color("#1f1b18")]
 	var hair=hair_cols[i%hair_cols.size()]
 	var belt=cyl_in(gear,Vector3(0,.64,0),.18,.055,Color("#3b2a1f"))
 	belt.rotation_degrees.y=rng.randf_range(-18,18)
 	var strap=box_in(gear,Vector3(.04,.93,-.18),Vector3(.058,.62,.046),Color("#3f2b1d"))
 	strap.rotation_degrees.z=-23 if i%2==0 else 23
+	box_in(gear,Vector3(0,1.1,-.155),Vector3(.44,.14,.055),fur)
+	box_in(gear,Vector3(-.16,.91,-.17),Vector3(.17,.42,.052),fur.darkened(.08))
+	box_in(gear,Vector3(.17,.95,-.17),Vector3(.15,.34,.052),fur)
 	box_in(gear,Vector3(0,.52,-.15),Vector3(.34,.35,.045),col)
 	box_in(gear,Vector3(0,.38,-.13),Vector3(.28,.28,.05),col.darkened(.12))
 	var pouch=box_in(gear,Vector3(.17,.58,-.18),Vector3(.095,.12,.05),Color("#4e3523"))
 	pouch.rotation_degrees.z=-8
+	for x in [-.32,.32]:
+		var arm_wrap=cyl_in(gear,Vector3(x,.78,-.02),.055,.09,fur.darkened(.16))
+		arm_wrap.rotation_degrees.z=12 if x<0 else -12
+	for x in [-.1,.1]:
+		cyl_in(gear,Vector3(x,.16,-.02),.052,.08,Color("#6b4328"))
 	make_settler_face(gear,i)
 	var hair_cap=sphere_in(gear,Vector3(0,1.525,-.035),.095,hair)
 	hair_cap.scale=Vector3(1.05,.36,.78)

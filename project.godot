@@ -1,5 +1,5 @@
 [application]
-config/name="IDOL Genesis 0.8.17 Natural Walk"
+config/name="IDOL Genesis 0.8.18 Ancient Settlement"
 run/main_scene="res://main.tscn"
 
 [display]
