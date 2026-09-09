@@ -1034,6 +1034,12 @@ func _make_month_section(year: int, month: int) -> VBoxContainer:
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	section.add_child(title)
 
+	if year == current_year and month == current_month and _should_show_first_cycle_hint():
+		var hint := _make_label("Kliknij swój pierwszy dzień i wyznacz swój cykl.", 25, COLOR_TODAY)
+		hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		section.add_child(hint)
+
 	var grid := GridContainer.new()
 	grid.columns = TILE_COLUMNS
 	grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -1378,6 +1384,10 @@ func _calendar_is_empty() -> bool:
 		if int(state) != ScheduleCalculator.DayState.NONE:
 			return false
 	return true
+
+
+func _should_show_first_cycle_hint() -> bool:
+	return not main_view_saved and calculator.mode == "none" and manual_overrides.is_empty() and start_input.text.strip_edges().is_empty()
 
 
 func _preset_for_index(index: int) -> Dictionary:
