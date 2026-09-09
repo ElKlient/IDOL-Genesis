@@ -32,6 +32,7 @@ const COLOR_TRAVEL := Color(0.72, 0.56, 0.29, 0.86)
 const COLOR_REST := Color(0.60, 0.49, 0.27, 0.86)
 const COLOR_TODAY := Color(0.92, 0.72, 0.38)
 const COLOR_NOTE := Color(0.43, 0.55, 0.60, 0.86)
+const COLOR_VACATION := Color(0.40, 0.48, 0.58, 0.86)
 const PORTRAIT_WIDTH := 640
 const TILE_COLUMNS := 7
 const APP_VERSION_LABEL := "wersja: kafelki 7.1"
@@ -45,9 +46,13 @@ var today_day_index: int
 
 var months_box: VBoxContainer
 var summary_label: Label
+var settings_toggle_button: Button
+var settings_panel: PanelContainer
 var start_input: LineEdit
 var schedule_option: OptionButton
 var range_option: OptionButton
+var system_work_spin: SpinBox
+var system_home_spin: SpinBox
 var commute_before_spin: SpinBox
 var commute_after_spin: SpinBox
 var weekly_rest_toggle: CheckButton
@@ -159,8 +164,17 @@ func _build_ui() -> void:
 	root.add_child(months_box)
 
 	root.add_child(_build_legend())
-	root.add_child(_build_settings_panel())
+
+	settings_toggle_button = Button.new()
+	settings_toggle_button.text = "Zamknij ustawienia"
+	_connect_tap(settings_toggle_button, Callable(self, "_toggle_settings_panel"))
+	_prepare_control(settings_toggle_button, 22, 62)
+	root.add_child(settings_toggle_button)
+
+	settings_panel = _build_settings_panel()
+	root.add_child(settings_panel)
 	root.add_child(_build_day_tools_panel())
+	_set_settings_visible(true)
 
 	_build_day_action_dialog()
 	_build_note_dialog()
@@ -185,6 +199,18 @@ func _build_settings_panel() -> PanelContainer:
 	schedule_option.item_selected.connect(_on_schedule_selected)
 	_prepare_control(schedule_option, 23, 64)
 	box.add_child(schedule_option)
+
+	var cycle_grid := GridContainer.new()
+	cycle_grid.columns = 2
+	cycle_grid.add_theme_constant_override("h_separation", 10)
+	cycle_grid.add_theme_constant_override("v_separation", 8)
+	box.add_child(cycle_grid)
+
+	system_work_spin = _make_spin(1, 90, 14)
+	cycle_grid.add_child(_field_stack("Dni wyjazdu", system_work_spin))
+
+	system_home_spin = _make_spin(1, 90, 7)
+	cycle_grid.add_child(_field_stack("Dni domu", system_home_spin))
 
 	box.add_child(_make_section_label("Dzień pierwszy pracy albo cyklu"))
 
@@ -219,8 +245,8 @@ func _build_settings_panel() -> PanelContainer:
 	box.add_child(custom_panel)
 
 	var apply_button := Button.new()
-	apply_button.text = "Przelicz grafik"
-	_connect_tap(apply_button, Callable(self, "_apply_settings"))
+	apply_button.text = "Zapisz ustawienia"
+	_connect_tap(apply_button, Callable(self, "_save_settings_and_close"))
 	_prepare_control(apply_button, 22, 62)
 	box.add_child(apply_button)
 
@@ -239,7 +265,7 @@ func _build_custom_cycle_panel() -> PanelContainer:
 	var box := _panel_box(panel, 10)
 	box.add_child(_make_label("Własny cykl: wybierz długość, potem klikaj dni w kalendarzu.", 18, COLOR_TEXT))
 
-	custom_length_spin = _make_spin(1, 56, 21)
+	custom_length_spin = _make_spin(1, 56, 21, false)
 	custom_length_spin.value_changed.connect(_on_custom_length_spin_changed)
 	box.add_child(_field_stack("Długość powtarzalnego cyklu", custom_length_spin))
 
@@ -349,6 +375,7 @@ func _build_legend() -> HBoxContainer:
 	legend.add_child(_legend_item(COLOR_HOME, "Dom"))
 	legend.add_child(_legend_item(COLOR_TRAVEL, "Jazda"))
 	legend.add_child(_legend_item(COLOR_REST, "24h"))
+	legend.add_child(_legend_item(COLOR_VACATION, "Urlop"))
 	return legend
 
 
@@ -387,6 +414,10 @@ func _build_day_action_dialog() -> void:
 	_connect_tap(set_home, Callable(self, "_set_selected_day_state").bind(ScheduleCalculator.DayState.HOME))
 	box.add_child(set_home)
 
+	var set_vacation := _action_button("Ten dzień = urlop", COLOR_VACATION)
+	_connect_tap(set_vacation, Callable(self, "_set_selected_day_state").bind(ScheduleCalculator.DayState.VACATION))
+	box.add_child(set_vacation)
+
 	var clear_day := _action_button("Wyczyść ten dzień", Color(0.52, 0.55, 0.54, 0.86))
 	_connect_tap(clear_day, Callable(self, "_set_selected_day_state").bind(ScheduleCalculator.DayState.NONE))
 	box.add_child(clear_day)
@@ -421,7 +452,22 @@ func _build_note_dialog() -> void:
 	margin.add_child(note_edit)
 
 
-func _apply_settings() -> void:
+func _save_settings_and_close() -> void:
+	_apply_settings(true)
+
+
+func _toggle_settings_panel() -> void:
+	_set_settings_visible(settings_panel == null or not settings_panel.visible)
+
+
+func _set_settings_visible(visible: bool) -> void:
+	if settings_panel != null:
+		settings_panel.visible = visible
+	if settings_toggle_button != null:
+		settings_toggle_button.text = "Zamknij ustawienia" if visible else "Ustaw kalendarz"
+
+
+func _apply_settings(close_settings_after_save: bool = false) -> void:
 	var ok := true
 
 	if schedule_option.selected == 0:
@@ -429,12 +475,11 @@ func _apply_settings() -> void:
 	elif _is_custom_schedule():
 		ok = calculator.configure_custom(start_input.text, custom_pattern)
 	else:
-		var preset := _preset_for_index(schedule_option.selected)
 		ok = calculator.configure_preset(
 			start_input.text,
-			int(preset["work"]),
-			int(preset["home"]),
-			String(preset["unit"]),
+			int(system_work_spin.value),
+			int(system_home_spin.value),
+			"days",
 			int(commute_before_spin.value),
 			int(commute_after_spin.value),
 			weekly_rest_toggle.button_pressed
@@ -445,6 +490,8 @@ func _apply_settings() -> void:
 
 	if ok:
 		_rebuild_calendar()
+		if close_settings_after_save:
+			_set_settings_visible(false)
 
 
 func _rebuild_calendar() -> void:
@@ -462,11 +509,12 @@ func _rebuild_calendar() -> void:
 	else:
 		var today_state := _visual_state_for_day(today_day_index, _date_key_from_day_index(today_day_index))
 		var change_days := calculator.days_until_next_change(today_day_index)
-		summary_label.text = "Okres: praca %d, dom %d, jazda %d, pauza 24h %d. Dzisiaj: %s. Zmiana za %d dni. System: %s." % [
+		summary_label.text = "Okres: praca %d, dom %d, jazda %d, pauza 24h %d, urlop %d. Dzisiaj: %s. Zmiana za %d dni. System: %s." % [
 			int(counts["work"]),
 			int(counts["home"]),
 			int(counts["travel"]),
 			int(counts["rest"]),
+			int(counts["vacation"]),
 			_state_name(today_state),
 			change_days,
 			calculator.cycle_label(),
@@ -523,10 +571,11 @@ func _make_day_cell(year: int, month: int, day: int, day_index: int, state: int,
 	button.add_theme_color_override("font_color", COLOR_TEXT)
 	button.add_theme_color_override("font_hover_color", COLOR_TEXT)
 	button.add_theme_color_override("font_pressed_color", COLOR_TEXT)
-	button.add_theme_stylebox_override("normal", _tile_style(_state_color(state), is_today))
-	button.add_theme_stylebox_override("hover", _tile_style(_state_color(state).lightened(0.08), is_today))
-	button.add_theme_stylebox_override("pressed", _tile_style(_state_color(state).darkened(0.09), is_today))
-	button.add_theme_stylebox_override("focus", _tile_style(_state_color(state), true))
+	var is_vacation := state == ScheduleCalculator.DayState.VACATION
+	button.add_theme_stylebox_override("normal", _tile_style(_state_color(state), is_today, is_vacation))
+	button.add_theme_stylebox_override("hover", _tile_style(_state_color(state).lightened(0.08), is_today, is_vacation))
+	button.add_theme_stylebox_override("pressed", _tile_style(_state_color(state).darkened(0.09), is_today, is_vacation))
+	button.add_theme_stylebox_override("focus", _tile_style(_state_color(state), true, is_vacation))
 	_fill_day_tile(button, day, day_index, state, notes.has(key))
 	_connect_tap(button, Callable(self, "_open_day_actions").bind(year, month, day))
 	return button
@@ -604,13 +653,16 @@ func _open_day_actions(year: int, month: int, day: int) -> void:
 
 
 func _set_selected_day_state(state: int) -> void:
-	if _is_preset_schedule():
+	if state == ScheduleCalculator.DayState.VACATION:
+		manual_overrides[selected_day_key] = state
+		_rebuild_calendar()
+	elif _is_preset_schedule():
 		if state == ScheduleCalculator.DayState.WORK:
 			start_input.text = selected_day_key
 			manual_overrides.clear()
 			_apply_settings()
 		elif state == ScheduleCalculator.DayState.NONE:
-			manual_overrides.erase(selected_day_key)
+			manual_overrides[selected_day_key] = state
 			_rebuild_calendar()
 		else:
 			manual_overrides[selected_day_key] = state
@@ -664,6 +716,8 @@ func _on_schedule_selected(index: int) -> void:
 	if schedule_option.selected == 0:
 		start_input.text = ""
 		manual_overrides.clear()
+	elif not _is_custom_schedule():
+		_apply_preset_to_spins(schedule_option.selected)
 	_apply_settings()
 
 
@@ -728,6 +782,7 @@ func _count_visible_months(start_year: int, start_month: int, month_count: int) 
 		"home": 0,
 		"travel": 0,
 		"rest": 0,
+		"vacation": 0,
 	}
 	var year := start_year
 	var month := start_month
@@ -747,6 +802,8 @@ func _count_visible_months(start_year: int, start_month: int, month_count: int) 
 					result["travel"] += 1
 				ScheduleCalculator.DayState.REST:
 					result["rest"] += 1
+				ScheduleCalculator.DayState.VACATION:
+					result["vacation"] += 1
 				_:
 					result["none"] += 1
 
@@ -772,18 +829,24 @@ func _calendar_is_empty() -> bool:
 func _preset_for_index(index: int) -> Dictionary:
 	match index:
 		1:
-			return {"work": 2, "home": 1, "unit": "weeks"}
+			return {"work": 14, "home": 7}
 		2:
-			return {"work": 2, "home": 2, "unit": "weeks"}
+			return {"work": 14, "home": 14}
 		3:
-			return {"work": 3, "home": 1, "unit": "weeks"}
+			return {"work": 21, "home": 7}
 		4:
-			return {"work": 3, "home": 2, "unit": "weeks"}
+			return {"work": 21, "home": 14}
 		5:
-			return {"work": 4, "home": 1, "unit": "weeks"}
+			return {"work": 28, "home": 7}
 		6:
-			return {"work": 13, "home": 8, "unit": "days"}
-	return {"work": 2, "home": 1, "unit": "weeks"}
+			return {"work": 13, "home": 8}
+	return {"work": 14, "home": 7}
+
+
+func _apply_preset_to_spins(index: int) -> void:
+	var preset := _preset_for_index(index)
+	_set_spin_value(system_work_spin, int(preset["work"]))
+	_set_spin_value(system_home_spin, int(preset["home"]))
 
 
 func _is_preset_schedule() -> bool:
@@ -863,6 +926,8 @@ func _state_name(state: int) -> String:
 			return "jazda do/z pracy"
 		ScheduleCalculator.DayState.REST:
 			return "pauza 24h"
+		ScheduleCalculator.DayState.VACATION:
+			return "urlop"
 	return "pusty dzień"
 
 
@@ -876,6 +941,8 @@ func _state_short_name(state: int) -> String:
 			return "Jazda"
 		ScheduleCalculator.DayState.REST:
 			return "24h"
+		ScheduleCalculator.DayState.VACATION:
+			return "Urlop"
 	return ""
 
 
@@ -892,6 +959,8 @@ func _state_color(state: int, in_month: bool = true) -> Color:
 			return COLOR_TRAVEL
 		ScheduleCalculator.DayState.REST:
 			return COLOR_REST
+		ScheduleCalculator.DayState.VACATION:
+			return COLOR_VACATION
 	return COLOR_TILE_EMPTY
 
 
@@ -899,18 +968,19 @@ func _weekday_short_for_day_index(day_index: int) -> String:
 	return WEEKDAY_SHORT_TILE[ScheduleCalculator.weekday_monday_first(day_index)]
 
 
-func _make_spin(min_value: int, max_value: int, value: int) -> SpinBox:
+func _make_spin(min_value: int, max_value: int, value: int, auto_apply: bool = true) -> SpinBox:
 	var spin := SpinBox.new()
 	spin.min_value = min_value
 	spin.max_value = max_value
 	spin.step = 1
 	spin.value = value
 	_remember_spin_value(spin)
-	spin.value_changed.connect(func(changed_value: float) -> void:
-		if _spin_change_was_scroll(spin, changed_value):
-			return
-		_apply_settings()
-	)
+	if auto_apply:
+		spin.value_changed.connect(func(changed_value: float) -> void:
+			if _spin_change_was_scroll(spin, changed_value):
+				return
+			_apply_settings()
+		)
 	_prepare_control(spin, 20, 56)
 	return spin
 
@@ -982,6 +1052,14 @@ func _option_change_was_scroll(option: OptionButton, index: int) -> bool:
 
 	option.selected = previous
 	return true
+
+
+func _set_spin_value(spin: SpinBox, value: int) -> void:
+	if spin == null:
+		return
+
+	spin.set_value_no_signal(float(value))
+	spin.set_meta("last_value", float(value))
 
 
 func _remember_spin_value(spin: SpinBox) -> void:
@@ -1135,12 +1213,17 @@ func _panel_box(panel: PanelContainer, margin_size: int = 14) -> VBoxContainer:
 	return box
 
 
-func _tile_style(color: Color, is_today: bool) -> StyleBoxFlat:
+func _tile_style(color: Color, is_today: bool, is_vacation: bool = false) -> StyleBoxFlat:
 	var style := StyleBoxFlat.new()
 	style.bg_color = color
 	style.set_corner_radius_all(18)
-	style.set_border_width_all(2 if is_today else 1)
-	style.border_color = COLOR_TODAY if is_today else Color(1.0, 1.0, 1.0, 0.20)
+	style.set_border_width_all(2 if is_today or is_vacation else 1)
+	if is_today:
+		style.border_color = COLOR_TODAY
+	elif is_vacation:
+		style.border_color = Color(0.92, 0.96, 1.0, 0.58)
+	else:
+		style.border_color = Color(1.0, 1.0, 1.0, 0.20)
 	style.shadow_color = Color(0.0, 0.0, 0.0, 0.34)
 	style.shadow_size = 11
 	style.shadow_offset = Vector2(0, 5)
@@ -1214,6 +1297,8 @@ func _tile_accent_color(state: int, has_note: bool) -> Color:
 			return _alpha(COLOR_TRAVEL.lightened(0.16), 0.88)
 		ScheduleCalculator.DayState.REST:
 			return _alpha(COLOR_REST.lightened(0.16), 0.88)
+		ScheduleCalculator.DayState.VACATION:
+			return _alpha(COLOR_VACATION.lightened(0.16), 0.88)
 	if has_note:
 		return _alpha(COLOR_NOTE, 0.80)
 	return Color(1.0, 1.0, 1.0, 0.18)
