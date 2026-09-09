@@ -392,3 +392,42 @@ Validation completed:
 Known limitation:
 
 - final visual judgment still needs the user's Android screenshot/video because headless Godot cannot show the phone-frame composition reliably here.
+
+## Container A Patch - 0.8.27 Resource Infrastructure - 2026-09-09
+
+Goal: implement the first proper resource infrastructure layer requested by the user: wood, stone, ores, fish, forest work, mines/quarries and buildable extraction buildings, while keeping the game light on Android.
+
+Implemented in `scripts/main.gd`:
+
+- bumped version title to `IDOL -- GENESIS 0.8.27 RESOURCE INFRASTRUCTURE`,
+- added stock resources `wood`, `fish`, `iron`, `coal` and `copper`,
+- added building counters for lumber camps, hunter huts, fisher huts, quarries and mines,
+- added visible resource sources: forest patches, fish spots, stone deposits and iron/coal/copper deposits,
+- added buildable infrastructure: lumber camp, hunter hut, fisher hut, quarry and mine,
+- expanded build costs, build labels, resource capacities, carry labels, food handling and chapter goals,
+- expanded AUTO and manual orders with `DRWAL`, `RYBY`, `GÓRNIK` and new build buttons,
+- connected completed buildings to work points so settlers can gather wood, fish, stone and ores more efficiently,
+- expanded worker summaries, HUD text and plan text to expose the new economy,
+- extended work pose groups so drwale/rybacy/gornicy use active gather/work poses instead of idle standing.
+
+Documentation and coordination:
+
+- updated `README.txt`, `WORKFLOW_FIRST.md`, `docs/CONTAINER_HANDOFF_PROMPT.md` and `project.godot` for 0.8.27,
+- added active 0.8.27 task sections for B/C/D/E:
+  - B: validate people/walk/pathing around new work points and resource buildings,
+  - C: improve the worst placeholder-looking resource/building visuals,
+  - D: validate Android/import/runtime/node density and keep the Termux update command cache-safe,
+  - E: continue gameplay with manual building placement and clearer resource progression.
+
+Preserved:
+
+- current people model and skeleton,
+- existing retargeter setup,
+- Android Termux update workflow without `.godot` deletion,
+- active lightweight GLB prop set and procedural fallbacks.
+
+Validation before push:
+
+- `git diff --check`: clean
+- Godot headless editor import: not run in the recovered scratch because the local Godot binary was pruned and no `godot`/`godot4` binary is available in PATH or under `/workspace`, `/usr` or `/opt`
+- Godot headless runtime startup: not run for the same reason

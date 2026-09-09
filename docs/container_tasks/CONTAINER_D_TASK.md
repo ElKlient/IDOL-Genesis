@@ -66,6 +66,20 @@ Known container Godot binary:
 /workspace/scratch/fca424588312/tools/godot/Godot_v4.7.2-stable_linux.x86_64
 ```
 
+## Round 0.8.27 instruction from Container A
+
+Base is now `0.8.27 Resource Infrastructure`. The patch adds new procedural and GLB-backed resource buildings, mineral deposits, fish sources, forest sources and a denser command/HUD state.
+
+Your job now:
+
+1. Pull latest `main`.
+2. Run `git diff --check`, Godot headless editor import and Godot headless runtime.
+3. Inspect whether the new resource landmarks and huts create unacceptable node count/import/runtime cost.
+4. Verify no `.godot/`, `.import/`, `*.gd.uid` or generated cache files are staged by accident.
+5. Reconfirm the user Termux update command stays simple: no `.godot` deletion and no `git stash -u`.
+
+If startup looks slower, report whether it is from one-time import or from actual scene/runtime density.
+
 ## 30 minute check
 
 While active or waiting, every 30 minutes check this file and `WORKFLOW_FIRST.md` for new Container A instructions.

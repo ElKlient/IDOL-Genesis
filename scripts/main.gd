@@ -22,7 +22,7 @@ const PROP_PADDLE=preload("res://assets/environment/kenney_nature/canoe_paddle.g
 const PROP_LOG_STACK=preload("res://assets/environment/kenney_nature/log_stack.glb")
 const PROP_ROCK_LARGE=preload("res://assets/environment/kenney_nature/rock_largeA.glb")
 const RETARGETER=preload("res://scripts/retargeter.gd")
-const VERSION_TITLE="IDOL — GENESIS 0.8.26 EARTH AND SHELTER POLISH"
+const VERSION_TITLE="IDOL — GENESIS 0.8.27 RESOURCE INFRASTRUCTURE"
 const CAMERA_MIN_DISTANCE=5.5
 const CAMERA_MAX_DISTANCE=88.0
 const CAMERA_HEIGHT_RATIO=0.61
@@ -36,13 +36,32 @@ const BUILD_COST_STICKS=5
 const BUILD_COST_STONE=5
 const WORKSHOP_COST_STICKS=8
 const WORKSHOP_COST_STONE=6
+const LUMBER_CAMP_COST_STICKS=7
+const LUMBER_CAMP_COST_STONE=3
+const HUNTER_HUT_COST_STICKS=8
+const HUNTER_HUT_COST_STONE=4
+const FISHER_HUT_COST_STICKS=8
+const FISHER_HUT_COST_STONE=3
+const QUARRY_COST_STICKS=9
+const QUARRY_COST_STONE=7
+const MINE_COST_STICKS=12
+const MINE_COST_STONE=10
 const BUILD_WORK=8.0
 const WORKSHOP_BUILD_WORK=11.0
+const LUMBER_CAMP_BUILD_WORK=8.5
+const HUNTER_HUT_BUILD_WORK=9.0
+const FISHER_HUT_BUILD_WORK=8.0
+const QUARRY_BUILD_WORK=10.0
+const MINE_BUILD_WORK=12.5
 const MAX_BUILD_PLANS=4
 const HOME_CAPACITY=4
 const CHAPTER_HOUSES_GOAL=3
 const CHAPTER_GRANARIES_GOAL=1
 const CHAPTER_WORKSHOPS_GOAL=1
+const CHAPTER_LUMBER_GOAL=1
+const CHAPTER_HUNTER_GOAL=1
+const CHAPTER_FISHER_GOAL=1
+const CHAPTER_QUARRY_GOAL=1
 const USE_PROCEDURAL_BONE_POSE=true
 const STOCKPILE_POS=Vector3(-5.8,0,3.6)
 const RESEARCH_POS=Vector3(2.75,0,2.25)
@@ -88,21 +107,32 @@ const SPEECH_LINE_LIMIT=44
 var rng=RandomNumberGenerator.new()
 var people=[]
 var material_cache={}
-var stock={"sticks":4,"stone":3,"berries":24,"meat":0,"hides":0}
-var buildings={"houses":2,"granaries":0,"workshops":0}
+var stock={"sticks":4,"wood":0,"stone":3,"berries":24,"meat":0,"fish":0,"hides":0,"iron":0,"coal":0,"copper":0}
+var buildings={"houses":2,"granaries":0,"workshops":0,"lumber_camps":0,"hunter_huts":0,"fisher_huts":0,"quarries":0,"mines":0}
 var build_plans=[]
 var build_spots=[]
 var home_spots=[]
 var obstacle_points=[]
 var stick_sources=[]
 var stone_sources=[]
+var stone_deposits=[]
+var forest_sources=[]
 var berry_sources=[]
+var fish_sources=[]
+var iron_sources=[]
+var coal_sources=[]
+var copper_sources=[]
+var lumber_work_points=[]
+var quarry_work_points=[]
+var mine_work_points=[]
+var fisher_work_points=[]
+var hunter_work_points=[]
 var wildlife=[]
 var hide_work_points=[]
 var hearth_pos=Vector3(-2.8,0,2.6)
 var social_bond=34.0
-var discoveries={"OGIEŃ":false,"NARZĘDZIA":false,"ŁOWY":false,"MAGAZYN":false,"WIĘZI":false,"OSADA":false,"RODZINA":false}
-var discovery_sequence=["OGIEŃ","NARZĘDZIA","ŁOWY","MAGAZYN","WIĘZI","OSADA","RODZINA"]
+var discoveries={"OGIEŃ":false,"NARZĘDZIA":false,"ŁOWY":false,"MAGAZYN":false,"SUROWCE":false,"WIĘZI":false,"OSADA":false,"RODZINA":false}
+var discovery_sequence=["OGIEŃ","NARZĘDZIA","ŁOWY","MAGAZYN","SUROWCE","WIĘZI","OSADA","RODZINA"]
 var insight_progress=0.0
 var life_progress=0.0
 var children_born=0
@@ -379,6 +409,7 @@ func _ready():
 	for i in range(7):
 		var f=FENCE.instantiate(); f.position=Vector3(-9+i*2.4,0,10); add_child(f)
 	make_world_details(home_a,home_b)
+	make_resource_landmarks()
 	make_camp_clutter()
 	make_ancient_settlement_scene()
 	make_world_depth_pass(home_a,home_b)
@@ -890,6 +921,137 @@ func make_workshop(p):
 		var tool=box_in(w,Vector3(-1.45+i*.38,.72,-.96),Vector3(.08,.08,.82),Color("#604027"))
 		tool.rotation_degrees=Vector3(0,rng.randf_range(-18,18),rng.randf_range(18,34))
 	box_in(w,Vector3(1.55,.72,-1.06),Vector3(.8,.5,.08),Color("#c5ae78"))
+
+func make_lumber_camp(p):
+	var camp=Node3D.new()
+	camp.name="Obóz drwali"
+	camp.position=p
+	camp.rotation_degrees.y=rng.randf_range(-150,150)
+	add_child(camp)
+	add_obstacle(p,2.8)
+	make_ground_shadow(p,Vector2(5.1,3.7),camp.rotation_degrees.y,.18)
+	make_ground_patch(p,Vector2(5.2,3.8),Color("#4f432e"),camp.rotation_degrees.y)
+	for x in [-1.75,1.75]:
+		cyl_in(camp,Vector3(x,.72,-.75),.1,1.45,Color("#553620"))
+	box_in(camp,Vector3(0,1.42,-.75),Vector3(3.9,.14,.18),Color("#694429"))
+	var roof_a=box_in(camp,Vector3(-.78,1.68,-.75),Vector3(1.9,.16,2.4),Color("#574128"))
+	roof_a.rotation_degrees.z=12
+	var roof_b=box_in(camp,Vector3(.78,1.68,-.75),Vector3(1.9,.16,2.4),Color("#493722"))
+	roof_b.rotation_degrees.z=-12
+	prop_scene(camp,PROP_LOG_STACK,Vector3(-1.12,.08,.82),20,.72)
+	prop_scene(camp,PROP_WOOD,Vector3(.52,.08,.96),-18,.68)
+	prop_scene(camp,PROP_AXE,Vector3(1.35,.16,.1),-34,.72)
+	make_firewood_stack(p+rotated_offset(-2.15,1.15,camp.rotation_degrees.y),camp.rotation_degrees.y+8)
+	make_twig_litter(p,2.5,1.7,18,camp.rotation_degrees.y)
+	lumber_work_points.append({"pos":p+rotated_offset(-.45,1.9,camp.rotation_degrees.y),"node":camp})
+
+func make_hunter_hut(p):
+	var hut=Node3D.new()
+	hut.name="Chata myśliwego"
+	hut.position=p
+	hut.rotation_degrees.y=rng.randf_range(-160,160)
+	add_child(hut)
+	add_obstacle(p,2.65)
+	make_ground_shadow(p,Vector2(4.9,3.65),hut.rotation_degrees.y,.18)
+	make_ground_patch(p,Vector2(4.9,3.4),Color("#514531"),hut.rotation_degrees.y)
+	prop_scene(hut,PROP_TENT_HALF,Vector3(-.9,.08,-.55),-18,.88)
+	prop_scene(hut,PROP_BEDROLL_PACKED,Vector3(.78,.1,.72),18,.72)
+	for x in [-.82,.82]:
+		var post=cyl_in(hut,Vector3(x,.82,1.05),.07,1.62,Color("#553720"))
+		post.rotation_degrees.z=5*x
+	box_in(hut,Vector3(0,1.56,1.05),Vector3(1.95,.12,.12),Color("#694429"))
+	var hide=box_in(hut,Vector3(0,.88,1.08),Vector3(1.22,.7,.055),Color("#9a714f"))
+	hide.rotation_degrees.z=-3
+	for x in [-1.25,-.98,-.71,.98,1.25]:
+		var spear=cyl_in(hut,Vector3(x,.62,-1.05),.028,1.05,Color("#4f3320"))
+		spear.rotation_degrees=Vector3(14,0,rng.randf_range(-7,7))
+		cone_in(hut,Vector3(x,1.18,-1.18),.075,.18,Color("#d0c08a"))
+	prop_scene(hut,PROP_CAMPFIRE,Vector3(1.35,.06,-.22),12,.52)
+	make_warm_pool(p+rotated_offset(1.35,-.22,hut.rotation_degrees.y)+Vector3(0,.7,0),2.8,.12)
+	hunter_work_points.append({"pos":p+rotated_offset(0,1.95,hut.rotation_degrees.y),"node":hut})
+
+func make_fisher_hut(p):
+	var hut=Node3D.new()
+	hut.name="Chata rybacka"
+	hut.position=p
+	var center=Vector3(river_x_at_z(p.z),0,p.z)
+	var toward=center-p
+	toward.y=0
+	if toward.length()<.05:
+		toward=Vector3(1,0,0)
+	toward=toward.normalized()
+	hut.rotation_degrees.y=rad_to_deg(atan2(toward.x,toward.z))
+	add_child(hut)
+	add_obstacle(p,2.35)
+	make_ground_shadow(p,Vector2(4.6,3.2),hut.rotation_degrees.y,.17)
+	make_ground_patch(p,Vector2(4.8,3.0),Color("#4c4632"),hut.rotation_degrees.y)
+	for x in [-1.3,1.3]:
+		cyl_in(hut,Vector3(x,.72,-.25),.08,1.45,Color("#553720"))
+	box_in(hut,Vector3(0,1.36,-.25),Vector3(2.9,.12,.14),Color("#684329"))
+	var roof=box_in(hut,Vector3(0,1.55,-.25),Vector3(3.1,.15,1.8),Color("#514029"))
+	roof.rotation_degrees.z=5
+	box_in(hut,Vector3(0,.18,1.95),Vector3(1.1,.16,3.15),Color("#654225"))
+	for i in range(5):
+		var plank=box_in(hut,Vector3(-.42+float(i)*.21,.31,1.95+rng.randf_range(-1.3,1.25)),Vector3(.16,.09,.72),Color("#76512f"))
+		plank.rotation_degrees.y=rng.randf_range(-4,4)
+	for x in [-.58,.58]:
+		cyl_in(hut,Vector3(x,.7,3.15),.055,1.16,Color("#4d3423"))
+	prop_scene(hut,PROP_CANOE,Vector3(1.25,.07,3.0),18,.62)
+	prop_scene(hut,PROP_PADDLE,Vector3(-1.05,.14,.76),-24,.7)
+	for i in range(3):
+		var basket=cyl_in(hut,Vector3(-.72+float(i)*.42,.25,.55),.18,.32,Color("#705033"))
+		basket.scale.x=1.15
+	fisher_work_points.append({"pos":p+rotated_offset(0,2.75,hut.rotation_degrees.y),"node":hut})
+
+func make_quarry(p):
+	var q=Node3D.new()
+	q.name="Kamieniołom"
+	q.position=p
+	q.rotation_degrees.y=rng.randf_range(-150,150)
+	add_child(q)
+	add_obstacle(p,2.9)
+	make_ground_shadow(p,Vector2(5.3,4.0),q.rotation_degrees.y,.18)
+	make_ground_patch(p,Vector2(5.4,3.9),Color("#4a473b"),q.rotation_degrees.y)
+	var pit=cyl_in(q,Vector3(0,.05,0),.5,.08,Color("#36372f"))
+	pit.scale=Vector3(2.2,1.0,1.45)
+	for i in range(10):
+		var a=TAU*float(i)/10.0
+		var stone=box_in(q,Vector3(cos(a)*rng.randf_range(.9,1.85),.22,sin(a)*rng.randf_range(.62,1.22)),Vector3(rng.randf_range(.28,.62),rng.randf_range(.14,.34),rng.randf_range(.24,.54)),Color("#777a72"))
+		stone.rotation_degrees=Vector3(rng.randf_range(-8,8),rad_to_deg(a)+rng.randf_range(-20,20),rng.randf_range(-6,6))
+	prop_scene(q,PROP_STONE,Vector3(1.55,.08,.8),-22,.78)
+	prop_scene(q,PROP_PICKAXE,Vector3(-1.4,.18,-.7),28,.74)
+	for x in [-1.8,1.8]:
+		cyl_in(q,Vector3(x,.55,-1.28),.055,1.1,Color("#553720"))
+	box_in(q,Vector3(0,1.05,-1.28),Vector3(3.9,.1,.1),Color("#654225"))
+	quarry_work_points.append({"pos":p+rotated_offset(-.35,.85,q.rotation_degrees.y),"node":q})
+
+func make_mine(p):
+	var mine=Node3D.new()
+	mine.name="Kopalnia rud"
+	mine.position=p
+	mine.rotation_degrees.y=rng.randf_range(-145,145)
+	add_child(mine)
+	add_obstacle(p,3.15)
+	make_ground_shadow(p,Vector2(5.6,4.2),mine.rotation_degrees.y,.2)
+	make_ground_patch(p,Vector2(5.5,4.2),Color("#403a2e"),mine.rotation_degrees.y)
+	var hill=sphere_in(mine,Vector3(0,.5,.25),1.0,Color("#3e3f36"))
+	hill.scale=Vector3(2.5,.58,1.5)
+	var mouth=box_in(mine,Vector3(0,.52,-.78),Vector3(1.55,.92,.16),Color("#0f0e0c"))
+	mouth.rotation_degrees.x=-3
+	for x in [-.82,.82]:
+		cyl_in(mine,Vector3(x,.82,-.92),.08,1.55,Color("#5a3924"))
+	box_in(mine,Vector3(0,1.58,-.92),Vector3(1.9,.14,.18),Color("#6b4328"))
+	prop_scene(mine,PROP_PICKAXE,Vector3(-1.45,.18,.85),-24,.72)
+	var ore_cols=[Color("#8d4f36"),Color("#121211"),Color("#2f7865")]
+	for i in range(9):
+		var col=ore_cols[i%ore_cols.size()]
+		var ore=box_in(mine,Vector3(rng.randf_range(.65,1.85),.2,rng.randf_range(-.6,1.15)),Vector3(rng.randf_range(.2,.42),rng.randf_range(.12,.28),rng.randf_range(.2,.38)),col.darkened(rng.randf_range(0,.18)))
+		ore.rotation_degrees=Vector3(rng.randf_range(-8,8),rng.randf_range(0,180),rng.randf_range(-7,7))
+	for i in range(3):
+		var rail=box_in(mine,Vector3(-.35+float(i)*.35,.16,-1.42),Vector3(.1,.06,1.1),Color("#4b3324"))
+		rail.rotation_degrees.y=rng.randf_range(-2,2)
+	mine_work_points.append({"pos":p+rotated_offset(.35,-1.95,mine.rotation_degrees.y),"node":mine})
+
 func add_stick_source(p):
 	var root=Node3D.new()
 	root.name="Patyki"
@@ -909,7 +1071,9 @@ func add_stone_source(p):
 	for i in range(7):
 		var stone=box_in(root,Vector3(rng.randf_range(-.85,.85),.17,rng.randf_range(-.75,.75)),Vector3(rng.randf_range(.35,.75),rng.randf_range(.25,.48),rng.randf_range(.35,.72)),Color("#75786f"))
 		stone.rotation_degrees=Vector3(rng.randf_range(-9,9),rng.randf_range(0,180),rng.randf_range(-9,9))
-	stone_sources.append({"pos":p,"node":root})
+	var entry={"pos":p,"node":root,"kind":"stone"}
+	stone_sources.append(entry)
+	stone_deposits.append(entry)
 
 func add_berry_source(p):
 	var root=Node3D.new()
@@ -950,6 +1114,154 @@ func make_world_details(home_a,home_b):
 		if p.length()<5.0 or abs(p.x-river_x_at_z(p.z))<4.2:
 			continue
 		make_wildflower(p)
+
+func make_source_sign(parent,text,pos=Vector3(0,1.08,-1.05)):
+	var post=cyl_in(parent,pos+Vector3(0,-.36,0),.035,.72,Color("#3d2a1d"))
+	post.rotation_degrees.z=rng.randf_range(-3,3)
+	var board=box_in(parent,pos+Vector3(0,.02,0),Vector3(1.25,.34,.055),Color("#4a3522"))
+	board.rotation_degrees.y=rng.randf_range(-3,3)
+	var label=Label3D.new()
+	label.text=text
+	label.position=pos+Vector3(0,.03,-.036)
+	label.font_size=18
+	label.pixel_size=.0032
+	label.modulate=Color("#f6ecd0")
+	label.outline_size=5
+	label.outline_modulate=Color(0,0,0,.95)
+	label.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER
+	label.vertical_alignment=VERTICAL_ALIGNMENT_CENTER
+	label.billboard=BaseMaterial3D.BILLBOARD_ENABLED
+	label.no_depth_test=false
+	parent.add_child(label)
+
+func deposit_color(kind):
+	match kind:
+		"stone":
+			return Color("#777a72")
+		"iron":
+			return Color("#4f4540")
+		"coal":
+			return Color("#171716")
+		"copper":
+			return Color("#6f5131")
+		_:
+			return Color("#6d7069")
+
+func deposit_accent(kind):
+	match kind:
+		"iron":
+			return Color("#8d4f36")
+		"coal":
+			return Color("#0b0b0a")
+		"copper":
+			return Color("#317462")
+		_:
+			return Color("#a0a092")
+
+func deposit_label(kind):
+	match kind:
+		"stone":
+			return "KAMIEŃ"
+		"iron":
+			return "ŻELAZO"
+		"coal":
+			return "WĘGIEL"
+		"copper":
+			return "MIEDŹ"
+		_:
+			return "ZŁOŻE"
+
+func register_mineral_source(kind,p,root):
+	var entry={"pos":p,"node":root,"kind":kind}
+	if kind=="stone":
+		stone_sources.append(entry)
+		stone_deposits.append(entry)
+	elif kind=="iron":
+		iron_sources.append(entry)
+	elif kind=="coal":
+		coal_sources.append(entry)
+	elif kind=="copper":
+		copper_sources.append(entry)
+
+func add_mineral_deposit(p,kind,scale=1.0):
+	var root=Node3D.new()
+	root.name="Złoże "+String(deposit_label(kind)).to_lower()
+	root.position=p
+	root.rotation_degrees.y=rng.randf_range(0,180)
+	add_child(root)
+	add_obstacle(p,1.05*scale)
+	var base_col=deposit_color(kind)
+	var accent=deposit_accent(kind)
+	make_ground_patch(p,Vector2(2.8*scale,1.95*scale),Color("#3d3a2d"),rng.randf_range(0,180))
+	make_ground_shadow(p,Vector2(2.8*scale,1.9*scale),root.rotation_degrees.y,.16)
+	var big=prop_scene(root,PROP_ROCK_LARGE,Vector3(-.22,.05,.08),rng.randf_range(-28,28),.62*scale)
+	tint_imported_meshes(big,base_col)
+	var pile=prop_scene(root,PROP_STONE,Vector3(.66,.07,-.32),rng.randf_range(0,180),.75*scale)
+	tint_imported_meshes(pile,base_col.lightened(.08))
+	for i in range(6):
+		var chip=box_in(root,Vector3(rng.randf_range(-1.0,1.05)*scale,.16,rng.randf_range(-.8,.78)*scale),Vector3(rng.randf_range(.22,.5)*scale,rng.randf_range(.12,.28)*scale,rng.randf_range(.18,.42)*scale),base_col.darkened(rng.randf_range(0,.12)))
+		chip.rotation_degrees=Vector3(rng.randf_range(-10,10),rng.randf_range(0,180),rng.randf_range(-8,8))
+		if i%2==0:
+			var vein=box_in(root,chip.position+Vector3(0,.08,0),Vector3(.2*scale,.025,.035*scale),accent)
+			vein.rotation_degrees=chip.rotation_degrees+Vector3(0,rng.randf_range(-20,20),0)
+	make_source_sign(root,deposit_label(kind),Vector3(0,1.02,-1.15*scale))
+	register_mineral_source(kind,p,root)
+	return root
+
+func add_forest_source(p,radius=4.3):
+	var root=Node3D.new()
+	root.name="Połać lasu"
+	root.position=p
+	add_child(root)
+	make_ground_patch(p,Vector2(radius*1.28,radius*.82),Color("#243c28"),rng.randf_range(0,180))
+	make_surface_stain(p,Vector2(radius*.9,radius*.55),Color("#1f2f22"),rng.randf_range(0,180))
+	for i in range(world_count(7)):
+		var a=TAU*float(i)/7.0+rng.randf_range(-.2,.2)
+		var r=rng.randf_range(radius*.28,radius*.72)
+		make_tree(p+Vector3(cos(a)*r,0,sin(a)*r*.82),rng.randf_range(.7,1.05))
+	for i in range(world_count(5)):
+		make_bush_cluster(p+Vector3(rng.randf_range(-radius*.65,radius*.65),0,rng.randf_range(-radius*.45,radius*.45)),rng.randf_range(.58,.9))
+	prop_world(PROP_LOG_STACK,p+Vector3(-1.25,.08,.6),rng.randf_range(-25,25),.58)
+	prop_world(PROP_WOOD,p+Vector3(.85,.08,-.55),rng.randf_range(-30,30),.6)
+	make_twig_litter(p,radius*.7,radius*.45,18,rng.randf_range(0,180))
+	make_source_sign(root,"LAS",Vector3(0,1.05,-1.35))
+	var entry={"pos":p,"node":root,"radius":radius}
+	forest_sources.append(entry)
+	stick_sources.append(entry)
+	return root
+
+func add_fish_source(z,side=1.0):
+	var x=river_x_at_z(z)
+	var n=river_normal_at_z(z)
+	var bank=Vector3(x,0,z)+n*side*4.55
+	var root=Node3D.new()
+	root.name="Łowisko"
+	root.position=bank
+	add_child(root)
+	make_reeds(bank+n*side*.2)
+	make_reeds(bank-n*side*.35+Vector3(0,0,.65))
+	for i in range(4):
+		var water=Vector3(x,.11,z)+n*side*rng.randf_range(.6,2.4)+Vector3(0,0,rng.randf_range(-.85,.85))
+		var fish=box(water,Vector3(.34,.035,.09),Color("#a6b9ae"))
+		fish.rotation_degrees.y=rng.randf_range(0,180)
+		var ripple=box(water+Vector3(0,.025,0),Vector3(.62,.012,.035),Color(.72,.88,.86,.54))
+		ripple.rotation_degrees.y=fish.rotation_degrees.y+rng.randf_range(-12,12)
+	make_source_sign(root,"RYBY",Vector3(0,.95,-.9))
+	var entry={"pos":bank,"node":root,"z":z}
+	fish_sources.append(entry)
+	return root
+
+func make_resource_landmarks():
+	for p in [Vector3(-31,0,18),Vector3(29,0,-24),Vector3(-27,0,-25)]:
+		add_forest_source(p,rng.randf_range(3.8,4.8))
+	for p in [Vector3(-30,0,5),Vector3(27,0,17)]:
+		add_mineral_deposit(p,"stone",rng.randf_range(.88,1.18))
+	add_mineral_deposit(Vector3(-33,0,-13),"iron",1.08)
+	add_mineral_deposit(Vector3(32,0,5),"coal",1.0)
+	add_mineral_deposit(Vector3(18,0,-30),"copper",.96)
+	add_fish_source(-18,-1.0)
+	add_fish_source(9,1.0)
+	add_fish_source(23,-1.0)
 
 func make_camp_clutter():
 	for i in range(8):
@@ -1614,6 +1926,33 @@ func make_build_site(p,kind):
 	elif kind=="SPICHLERZ":
 		cyl_in(site,Vector3(1.2,.3,.82),.28,.36,Color("#6f4b2c"))
 		cyl_in(site,Vector3(1.62,.3,.76),.24,.34,Color("#6f4b2c"))
+	elif kind=="DRWAL":
+		prop_scene(site,PROP_AXE,Vector3(-1.1,.16,-.7),-28,.62)
+		prop_scene(site,PROP_LOG_STACK,Vector3(.9,.12,.82),18,.44)
+		box_in(site,Vector3(.35,.22,-.92),Vector3(1.45,.2,.26),Color("#74502f"))
+	elif kind=="MYŚLIWY":
+		prop_scene(site,PROP_BEDROLL_PACKED,Vector3(-.95,.12,.65),18,.56)
+		box_in(site,Vector3(.92,.32,-.65),Vector3(.9,.46,.07),Color("#8c6542"))
+		for x in [-.35,.0,.35]:
+			var spear=cyl_in(site,Vector3(.95+x,.66,-.85),.025,.88,Color("#4f3320"))
+			spear.rotation_degrees.x=12
+			cone_in(site,Vector3(.95+x,1.12,-.94),.075,.18,Color("#d0c08a"))
+	elif kind=="RYBAK":
+		prop_scene(site,PROP_PADDLE,Vector3(-1.05,.15,.56),32,.58)
+		box_in(site,Vector3(.9,.18,-.18),Vector3(1.4,.16,.78),Color("#6d4828"))
+		cyl_in(site,Vector3(-.1,.31,-.96),.2,.26,Color("#705033"))
+	elif kind=="KAMIENIOŁOM":
+		prop_scene(site,PROP_PICKAXE,Vector3(-1.02,.16,-.75),-18,.62)
+		prop_scene(site,PROP_STONE,Vector3(.92,.1,.75),rng.randf_range(-20,20),.58)
+		for i in range(4):
+			var shard=box_in(site,Vector3(rng.randf_range(-.35,1.25),.22,rng.randf_range(-.2,1.15)),Vector3(.28,.16,.24),Color("#777a72"))
+			shard.rotation_degrees.y=rng.randf_range(0,180)
+	elif kind=="KOPALNIA":
+		box_in(site,Vector3(.95,.36,-.15),Vector3(1.15,.62,.12),Color("#1a1916"))
+		for x in [.46,1.44]:
+			cyl_in(site,Vector3(x,.78,-.23),.055,.92,Color("#5a3924"))
+		box_in(site,Vector3(.95,1.22,-.23),Vector3(1.25,.12,.12),Color("#664229"))
+		prop_scene(site,PROP_PICKAXE,Vector3(-1.08,.16,.78),26,.58)
 	return site
 
 func find_skeleton(n:Node)->Skeleton3D:
@@ -1854,6 +2193,13 @@ func make_carry_node(parent):
 	for i in range(2):
 		var stick=box_in(sticks,Vector3(0,.035*i,0),Vector3(.045,.045,.46),Color("#8a5c32"))
 		stick.rotation_degrees=Vector3(0,-15+i*22,0)
+	var wood=Node3D.new()
+	wood.name="wood"
+	cargo.add_child(wood)
+	for i in range(3):
+		var log=box_in(wood,Vector3(-.08+float(i)*.08,.045,0),Vector3(.065,.075,.36),Color("#7d512f"))
+		log.rotation_degrees=Vector3(0,-9+float(i)*8,0)
+		cyl_in(wood,Vector3(-.08+float(i)*.08,.045,.19),.034,.018,Color("#b48758"))
 	var stone=Node3D.new()
 	stone.name="stone"
 	cargo.add_child(stone)
@@ -1871,6 +2217,14 @@ func make_carry_node(parent):
 	for i in range(3):
 		var cut=sphere_in(meat,Vector3(-.06+float(i)*.06,.055,rng.randf_range(-.035,.035)),.05,Color("#8f2b26"))
 		cut.scale=Vector3(1.15,.72,.86)
+	var fish=Node3D.new()
+	fish.name="fish"
+	cargo.add_child(fish)
+	for i in range(2):
+		var body=sphere_in(fish,Vector3(-.055+float(i)*.11,.05,0),.055,Color("#5f7c78"))
+		body.scale=Vector3(1.45,.48,.58)
+		var tail=box_in(fish,Vector3(-.105+float(i)*.11,.05,0),Vector3(.04,.055,.018),Color("#415b59"))
+		tail.rotation_degrees.y=45
 	var hides=Node3D.new()
 	hides.name="hides"
 	cargo.add_child(hides)
@@ -1878,6 +2232,13 @@ func make_carry_node(parent):
 	roll.rotation_degrees.y=-12
 	var strap=box_in(hides,Vector3(0,.09,0),Vector3(.08,.035,.24),Color("#4f3524"))
 	strap.rotation_degrees.y=-12
+	for ore_kind in ["iron","coal","copper"]:
+		var ore=Node3D.new()
+		ore.name=ore_kind
+		cargo.add_child(ore)
+		for i in range(3):
+			var nugget=box_in(ore,Vector3(-.055+float(i)*.055,.045,rng.randf_range(-.025,.025)),Vector3(.075,.055,.07),deposit_color(ore_kind))
+			nugget.rotation_degrees=Vector3(rng.randf_range(-8,8),rng.randf_range(-25,25),rng.randf_range(-8,8))
 	set_carry_visual(cargo,"")
 	return cargo
 
@@ -2077,23 +2438,23 @@ func apply_command_button_style(b):
 func make_ui():
 	layout_camera_sticks()
 	var layer=CanvasLayer.new(); add_child(layer)
-	make_glass_panel(layer,Vector2(14,14),Vector2(620,148),.54,.18)
-	hud=Label.new(); hud.position=Vector2(27,25); hud.add_theme_font_size_override("font_size",12); hud.add_theme_color_override("font_color",Color("#f7f0dc")); hud.add_theme_constant_override("outline_size",1); hud.add_theme_color_override("font_outline_color",Color(0,0,0,.9)); layer.add_child(hud)
+	make_glass_panel(layer,Vector2(14,14),Vector2(660,188),.54,.18)
+	hud=Label.new(); hud.position=Vector2(27,25); hud.add_theme_font_size_override("font_size",11); hud.add_theme_color_override("font_color",Color("#f7f0dc")); hud.add_theme_constant_override("outline_size",1); hud.add_theme_color_override("font_outline_color",Color(0,0,0,.9)); layer.add_child(hud)
 	var vp=get_viewport().get_visible_rect().size
 	var menu_w=356.0
-	make_glass_panel(layer,Vector2(float(vp.x)-menu_w-34.0,12),Vector2(menu_w+24.0,272),.34,.16)
-	var menu=VBoxContainer.new(); menu.position=Vector2(float(vp.x)-menu_w-22.0,16); menu.size=Vector2(menu_w,258); menu.add_theme_constant_override("separation",4); layer.add_child(menu)
+	make_glass_panel(layer,Vector2(float(vp.x)-menu_w-34.0,12),Vector2(menu_w+24.0,366),.34,.16)
+	var menu=VBoxContainer.new(); menu.position=Vector2(float(vp.x)-menu_w-22.0,16); menu.size=Vector2(menu_w,350); menu.add_theme_constant_override("separation",4); layer.add_child(menu)
 	var title=Label.new(); title.text="ROZKAZY I MOCE IDOLA"; title.add_theme_font_size_override("font_size",15); title.add_theme_color_override("font_color",Color("#f2ead6")); menu.add_child(title)
 	var grid=GridContainer.new(); grid.columns=2; grid.add_theme_constant_override("h_separation",5); grid.add_theme_constant_override("v_separation",2); menu.add_child(grid)
-	for s in ["AUTO","PATYKI","KAMIEŃ","JAGODY","ŁOWY","ZGROMADZENIE","ODKRYCIA","DOM 5/5","SPICHLERZ 5/5","WARSZTAT 8/6"]:
+	for s in ["AUTO","PATYKI","DRWAL","KAMIEŃ","GÓRNIK","JAGODY","RYBY","ŁOWY","ZGROMADZENIE","ODKRYCIA","DOM 5/5","SPICHLERZ 5/5","WARSZTAT 8/6","OBÓZ DRWALA 7/3","CHATA MYŚL. 8/4","CHATA RYB. 8/3","KAMIENIOŁOM 9/7","KOPALNIA 12/10"]:
 		var cmd=s
-		var b=Button.new(); b.text=cmd; b.custom_minimum_size=Vector2(172,25); apply_command_button_style(b); b.pressed.connect(func(): set_order(cmd)); grid.add_child(b)
-	var next_btn=Button.new(); next_btn.text="OSOBA +"; next_btn.custom_minimum_size=Vector2(172,25); apply_command_button_style(next_btn); next_btn.pressed.connect(func(): cycle_selected()); grid.add_child(next_btn)
+		var b=Button.new(); b.text=cmd; b.custom_minimum_size=Vector2(172,24); apply_command_button_style(b); b.pressed.connect(func(): set_order(cmd)); grid.add_child(b)
+	var next_btn=Button.new(); next_btn.text="OSOBA +"; next_btn.custom_minimum_size=Vector2(172,24); apply_command_button_style(next_btn); next_btn.pressed.connect(func(): cycle_selected()); grid.add_child(next_btn)
 	for s in ["KAMERA OS.","PRZYWOŁAJ","BŁOGOSŁAW","WIĘŹ +","KRĄG ŻYCIA"]:
 		var action=s
-		var b=Button.new(); b.text=action; b.custom_minimum_size=Vector2(172,25); apply_command_button_style(b); b.pressed.connect(func(): handle_idol_action(action)); grid.add_child(b)
-	make_glass_panel(layer,Vector2(14,172),Vector2(430,192),.48,.14)
-	info=Label.new(); info.position=Vector2(28,182); info.add_theme_font_size_override("font_size",11); info.add_theme_color_override("font_color",Color("#efe8d4")); info.add_theme_constant_override("outline_size",1); info.add_theme_color_override("font_outline_color",Color(0,0,0,.88)); layer.add_child(info)
+		var b=Button.new(); b.text=action; b.custom_minimum_size=Vector2(172,24); apply_command_button_style(b); b.pressed.connect(func(): handle_idol_action(action)); grid.add_child(b)
+	make_glass_panel(layer,Vector2(14,212),Vector2(430,192),.48,.14)
+	info=Label.new(); info.position=Vector2(28,222); info.add_theme_font_size_override("font_size",11); info.add_theme_color_override("font_color",Color("#efe8d4")); info.add_theme_constant_override("outline_size",1); info.add_theme_color_override("font_outline_color",Color(0,0,0,.88)); layer.add_child(info)
 	var chat_bg=make_glass_panel(layer,Vector2(float(vp.x)*.282,float(vp.y)-156.0),Vector2(float(vp.x)*.436,130),.52,.18)
 	chat_feed=Label.new(); chat_feed.position=chat_bg.position+Vector2(12,7); chat_feed.size=chat_bg.size-Vector2(22,12); chat_feed.add_theme_font_size_override("font_size",13); chat_feed.add_theme_color_override("font_color",Color("#f7fff6")); chat_feed.add_theme_constant_override("outline_size",1); chat_feed.add_theme_color_override("font_outline_color",Color(0,0,0,.96)); chat_feed.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART; chat_feed.clip_text=true; chat_feed.text="ROZMOWY OSADY\n..."; layer.add_child(chat_feed)
 	make_camera_sticks(layer)
@@ -2266,19 +2627,55 @@ func kindle_life_circle():
 	else:
 		set_notice("Krąg życia wzmacnia rodziny. %s" % family_summary())
 
+func build_label(kind):
+	match kind:
+		"DOM":
+			return "dom"
+		"SPICHLERZ":
+			return "spichlerz"
+		"WARSZTAT":
+			return "warsztat"
+		"DRWAL":
+			return "obóz drwali"
+		"MYŚLIWY":
+			return "chata myśliwego"
+		"RYBAK":
+			return "chata rybacka"
+		"KAMIENIOŁOM":
+			return "kamieniołom"
+		"KOPALNIA":
+			return "kopalnia rud"
+		_:
+			return String(kind).to_lower()
+
 func building_cost(kind):
-	if kind=="WARSZTAT":
-		return {"sticks":WORKSHOP_COST_STICKS,"stone":WORKSHOP_COST_STONE,"work":WORKSHOP_BUILD_WORK}
+	match kind:
+		"WARSZTAT":
+			return {"sticks":WORKSHOP_COST_STICKS,"stone":WORKSHOP_COST_STONE,"work":WORKSHOP_BUILD_WORK}
+		"DRWAL":
+			return {"sticks":LUMBER_CAMP_COST_STICKS,"stone":LUMBER_CAMP_COST_STONE,"work":LUMBER_CAMP_BUILD_WORK}
+		"MYŚLIWY":
+			return {"sticks":HUNTER_HUT_COST_STICKS,"stone":HUNTER_HUT_COST_STONE,"work":HUNTER_HUT_BUILD_WORK}
+		"RYBAK":
+			return {"sticks":FISHER_HUT_COST_STICKS,"stone":FISHER_HUT_COST_STONE,"work":FISHER_HUT_BUILD_WORK}
+		"KAMIENIOŁOM":
+			return {"sticks":QUARRY_COST_STICKS,"stone":QUARRY_COST_STONE,"work":QUARRY_BUILD_WORK}
+		"KOPALNIA":
+			return {"sticks":MINE_COST_STICKS,"stone":MINE_COST_STONE,"work":MINE_BUILD_WORK}
 	return {"sticks":BUILD_COST_STICKS,"stone":BUILD_COST_STONE,"work":BUILD_WORK}
 
 func resource_capacity(kind):
-	if kind=="hides":
-		return 8+buildings.granaries*4
 	var cap=34+buildings.granaries*18
 	if discoveries["MAGAZYN"]:
 		cap+=18
-	if kind in ["berries","meat"]:
+	if kind=="wood":
+		cap+=12+buildings.lumber_camps*8
+	if kind in ["berries","meat","fish"]:
 		cap+=10
+	if kind in ["iron","coal","copper"]:
+		cap=16+buildings.granaries*8+buildings.workshops*4
+		if discoveries["MAGAZYN"]:
+			cap+=8
 	if kind=="hides":
 		cap=18+buildings.granaries*10
 		if discoveries["MAGAZYN"]:
@@ -2286,10 +2683,10 @@ func resource_capacity(kind):
 	return cap
 
 func add_stock(kind,amount):
-	stock[kind]=min(resource_capacity(kind),stock[kind]+amount)
+	stock[kind]=min(resource_capacity(kind),int(stock.get(kind,0))+amount)
 
 func food_units():
-	return stock.berries+stock.meat*2
+	return stock.berries+stock.meat*2+stock.fish*2
 
 func consume_child_food(amount):
 	var remaining=amount
@@ -2299,6 +2696,9 @@ func consume_child_food(amount):
 	while remaining>0 and stock.meat>0:
 		stock.meat-=1
 		remaining-=2
+	while remaining>0 and stock.fish>0:
+		stock.fish-=1
+		remaining-=2
 
 func feed_person(v,adult):
 	if v.hunger<=82.0:
@@ -2307,6 +2707,10 @@ func feed_person(v,adult):
 		stock.meat-=1
 		v.hunger=max(0.0,v.hunger-(46.0 if adult else 54.0))
 		v.energy=min(100.0,v.energy+(10.0 if adult else 13.0))
+	elif stock.fish>0:
+		stock.fish-=1
+		v.hunger=max(0.0,v.hunger-(42.0 if adult else 50.0))
+		v.energy=min(100.0,v.energy+(9.0 if adult else 12.0))
 	elif stock.berries>0:
 		stock.berries-=1
 		v.hunger=max(0.0,v.hunger-(34.0 if adult else 42.0))
@@ -2340,6 +2744,8 @@ func make_discovery_marker(key):
 		col=Color("#9b7047")
 	elif key=="MAGAZYN":
 		col=Color("#c99a54")
+	elif key=="SUROWCE":
+		col=Color("#9b9f84")
 	elif key=="WIĘZI":
 		col=Color("#d46f75")
 	elif key=="OSADA":
@@ -2358,10 +2764,12 @@ func check_discoveries():
 		unlock_discovery("ŁOWY","Odkrycie: łowy. Mięso wzmacnia osadę, a skóry przydadzą się budowniczym.")
 	if not discoveries["MAGAZYN"] and buildings.granaries>=1:
 		unlock_discovery("MAGAZYN","Odkrycie: magazynowanie. Skład mieści więcej zapasów.")
+	if not discoveries["SUROWCE"] and buildings.lumber_camps>=1 and (buildings.quarries>=1 or buildings.mines>=1):
+		unlock_discovery("SUROWCE","Odkrycie: infrastruktura surowcowa. Drwale i kamieniarze zaczynają pracować planowo.")
 	if not discoveries["WIĘZI"] and count_pairs()>=1:
 		unlock_discovery("WIĘZI","Odkrycie: pierwsze pary. Osada zaczyna mieć pamięć relacji.")
-	if not discoveries["OSADA"] and buildings.houses>=CHAPTER_HOUSES_GOAL and buildings.granaries>=CHAPTER_GRANARIES_GOAL and buildings.workshops>=CHAPTER_WORKSHOPS_GOAL:
-		unlock_discovery("OSADA","Rozdział I ustabilizowany: domy, zapas i warsztat działają.")
+	if not discoveries["OSADA"] and buildings.houses>=CHAPTER_HOUSES_GOAL and buildings.granaries>=CHAPTER_GRANARIES_GOAL and buildings.workshops>=CHAPTER_WORKSHOPS_GOAL and buildings.lumber_camps>=CHAPTER_LUMBER_GOAL and buildings.hunter_huts>=CHAPTER_HUNTER_GOAL and buildings.fisher_huts>=CHAPTER_FISHER_GOAL and buildings.quarries>=CHAPTER_QUARRY_GOAL:
+		unlock_discovery("OSADA","Rozdział I ustabilizowany: domy, jedzenie, surowce i warsztat działają.")
 	if not discoveries["RODZINA"] and children_born>=1:
 		unlock_discovery("RODZINA","Odkrycie: rodzina. Osada ma pierwsze nowe pokolenie.")
 
@@ -2394,7 +2802,7 @@ func count_workers(job_name):
 	return count
 
 func worker_summary():
-	return "Załoga: P%d K%d J%d Ł%d B%d D%d W%d O%d R%d Dz%d" % [count_workers("PATYKI"),count_workers("KAMIEŃ"),count_workers("JAGODY"),count_workers("ŁOWY"),count_workers("BUDOWA"),count_workers("DOSTAWA"),count_workers("WSPÓLNOTA"),count_workers("ODKRYCIA"),count_workers("ODPOCZYNEK"),count_workers("DZIECKO")]
+	return "Załoga: P%d Dr%d K%d G%d J%d Ry%d Ł%d B%d D%d W%d O%d R%d Dz%d" % [count_workers("PATYKI"),count_workers("DRWAL"),count_workers("KAMIEŃ"),count_workers("GÓRNIK"),count_workers("JAGODY"),count_workers("RYBY"),count_workers("ŁOWY"),count_workers("BUDOWA"),count_workers("DOSTAWA"),count_workers("WSPÓLNOTA"),count_workers("ODKRYCIA"),count_workers("ODPOCZYNEK"),count_workers("DZIECKO")]
 
 func shelter_capacity():
 	return buildings.houses*HOME_CAPACITY
@@ -2455,14 +2863,24 @@ func family_label(v):
 func carry_label(kind):
 	if kind=="sticks":
 		return "patyki"
+	if kind=="wood":
+		return "drewno"
 	if kind=="stone":
 		return "kamień"
 	if kind=="berries":
 		return "jagody"
 	if kind=="meat":
 		return "mięso"
+	if kind=="fish":
+		return "ryby"
 	if kind=="hides":
 		return "skóry"
+	if kind=="iron":
+		return "żelazo"
+	if kind=="coal":
+		return "węgiel"
+	if kind=="copper":
+		return "miedź"
 	return "brak"
 
 func flat_actor_distance(a,b):
@@ -2492,10 +2910,16 @@ func language_stage(a,b):
 func remembered_place(v):
 	if v.job=="PATYKI":
 		return "przy drzewach"
+	if v.job=="DRWAL":
+		return "przy obozie drwali"
 	if v.job=="KAMIEŃ":
 		return "na kamienisku"
+	if v.job=="GÓRNIK":
+		return "przy kopalni"
 	if v.job=="JAGODY":
 		return "przy krzakach jagód"
+	if v.job=="RYBY":
+		return "nad łowiskiem"
 	if v.job=="ŁOWY":
 		return "na skraju łąki jeleni"
 	if v.job=="BUDOWA":
@@ -2509,10 +2933,16 @@ func remembered_place(v):
 func task_word(job):
 	if job=="PATYKI":
 		return "patyki"
+	if job=="DRWAL":
+		return "drewno"
 	if job=="KAMIEŃ":
 		return "kamień"
+	if job=="GÓRNIK":
+		return "rudę"
 	if job=="JAGODY":
 		return "jagody"
+	if job=="RYBY":
+		return "ryby"
 	if job=="ŁOWY":
 		return "łowy"
 	if job=="BUDOWA":
@@ -2605,7 +3035,7 @@ func chat_line_for(a,b,positive):
 			if stage==2:
 				return "Najpierw fundament, potem ściana. Tak dom stanie mocniej."
 			return "Ja pilnuję fundamentu, ty zostaw przejście na kamień i patyki."
-		if a.job in ["PATYKI","KAMIEŃ","JAGODY","ŁOWY"]:
+		if a.job in ["PATYKI","DRWAL","KAMIEŃ","GÓRNIK","JAGODY","RYBY","ŁOWY"]:
 			if stage==0:
 				return "Bierz. Do składu."
 			if stage==1:
@@ -2794,13 +3224,23 @@ func chapter_goal():
 		return "Cel: postaw 3 domy i 1 spichlerz"
 	if buildings.granaries<CHAPTER_GRANARIES_GOAL:
 		return "Cel: zbuduj pierwszy spichlerz"
+	if buildings.hunter_huts<CHAPTER_HUNTER_GOAL:
+		return "Cel: zbuduj chatę myśliwego, żeby łowy karmiły osadę"
+	if buildings.fisher_huts<CHAPTER_FISHER_GOAL:
+		return "Cel: postaw chatę rybacką przy brzegu rzeki"
+	if buildings.lumber_camps<CHAPTER_LUMBER_GOAL:
+		return "Cel: zbuduj obóz drwali przy połaci lasu"
+	if buildings.quarries<CHAPTER_QUARRY_GOAL:
+		return "Cel: zbuduj kamieniołom przy złożu kamienia"
 	if not discoveries["NARZĘDZIA"]:
 		return "Cel: odkryj narzędzia kamienne"
 	if buildings.workshops<CHAPTER_WORKSHOPS_GOAL:
 		return "Cel: zbuduj pierwszy warsztat"
+	if buildings.mines<1:
+		return "Cel: postaw pierwszą kopalnię rud przy żelazie, węglu albo miedzi"
 	if children_born<1:
 		return "Cel: utrzymaj parę, wolny dom i 12 jedzenia dla dziecka"
-	return "Cel rozdziału: pierwsza rodzina, zapas i narzędzia"
+	return "Cel rozdziału: rodzina, zapas, narzędzia i infrastruktura surowcowa"
 
 func register_build_spot(p):
 	build_spots.append(p)
@@ -2812,10 +3252,14 @@ func register_home_spot(p):
 func river_x_at_z(z):
 	return 8+sin(z*.17)*5
 
-func is_build_pos_clear(p):
+func is_build_pos_clear_for_kind(p,kind=""):
 	if p.length()<7.5:
 		return false
-	if abs(p.x-river_x_at_z(p.z))<4.8:
+	var river_dist=abs(p.x-river_x_at_z(p.z))
+	if kind=="RYBAK":
+		if river_dist<3.35 or river_dist>8.4:
+			return false
+	elif river_dist<4.8:
 		return false
 	for spot in build_spots:
 		if Vector2(spot.x,spot.z).distance_to(Vector2(p.x,p.z))<7.0:
@@ -2825,6 +3269,9 @@ func is_build_pos_clear(p):
 			return false
 	return true
 
+func is_build_pos_clear(p):
+	return is_build_pos_clear_for_kind(p,"")
+
 func pick_source_point(sources,radius):
 	if sources.is_empty():
 		return Vector3(rng.randf_range(-18,18),0,rng.randf_range(-18,18))
@@ -2832,6 +3279,13 @@ func pick_source_point(sources,radius):
 	var a=rng.randf_range(0,TAU)
 	var r=rng.randf_range(.25,radius)
 	return source.pos+Vector3(cos(a)*r,0,sin(a)*r)
+
+func metal_sources():
+	var sources=[]
+	sources.append_array(iron_sources)
+	sources.append_array(coal_sources)
+	sources.append_array(copper_sources)
+	return sources
 
 func person_index(v):
 	return max(0,people.find(v))
@@ -2919,11 +3373,27 @@ func try_form_pair(v):
 
 func random_field_point(job_name):
 	if job_name=="PATYKI":
+		if buildings.lumber_camps>0 and not lumber_work_points.is_empty():
+			return pick_source_point(lumber_work_points,1.35)
 		return pick_source_point(stick_sources,1.4)
+	if job_name=="DRWAL":
+		if not lumber_work_points.is_empty():
+			return pick_source_point(lumber_work_points,1.45)
+		return pick_source_point(forest_sources,2.4)
 	if job_name=="KAMIEŃ":
+		if buildings.quarries>0 and not quarry_work_points.is_empty():
+			return pick_source_point(quarry_work_points,1.35)
 		return pick_source_point(stone_sources,1.25)
+	if job_name=="GÓRNIK":
+		if buildings.mines>0 and not mine_work_points.is_empty():
+			return pick_source_point(mine_work_points,1.4)
+		return pick_source_point(metal_sources(),1.35)
 	if job_name=="JAGODY":
 		return pick_source_point(berry_sources,1.2)
+	if job_name=="RYBY":
+		if buildings.fisher_huts>0 and not fisher_work_points.is_empty():
+			return pick_source_point(fisher_work_points,1.35)
+		return pick_source_point(fish_sources,1.2)
 	if job_name=="ŁOWY" and not wildlife.is_empty():
 		var deer=wildlife[rng.randi_range(0,wildlife.size()-1)]
 		return herd_roam_point(deer.home,4.6)
@@ -2982,9 +3452,13 @@ func finish_hunt(v):
 	var meat_gain=2
 	if bool(deer.get("stag",false)):
 		meat_gain+=1
+	if buildings.hunter_huts>0:
+		meat_gain+=1
 	if v.str>=7 and rng.randf()<.42:
 		meat_gain+=1
 	var hide_gain=1
+	if buildings.hunter_huts>0 and rng.randf()<.34:
+		hide_gain+=1
 	if v.dex>=7 and rng.randf()<.28:
 		hide_gain+=1
 	deer.alive=false
@@ -3000,8 +3474,42 @@ func finish_hunt(v):
 	set_notice("%s wraca z łowów: mięso %d, skóry %d" % [v.name,meat_gain,hide_gain])
 	return true
 
+func pick_build_pos_near(sources,kind,inner_radius=2.9,outer_radius=5.8):
+	if sources.is_empty():
+		return null
+	var start=rng.randi_range(0,sources.size()-1)
+	for s_i in range(sources.size()):
+		var source=sources[(start+s_i)%sources.size()]
+		var base:Vector3=source.pos
+		for attempt in range(18):
+			var a=rng.randf_range(0,TAU)
+			var r=rng.randf_range(inner_radius,outer_radius)
+			var p=base+Vector3(cos(a)*r,0,sin(a)*r)
+			if is_build_pos_clear_for_kind(p,kind):
+				return p
+	return null
+
+func pick_hunter_build_pos():
+	var herd_sources=[]
+	for deer in wildlife:
+		herd_sources.append({"pos":deer.home})
+	return pick_build_pos_near(herd_sources,"MYŚLIWY",4.8,7.8)
+
 func pick_build_pos(kind):
-	var idx=build_plans.size()+buildings.houses+buildings.granaries+buildings.workshops
+	var near=null
+	if kind=="DRWAL":
+		near=pick_build_pos_near(forest_sources,"DRWAL",3.0,6.2)
+	elif kind=="RYBAK":
+		near=pick_build_pos_near(fish_sources,"RYBAK",1.4,3.4)
+	elif kind=="MYŚLIWY":
+		near=pick_hunter_build_pos()
+	elif kind=="KAMIENIOŁOM":
+		near=pick_build_pos_near(stone_deposits,"KAMIENIOŁOM",2.6,5.3)
+	elif kind=="KOPALNIA":
+		near=pick_build_pos_near(metal_sources(),"KOPALNIA",2.8,5.8)
+	if near!=null:
+		return near
+	var idx=build_plans.size()+buildings.houses+buildings.granaries+buildings.workshops+buildings.lumber_camps+buildings.hunter_huts+buildings.fisher_huts+buildings.quarries+buildings.mines
 	for attempt in range(32):
 		var a=(idx+attempt)*1.41+rng.randf_range(-.42,.42)
 		var r=rng.randf_range(10,18)
@@ -3010,7 +3518,7 @@ func pick_build_pos(kind):
 		elif kind=="WARSZTAT":
 			r+=1
 		var p=Vector3(cos(a)*r,0,sin(a)*r)
-		if is_build_pos_clear(p):
+		if is_build_pos_clear_for_kind(p,kind):
 			return p
 	return Vector3(rng.randf_range(-18,-10),0,rng.randf_range(8,18))
 
@@ -3023,7 +3531,7 @@ func queue_build_plan(kind):
 	var p=pick_build_pos(kind)
 	build_plans.append({"kind":kind,"need_sticks":cost.sticks,"need_stone":cost.stone,"stored_sticks":0,"stored_stone":0,"funded":false,"done":false,"progress":0.0,"work":cost.work,"pos":p,"site":make_build_site(p,kind)})
 	order="BUDUJ "+kind
-	set_notice("Plan %s dodany do kolejki" % kind)
+	set_notice("Plan: %s dodany do kolejki" % build_label(kind))
 	try_fund_plans()
 	redirect_people()
 
@@ -3035,7 +3543,7 @@ func fund_plan(plan):
 		plan.stored_stone=plan.need_stone
 		plan.funded=true
 		update_build_site(plan)
-		set_notice("Materiały dla %s opłacone na budowie" % plan.kind)
+		set_notice("Materiały dla: %s opłacone na budowie" % build_label(plan.kind))
 		return true
 	return false
 
@@ -3087,9 +3595,29 @@ func complete_build(plan):
 		make_workshop(plan.pos)
 		buildings.workshops+=1
 		register_build_spot(plan.pos)
+	elif plan.kind=="DRWAL":
+		make_lumber_camp(plan.pos)
+		buildings.lumber_camps+=1
+		register_build_spot(plan.pos)
+	elif plan.kind=="MYŚLIWY":
+		make_hunter_hut(plan.pos)
+		buildings.hunter_huts+=1
+		register_build_spot(plan.pos)
+	elif plan.kind=="RYBAK":
+		make_fisher_hut(plan.pos)
+		buildings.fisher_huts+=1
+		register_build_spot(plan.pos)
+	elif plan.kind=="KAMIENIOŁOM":
+		make_quarry(plan.pos)
+		buildings.quarries+=1
+		register_build_spot(plan.pos)
+	elif plan.kind=="KOPALNIA":
+		make_mine(plan.pos)
+		buildings.mines+=1
+		register_build_spot(plan.pos)
 	tech_points+=1
 	check_discoveries()
-	set_notice("%s ukończony. Tech +1" % plan.kind)
+	set_notice("%s ukończony. Tech +1" % build_label(plan.kind).capitalize())
 	if open_plan_count()==0:
 		order="AUTO"
 
@@ -3118,15 +3646,35 @@ func start_delivery(v,kind,amount=-1,extra_hides=0):
 	v.target=depot_point(v)
 	v.work_timer=0.0
 
+func pick_mine_resource():
+	if buildings.mines<=0:
+		return "stone"
+	var roll=rng.randf()
+	if roll<.42:
+		return "iron"
+	if roll<.74:
+		return "coal"
+	return "copper"
+
 func carry_yield(v,kind):
 	var amount=1
-	if discoveries["NARZĘDZIA"] and kind in ["sticks","stone"] and rng.randf()<.34:
+	if kind=="wood":
+		amount=2 if buildings.lumber_camps>0 else 1
+	if kind=="stone" and buildings.quarries>0:
+		amount+=1
+	if kind=="fish" and buildings.fisher_huts>0:
+		amount+=1
+	if kind in ["iron","coal","copper"] and buildings.mines>0 and rng.randf()<.24:
+		amount+=1
+	if discoveries["NARZĘDZIA"] and kind in ["sticks","wood","stone","iron","coal","copper"] and rng.randf()<.34:
 		amount+=1
 	if discoveries["OGIEŃ"] and kind=="berries" and rng.randf()<.22:
 		amount+=1
-	if discoveries["OGIEŃ"] and kind=="meat" and rng.randf()<.18:
+	if discoveries["OGIEŃ"] and kind in ["meat","fish"] and rng.randf()<.18:
 		amount+=1
 	if buildings.workshops>0 and rng.randf()<.12:
+		amount+=1
+	if kind=="sticks" and buildings.lumber_camps>0 and rng.randf()<.38:
 		amount+=1
 	return amount
 
@@ -3180,8 +3728,26 @@ func job_duration(v):
 		if v.dex>=7:
 			hunt_time*=.92
 		return hunt_time
+	if v.job=="RYBY":
+		var fish_time=1.45
+		if buildings.fisher_huts>0:
+			fish_time*=.82
+		if discoveries["NARZĘDZIA"]:
+			fish_time*=.92
+		return fish_time
+	if v.job=="GÓRNIK":
+		var mine_time=1.72
+		if discoveries["NARZĘDZIA"]:
+			mine_time*=.88
+		if buildings.workshops>0:
+			mine_time*=.92
+		return mine_time
 	var gather_time=1.15
-	if discoveries["NARZĘDZIA"] and v.job in ["PATYKI","KAMIEŃ"]:
+	if v.job=="DRWAL" and buildings.lumber_camps>0:
+		gather_time*=.9
+	if v.job=="KAMIEŃ" and buildings.quarries>0:
+		gather_time*=.92
+	if discoveries["NARZĘDZIA"] and v.job in ["PATYKI","DRWAL","KAMIEŃ","GÓRNIK"]:
 		gather_time*=.86
 	if discoveries["OGIEŃ"] and v.job=="JAGODY":
 		gather_time*=.92
@@ -3236,12 +3802,26 @@ func choose_work(v):
 		return
 	if order=="PATYKI":
 		assign_job(v,"PATYKI",random_field_point("PATYKI"))
+	elif order=="DRWAL":
+		if buildings.lumber_camps>0:
+			assign_job(v,"DRWAL",random_field_point("DRWAL"))
+		else:
+			assign_job(v,"PATYKI",random_field_point("PATYKI"))
 	elif order=="KAMIEŃ":
 		assign_job(v,"KAMIEŃ",random_field_point("KAMIEŃ"))
+	elif order=="GÓRNIK":
+		if buildings.mines>0:
+			assign_job(v,"GÓRNIK",random_field_point("GÓRNIK"))
+		else:
+			assign_job(v,"KAMIEŃ",random_field_point("KAMIEŃ"))
 	elif order=="JAGODY":
 		assign_job(v,"JAGODY",random_field_point("JAGODY"))
+	elif order=="RYBY":
+		assign_job(v,"RYBY",random_field_point("RYBY"))
 	elif order=="ŁOWY":
 		assign_hunt(v)
+	elif food_units()<16 and buildings.fisher_huts>0 and count_workers("RYBY")<2:
+		assign_job(v,"RYBY",random_field_point("RYBY"))
 	elif food_units()<16 and active_deer_count()>0 and count_workers("ŁOWY")<2:
 		assign_hunt(v)
 	elif stock.berries<18:
@@ -3252,8 +3832,12 @@ func choose_work(v):
 		assign_job(v,"ODKRYCIA",research_point(v))
 	elif stock.sticks<8:
 		assign_job(v,"PATYKI",random_field_point("PATYKI"))
-	elif stock.stone<8:
+	elif buildings.lumber_camps>0 and stock.wood<10 and count_workers("DRWAL")<2:
+		assign_job(v,"DRWAL",random_field_point("DRWAL"))
+	elif stock.stone<8 or (buildings.quarries>0 and stock.stone<14):
 		assign_job(v,"KAMIEŃ",random_field_point("KAMIEŃ"))
+	elif buildings.mines>0 and stock.iron+stock.coal+stock.copper<10 and count_workers("GÓRNIK")<1:
+		assign_job(v,"GÓRNIK",random_field_point("GÓRNIK"))
 	else:
 		assign_job(v,"IDLE",random_field_point("IDLE"))
 
@@ -3266,13 +3850,26 @@ func finish_job(v):
 		start_delivery(v,"sticks")
 		v.wood+=.1
 		return true
+	elif v.job=="DRWAL":
+		start_delivery(v,"wood")
+		v.wood+=.16
+		return true
 	elif v.job=="KAMIEŃ":
 		start_delivery(v,"stone")
 		v.gather+=.1
 		return true
+	elif v.job=="GÓRNIK":
+		start_delivery(v,pick_mine_resource())
+		v.gather+=.16
+		v.knowledge+=.025
+		return true
 	elif v.job=="JAGODY":
 		start_delivery(v,"berries")
 		v.gather+=.1
+		return true
+	elif v.job=="RYBY":
+		start_delivery(v,"fish")
+		v.gather+=.12
 		return true
 	elif v.job=="ŁOWY":
 		if finish_hunt(v):
@@ -3330,10 +3927,11 @@ func plan_brief():
 		return "Plan: brak"
 	var nr=active_plan_number(plan)
 	var total=open_plan_count()
+	var label=build_label(plan.kind)
 	if not plan.funded:
-		return "Plan %d/%d %s: materiały %d/%d P, %d/%d K" % [nr,total,plan.kind,stock.sticks,plan.need_sticks,stock.stone,plan.need_stone]
+		return "Plan %d/%d %s: materiały %d/%d P, %d/%d K" % [nr,total,label,stock.sticks,plan.need_sticks,stock.stone,plan.need_stone]
 	var pct=int(round(clamp(plan.progress/plan.work,0.0,1.0)*100.0))
-	return "Plan %d/%d %s: budowa %d%%" % [nr,total,plan.kind,pct]
+	return "Plan %d/%d %s: budowa %d%%" % [nr,total,label,pct]
 
 func plan_summary():
 	var plan=get_active_plan()
@@ -3341,10 +3939,11 @@ func plan_summary():
 		return "Plan: brak aktywnej budowy\n"+worker_summary()
 	var nr=active_plan_number(plan)
 	var total=open_plan_count()
+	var label=build_label(plan.kind)
 	if not plan.funded:
-		return "Plan %d/%d %s: zbierz %d/%d patyków i %d/%d kamieni\n%s" % [nr,total,plan.kind,stock.sticks,plan.need_sticks,stock.stone,plan.need_stone,worker_summary()]
+		return "Plan %d/%d %s: zbierz %d/%d patyków i %d/%d kamieni\n%s" % [nr,total,label,stock.sticks,plan.need_sticks,stock.stone,plan.need_stone,worker_summary()]
 	var pct=int(round(clamp(plan.progress/plan.work,0.0,1.0)*100.0))
-	return "Plan %d/%d %s: budowa %d%%\nMateriały na budowie: %d/%d patyków, %d/%d kamieni\n%s" % [nr,total,plan.kind,pct,plan.stored_sticks,plan.need_sticks,plan.stored_stone,plan.need_stone,worker_summary()]
+	return "Plan %d/%d %s: budowa %d%%\nMateriały na budowie: %d/%d patyków, %d/%d kamieni\n%s" % [nr,total,label,pct,plan.stored_sticks,plan.need_sticks,plan.stored_stone,plan.need_stone,worker_summary()]
 
 func set_order(s):
 	if s=="DOM 5/5":
@@ -3356,11 +3955,32 @@ func set_order(s):
 	if s=="WARSZTAT 8/6":
 		queue_build_plan("WARSZTAT")
 		return
+	if s=="OBÓZ DRWALA 7/3":
+		queue_build_plan("DRWAL")
+		return
+	if s=="CHATA MYŚL. 8/4":
+		queue_build_plan("MYŚLIWY")
+		return
+	if s=="CHATA RYB. 8/3":
+		queue_build_plan("RYBAK")
+		return
+	if s=="KAMIENIOŁOM 9/7":
+		queue_build_plan("KAMIENIOŁOM")
+		return
+	if s=="KOPALNIA 12/10":
+		queue_build_plan("KOPALNIA")
+		return
 	order=s
 	if s=="ZGROMADZENIE":
 		set_notice("Idol zwołuje mieszkańców do ogniska")
 	elif s=="ODKRYCIA":
 		set_notice("Idol kieruje ciekawych do kamieni odkryć")
+	elif s=="DRWAL":
+		set_notice("Idol wysyła drwali do obozu i lasu")
+	elif s=="RYBY":
+		set_notice("Idol wysyła rybaków nad łowisko")
+	elif s=="GÓRNIK":
+		set_notice("Idol wysyła górników do złóż")
 	elif s=="ŁOWY":
 		set_notice("Idol wysyła łowców na skraj łąki")
 	redirect_people()
@@ -3506,9 +4126,9 @@ func has_retarget_motion(v):
 func animation_state_for(v,moving):
 	if moving:
 		return "walk"
-	if v.job=="PATYKI":
+	if v.job in ["PATYKI","DRWAL"]:
 		return "chop"
-	if v.job in ["KAMIEŃ","JAGODY","ŁOWY"]:
+	if v.job in ["KAMIEŃ","GÓRNIK","JAGODY","RYBY","ŁOWY"]:
 		return "gather"
 	if v.job=="BUDOWA":
 		return "work"
@@ -3586,7 +4206,7 @@ func apply_bone_pose(v,moving):
 		if not use_anim_lower:
 			pose_bone_delta(v,"thigh_l",Vector3(.035,0,0))
 			pose_bone_delta(v,"thigh_r",Vector3(-.035,0,0))
-	elif v.job in ["PATYKI","KAMIEŃ","JAGODY","ŁOWY"]:
+	elif v.job in ["PATYKI","DRWAL","KAMIEŃ","GÓRNIK","JAGODY","RYBY","ŁOWY"]:
 		pose_bone_delta(v,"spine_01",Vector3(-.06+work*.016,0,0))
 		pose_bone_delta(v,"upperarm_l",Vector3(-.06+work*.035,0,-1.18))
 		pose_bone_delta(v,"upperarm_r",Vector3(-.06-work*.035,0,1.18))
@@ -3753,7 +4373,7 @@ func apply_body_proxy_pose(v,moving):
 		arm_r=Vector3(-16-work*8,0,12)
 		hand_l=Vector3(-.34,.68,-.18)
 		hand_r=Vector3(.34,.68,-.18)
-	elif job in ["PATYKI","KAMIEŃ","JAGODY","ŁOWY"]:
+	elif job in ["PATYKI","DRWAL","KAMIEŃ","GÓRNIK","JAGODY","RYBY","ŁOWY"]:
 		arm_l=Vector3(-12+work*5,0,-11)
 		arm_r=Vector3(-11-work*5,0,11)
 		hand_l=Vector3(-.35,.6,-.16)
@@ -3825,7 +4445,7 @@ func apply_living_pose(v,d,moving,flat_dir):
 		bob=abs(sin(v.phase*1.4))*0.018
 		pitch=sin(v.phase*.9)*.55
 		roll=sin(v.phase*.7)*.5
-	elif v.job in ["PATYKI","KAMIEŃ","JAGODY","ŁOWY"]:
+	elif v.job in ["PATYKI","DRWAL","KAMIEŃ","GÓRNIK","JAGODY","RYBY","ŁOWY"]:
 		bob=max(0.0,sin(v.phase*2.0))*0.024
 		pitch=-2.4+sin(v.phase*2.0)*.75
 	elif v.job=="ODKRYCIA":
@@ -3911,7 +4531,7 @@ func _process(d):
 	if notice_timer>0.0:
 		notice_timer=max(0.0,notice_timer-d)
 	var status=(notice if notice_timer>0.0 else plan_brief())
-	hud.text="%s\nEpoka kamienia | Wola %.0f%% | Życie %d%% | Tech %d\n%s | Ludzie %d (D%d Dz%d) | Pary %d | Schron. %d/%d | Więź %.0f%%\nZapas: P %d/%d  K %d/%d  J %d/%d\nMięso %d/%d  Skóry %d/%d | %s | D %d  S %d  W %d\n%s\n%s" % [VERSION_TITLE,idol_will,life_progress_percent(),tech_points,order,people.size(),count_adults(),count_children(),count_pairs(),sheltered_people(),people.size(),average_bond()*100.0,stock.sticks,resource_capacity("sticks"),stock.stone,resource_capacity("stone"),stock.berries,resource_capacity("berries"),stock.meat,resource_capacity("meat"),stock.hides,resource_capacity("hides"),wildlife_summary(),buildings.houses,buildings.granaries,buildings.workshops,status,chapter_goal()]
+	hud.text="%s\nEpoka kamienia | Wola %.0f%% | Życie %d%% | Tech %d\n%s | Ludzie %d (D%d Dz%d) | Pary %d | Schron. %d/%d | Więź %.0f%%\nZapas: P %d/%d  D %d/%d  K %d/%d  J %d/%d\nJedzenie: mięso %d/%d  ryby %d/%d  skóry %d/%d | %s\nRudy: Fe %d/%d  Wg %d/%d  Cu %d/%d | Bud: Dom %d S %d W %d\nInfra: drwal %d  myśl. %d  rybak %d  kam. %d  kop. %d\n%s\n%s" % [VERSION_TITLE,idol_will,life_progress_percent(),tech_points,order,people.size(),count_adults(),count_children(),count_pairs(),sheltered_people(),people.size(),average_bond()*100.0,stock.sticks,resource_capacity("sticks"),stock.wood,resource_capacity("wood"),stock.stone,resource_capacity("stone"),stock.berries,resource_capacity("berries"),stock.meat,resource_capacity("meat"),stock.fish,resource_capacity("fish"),stock.hides,resource_capacity("hides"),wildlife_summary(),stock.iron,resource_capacity("iron"),stock.coal,resource_capacity("coal"),stock.copper,resource_capacity("copper"),buildings.houses,buildings.granaries,buildings.workshops,buildings.lumber_camps,buildings.hunter_huts,buildings.fisher_huts,buildings.quarries,buildings.mines,status,chapter_goal()]
 	var v=people[selected]
 	info.text="%s — %s, %d lat | %s\nPraca: %s | %s | Więź %.0f%% | Mowa %.0f%%\nLubi: %s | Obawa: %s\nGłód %.0f  Energia %.0f | S%d Z%d I%d\nUmiej.: drw %.1f  zb %.1f  łow %.1f  bud %.1f  odk %.1f\n%s\n%s" % [v.name,v.trait,v.age,family_label(v),v.job,carry_label(v.carry),v.bond*100.0,actor_language(v)*100.0,actor_like(v),actor_worry(v),v.hunger,v.energy,v.str,v.dex,v.int,v.wood,v.gather,float(v.get("hunt",0.0)),v.build,v.knowledge,plan_brief(),worker_summary()]
 

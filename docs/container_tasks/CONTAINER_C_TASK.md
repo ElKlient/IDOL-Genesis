@@ -68,6 +68,30 @@ Focus areas:
 - `make_wild_deer()`
 - vendor source under `assets/third_party_model_packs/`
 
+## Round 0.8.27 instruction from Container A
+
+Base is now `0.8.27 Resource Infrastructure`. Container A added visible deposits and first-pass resource buildings, but some may still look procedural.
+
+Your job now:
+
+1. Pull latest `main` and inspect the new resource visuals in `scripts/main.gd`.
+2. Pick the worst remaining placeholder category: mineral deposits, forest sources, fish huts, lumber camp, quarry, mine or hunter hut.
+3. Prefer a small mobile-safe implemented patch using existing active assets from `assets/environment/` or simple mesh polish.
+4. Do not import a broad new pack and do not touch people animation, economy balance, UI commands or Android workflow.
+5. If no asset is good enough, write a concrete asset plan naming exactly which object should be replaced later.
+
+Focus functions:
+
+- `make_resource_landmarks()`
+- `add_mineral_deposit()`
+- `add_forest_source()`
+- `add_fish_source()`
+- `make_lumber_camp()`
+- `make_hunter_hut()`
+- `make_fisher_hut()`
+- `make_quarry()`
+- `make_mine()`
+
 ## 30 minute check
 
 While active or waiting, every 30 minutes check this file and `WORKFLOW_FIRST.md` for new Container A instructions.

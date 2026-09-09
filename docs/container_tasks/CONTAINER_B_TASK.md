@@ -67,6 +67,20 @@ Focus functions:
 - `pose_walk_arm()`
 - `pose_walk_leg()`
 
+## Round 0.8.27 instruction from Container A
+
+Base is now `0.8.27 Resource Infrastructure`. The world has new resource sources and new work targets: forest sources, fish sources, stone deposits, iron/coal/copper deposits, lumber camps, hunter huts, fisher huts, quarries and mines.
+
+Your job now:
+
+1. Pull latest `main`.
+2. Watch settlers in AUTO after the new buildings are queued and completed.
+3. Verify movement and poses for `DRWAL`, `RYBY` and `GÓRNIK`, especially when workers turn near huts, river edges, deposits and stockpile.
+4. Check that added obstacles do not cause sliding, crowd clumps or jitter around work points.
+5. If patching, touch only people/pose/path-safety code and keep the current people model.
+
+Report whether the current model can support the new resource economy after small animation tweaks, or whether Container A must schedule a deeper human animation pass.
+
 ## 30 minute check
 
 While active or waiting, every 30 minutes check this file and `WORKFLOW_FIRST.md` for new Container A instructions.

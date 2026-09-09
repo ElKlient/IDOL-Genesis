@@ -1,6 +1,6 @@
 START DLA KONTENEROW: najpierw przeczytaj WORKFLOW_FIRST.md.
 
-IDOL Genesis 0.8.26 - EARTH AND SHELTER POLISH
+IDOL Genesis 0.8.27 - RESOURCE INFRASTRUCTURE
 
 Prompt roboczy tej łatki:
 Zbuduj pierwszy grywalny rdzeń osady epoki kamienia. Gracz jest Idolem: wolą osady, nie dowódcą armii. Ludzie mają samodzielnie dzielić robotę, nosić surowce, budować podstawowe budynki, odpoczywać, tworzyć pierwsze więzi i odkrywać proste technologie przez zadania.
@@ -10,6 +10,15 @@ Kierunek gry:
 - ludzie nie są wojskiem do szkolenia, tylko pierwszą społecznością
 - później mają tworzyć pary, rozmnażać się, budować relacje, dzielić się na grupy i wchodzić w konflikty
 - rozwój technologii wynika z prostych zadań, które Idol zleca mieszkańcom
+
+Zmiany 0.8.27:
+- dodano pierwszą pełną infrastrukturę surowcową: obóz drwali, chatę myśliwego, chatę rybacką, kamieniołom i kopalnię rud
+- świat dostał czytelne źródła zasobów: połacie lasu, złoża kamienia, żelaza, węgla i miedzi oraz łowiska przy rzece
+- ekonomia obejmuje teraz drewno, ryby, żelazo, węgiel i miedź obok patyków, kamienia, jagód, mięsa i skór
+- AUTO i ręczne rozkazy potrafią wysyłać ludzi do pracy jako drwale, rybacy i górnicy, a budynki wzmacniają wydajność pracy
+- menu budowy dostało przyciski dla nowych budynków, a HUD pokazuje zapasy, rudy i stan infrastruktury
+- cele rozdziału prowadzą gracza przez pierwsze domy, jedzenie, ryby, drewno, kamieniołom, warsztat i kopalnię
+- zadania B/C/D/E zostały przestawione na bazę `0.8.27`, z naciskiem na test ludzi przy nowych trasach, assety złóż/budynków, Android performance i dalsze ręczne stawianie budynków
 
 Zmiany 0.8.26:
 - dopracowano materialny odbiór osady: chaty i spichlerz mają mniej czerwone, bardziej ziemiste dachy z nieregularnymi trzcinowo-drewnianymi pasami

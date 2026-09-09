@@ -63,3 +63,16 @@ All helper containers must treat `0.8.26` as the newest base:
 - E: prepare one compact HUD/presentation patch so the screen reads as a game, not a debug board.
 
 If you are active, pull now and update your log with whether you are continuing, blocked, or handing off.
+
+## Active gameplay sprint - 0.8.27
+
+Container A pushed the resource infrastructure pass as `0.8.27 Resource Infrastructure`.
+
+All helper containers must treat `0.8.27` as the newest base:
+
+- B: verify settlers around new work routes and buildings: forest camps, fish huts, quarries, mines and resource deposits.
+- C: improve the worst remaining placeholder-looking resource/building visuals using existing active assets or small procedural changes.
+- D: validate Android/Godot import/runtime and node density after the new deposits, huts and resource landmarks.
+- E: continue the settlement economy: manual placement UX, building requirements, simple resource progression and clearer objectives.
+
+If you are active, pull now and log whether your lane needs a patch, Android test, or Container A decision.

@@ -1,5 +1,5 @@
 [application]
-config/name="IDOL Genesis 0.8.26 Earth and Shelter Polish"
+config/name="IDOL Genesis 0.8.27 Resource Infrastructure"
 run/main_scene="res://main.tscn"
 
 [display]

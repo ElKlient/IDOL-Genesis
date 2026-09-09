@@ -70,6 +70,29 @@ Focus functions:
 - `set_order(s)`
 - `update_settler_chat(d)`
 
+## Round 0.8.27 instruction from Container A
+
+Base is now `0.8.27 Resource Infrastructure`. Container A implemented the first resource economy vertical: wood, fish, iron, coal, copper, resource sources, new buildings, worker jobs, build menu and HUD.
+
+Your job now:
+
+1. Pull latest `main`.
+2. Review the resource loop for balance and player clarity: costs, capacities, AUTO priorities, chapter goals and HUD readability.
+3. Design or implement the next small gameplay patch for manual building placement: select building, show legal resource-adjacent locations, confirm/cancel.
+4. Preserve current touch controls and do not add a giant management screen.
+5. Do not touch terrain art, people animation, asset imports or Android workflow.
+
+Focus functions:
+
+- `building_cost(kind)`
+- `pick_build_pos(kind)`
+- `queue_build_plan(kind)`
+- `is_build_pos_clear_for_kind(p, kind)`
+- `make_ui()`
+- `set_order(s)`
+- `chapter_goal()`
+- `choose_work(v)`
+
 ## 30 minute check
 
 While active or waiting, every 30 minutes check this file and `WORKFLOW_FIRST.md` for new Container A instructions.
