@@ -33,6 +33,7 @@ const COLOR_REST := Color(0.62, 0.50, 0.27, 0.84)
 const COLOR_TODAY := Color(0.92, 0.72, 0.38)
 const PORTRAIT_WIDTH := 640
 const TILE_COLUMNS := 7
+const APP_VERSION_LABEL := "wersja: kafelki 7"
 
 var calculator := ScheduleCalculator.new()
 var current_year: int
@@ -127,7 +128,7 @@ func _build_ui() -> void:
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	root.add_child(title)
 
-	var subtitle := _make_label("Pusty grafik. Kliknij dzień i układaj cykl.", 20, COLOR_TEXT_MUTED)
+	var subtitle := _make_label("Pusty grafik. %s" % APP_VERSION_LABEL, 20, COLOR_TEXT_MUTED)
 	subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	root.add_child(subtitle)
 
