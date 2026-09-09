@@ -351,3 +351,44 @@ Validation completed:
 Known limitation:
 
 - this container still relies on Android screenshots/video for final visual judgment; local headless Godot validates runtime but does not provide a trustworthy rendered phone screenshot.
+
+## Container A Patch - 0.8.26 Earth and Shelter Polish - 2026-09-09
+
+Goal: continue the visual push after the user asked for another update and wanted helper containers pushed back into active work.
+
+Implemented in `scripts/main.gd`:
+
+- bumped version title to `IDOL -- GENESIS 0.8.26 EARTH AND SHELTER POLISH`,
+- added `make_ground_shadow(...)`, `make_grit_scatter(...)`, `make_twig_litter(...)` and `make_earth_and_shelter_polish(home_a, home_b)`,
+- added object contact shadows under the Idol, hearth, stockpile, research stones, homes, granary and workshop so scenery reads less like loose pieces on a flat board,
+- muted the red roof palette on houses, granary and workshop toward brown/earth/thatch colors,
+- added irregular reed/thatch strips and darker roof dirt to reduce clean plastic roof shapes,
+- added grit, pebbles, chips and twig litter around the Idol plaza, hearth, stockpile, homes, river edges and hide-work area,
+- added small branch geometry to trees so the tree silhouettes are less repetitive round blobs.
+
+Documentation and coordination:
+
+- updated `README.txt`, `WORKFLOW_FIRST.md`, `docs/CONTAINER_HANDOFF_PROMPT.md` and `project.godot` for 0.8.26,
+- added active 0.8.26 task sections for B/C/D/E:
+  - B: judge current people/walk in the heavier visual center,
+  - C: pick the single worst remaining toy-looking environment category and patch it,
+  - D: validate Android/import/runtime and node density after the extra small static nodes,
+  - E: prepare one compact HUD/presentation cleanup.
+
+Preserved:
+
+- current people model, skeleton, procedural walk and retargeter flag,
+- AI/resource/build/hunt gameplay,
+- Android Termux update workflow,
+- active lightweight GLB prop set and procedural fallbacks.
+
+Validation completed:
+
+- `git diff --check`: clean
+- Godot headless editor import: clean
+- Godot headless runtime startup: clean
+- 8 second headless startup: clean until expected timeout
+
+Known limitation:
+
+- final visual judgment still needs the user's Android screenshot/video because headless Godot cannot show the phone-frame composition reliably here.

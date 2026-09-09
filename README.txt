@@ -1,6 +1,6 @@
 START DLA KONTENEROW: najpierw przeczytaj WORKFLOW_FIRST.md.
 
-IDOL Genesis 0.8.25 - GROUNDED SETTLEMENT PASS
+IDOL Genesis 0.8.26 - EARTH AND SHELTER POLISH
 
 Prompt roboczy tej łatki:
 Zbuduj pierwszy grywalny rdzeń osady epoki kamienia. Gracz jest Idolem: wolą osady, nie dowódcą armii. Ludzie mają samodzielnie dzielić robotę, nosić surowce, budować podstawowe budynki, odpoczywać, tworzyć pierwsze więzi i odkrywać proste technologie przez zadania.
@@ -10,6 +10,14 @@ Kierunek gry:
 - ludzie nie są wojskiem do szkolenia, tylko pierwszą społecznością
 - później mają tworzyć pary, rozmnażać się, budować relacje, dzielić się na grupy i wchodzić w konflikty
 - rozwój technologii wynika z prostych zadań, które Idol zleca mieszkańcom
+
+Zmiany 0.8.26:
+- dopracowano materialny odbiór osady: chaty i spichlerz mają mniej czerwone, bardziej ziemiste dachy z nieregularnymi trzcinowo-drewnianymi pasami
+- dodano cienie kontaktowe pod Idolem, ogniskiem, składem, kamieniami odkryć, chatami, spichlerzem i warsztatem, żeby obiekty nie wyglądały jak położone na planszy
+- dodano drugi pass brudu centrum: żwir, małe kamienie, drewniane odłamki i gałęzie przy placu Idola, ognisku, składzie, domach, brzegu rzeki i strefie skór
+- drzewa dostały dodatkowe gałęzie i bardziej nieregularną sylwetkę, żeby mniej przypominały powtarzalne zielone kule
+- warsztat i przyszłe budynki dostały bardziej przygaszone, brązowo-słomiane dachy spójne z klimatem osady
+- zadania B/C/D/E zostały ponownie podbite do `0.8.26`, z naciskiem na test ludzi, assety środowiska, Android performance i mniej debugowy HUD
 
 Zmiany 0.8.25:
 - przebudowano bazowy teren z płaskiego `PlaneMesh` na lekką siatkę `ArrayMesh`, dzięki czemu świat ma subtelne pofałdowanie i mniej wygląda jak płaska plansza

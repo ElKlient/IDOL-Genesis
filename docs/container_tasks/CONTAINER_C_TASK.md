@@ -37,6 +37,18 @@ Priority visual targets:
 - stronger dirt/stone/wood clutter near the Idol plaza,
 - better background edge so the map no longer reads as a toy board.
 
+## Round 0.8.26 instruction from Container A
+
+Base is now `0.8.26 Earth and Shelter Polish`. Container A muted roofs, added object shadows, grit, twigs, stones and rougher tree silhouettes.
+
+Your job now:
+
+1. Pull latest `main` and inspect the first viewport composition from the code.
+2. Pick the single worst remaining toy-looking category: trees, huts/roofs, fences, river edges, stockpile or ground clutter.
+3. Prefer a small implemented patch using existing active assets or safe procedural mesh changes.
+4. Do not add a broad new asset pack and do not touch people, gameplay balance, UI layout or Android commands.
+5. If implementing trees, keep mobile count controlled through `world_count()` and avoid expensive materials.
+
 Read first:
 
 1. `WORKFLOW_FIRST.md`

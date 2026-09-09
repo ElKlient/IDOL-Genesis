@@ -10,11 +10,13 @@ Pracujesz nad repozytorium `ElKlient/IDOL-Genesis`, gra w Godot 4.x na Androida.
 
 Aktualny cel klimatu: niskopoligonowa osada epoki kamienia / wczesnego sredniowiecza. Ma byc ziemia, ogien, patyki, kamien, jagody, skory, jelenie, suszarnie skor, prymitywne narzedzia, oszczepy i delikatna zapowiedz pozniejszej stali/mieczy. Gra ma zostac lekka na Androidzie.
 
-Aktualna baza po Kontenerze A: `0.8.25 Grounded Settlement Pass`. Scena ma mocniejszy kierunek referencyjny z telefonu: ciemniejsza trawa, cieplejsze swiatlo, bardziej konkretne brzegi rzeki, dwa drewniane przejscia, bogatsze chaty z kominami/dymem/swiatlem, gestsza palisada, schowane pływające ladunki ludzi, ciemniejsze premium UI, ciagla rzeka, organiczne plamy ziemi, pofaldowana baza terenu, niskie grzbiety na horyzoncie i cienie pod osadnikami. Nastepne kontenery maja oceniac przede wszystkim czy to na Androidzie czyta sie jako osada z klimatem, a nie plaska makieta.
+Aktualna baza po Kontenerze A: `0.8.26 Earth and Shelter Polish`. Scena ma mocniejszy kierunek referencyjny z telefonu: ciemniejsza trawa, cieplejsze swiatlo, bardziej konkretne brzegi rzeki, dwa drewniane przejscia, bogatsze chaty z kominami/dymem/swiatlem, gestsza palisada, schowane pływające ladunki ludzi, ciemniejsze premium UI, ciagla rzeka, organiczne plamy ziemi, pofaldowana baza terenu, niskie grzbiety na horyzoncie, cienie pod osadnikami i obiektami, mniej czerwone dachy oraz brudny plac z drobnym kamieniem/drewnem. Nastepne kontenery maja oceniac przede wszystkim czy to na Androidzie czyta sie jako osada z klimatem, a nie plaska makieta.
 
 Aktualizacja Kontenera A: `0.8.24 Organic World Pass` po screenach z Androida. Prostokatne laty ziemi zostaly zastapione owalnymi warstwami, rzeka jest ciagla siatka z pasami brzegu, bazowy teren jest wiekszy, obrzeza maja wiecej lasu, chaty/spichlerz sa przygaszone i zabrudzone, a UI/marker wyboru mniej dominuja obraz. Przy kolejnej ocenie sprawdzic, czy scena nadal czyta sie jak kafle i czy kolor dachow/ziemi jest wystarczajaco realistyczny na telefonie.
 
 Aktualizacja Kontenera A: `0.8.25 Grounded Settlement Pass` po kolejnej uwadze uzytkownika, ze obraz nadal wyglada sztucznie. Plaski `PlaneMesh` terenu zostal zastapiony lekka siatka `ArrayMesh`, dodano niskie grzbiety i mase obrzezy, ludzie dostali cienie pod stopami i pelniejsze warstwy odziezy, a startowa kamera/UI zostaly odciazone, zeby pierwszy kadr mniej przypominal plansze testowa.
+
+Aktualizacja Kontenera A: `0.8.26 Earth and Shelter Polish`. Po prosbie o kolejna aktualizacje dopracowano materialny odbior chat/spichlerza/warsztatu, przygaszono czerwien dachow, dodano cienie kontaktowe pod waznymi obiektami, drugi pass drobnego gruzu/galazek/kamieni w centrum oraz nowe instrukcje dla B/C/D/E pod dalsza prace graficzno-prezentacyjna.
 
 ## Biezace zadania B/C/D/E
 

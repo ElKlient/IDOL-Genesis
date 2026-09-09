@@ -36,6 +36,18 @@ Watch especially:
 - bottom chat panel position over the world,
 - command grid readability with lighter panel opacity from 0.8.25.
 
+## Round 0.8.26 instruction from Container A
+
+Base is now `0.8.26 Earth and Shelter Polish`. The world got more visual detail, so the next presentation risk is that the HUD still makes the screen feel like a debug prototype.
+
+Your job now:
+
+1. Pull latest `main`.
+2. Propose or implement one small presentation patch: compact HUD mode, cleaner selected-person panel, or command grouping.
+3. Preserve all existing touch controls and commands.
+4. Do not touch terrain, art assets, people animation, Android workflow or resource balance.
+5. Report whether Container A should approve a bigger UI pass after visual work stabilizes.
+
 Read first:
 
 1. `WORKFLOW_FIRST.md`

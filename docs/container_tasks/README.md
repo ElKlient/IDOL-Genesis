@@ -50,3 +50,16 @@ All helper containers must pull latest `main` and treat `0.8.25` as the new base
 - E: reduce the debug feel of HUD/game presentation without breaking the current touch controls.
 
 Do not keep working from the old `0.8.20` assignment without first reading your own updated task file.
+
+## Active visual sprint - 0.8.26
+
+Container A pushed the next visual pass as `0.8.26 Earth and Shelter Polish`.
+
+All helper containers must treat `0.8.26` as the newest base:
+
+- B: judge people/walk after the heavier world pass; report whether the current model still needs deeper animation work.
+- C: stop at the visible art problem: replace or improve the worst toy-looking environment pieces, especially trees/roof treatment/ground clutter.
+- D: validate node count/import/runtime on Android path after the extra cinders, grit, twigs and object shadows.
+- E: prepare one compact HUD/presentation patch so the screen reads as a game, not a debug board.
+
+If you are active, pull now and update your log with whether you are continuing, blocked, or handing off.

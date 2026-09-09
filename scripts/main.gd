@@ -22,7 +22,7 @@ const PROP_PADDLE=preload("res://assets/environment/kenney_nature/canoe_paddle.g
 const PROP_LOG_STACK=preload("res://assets/environment/kenney_nature/log_stack.glb")
 const PROP_ROCK_LARGE=preload("res://assets/environment/kenney_nature/rock_largeA.glb")
 const RETARGETER=preload("res://scripts/retargeter.gd")
-const VERSION_TITLE="IDOL — GENESIS 0.8.25 GROUNDED SETTLEMENT PASS"
+const VERSION_TITLE="IDOL — GENESIS 0.8.26 EARTH AND SHELTER POLISH"
 const CAMERA_MIN_DISTANCE=5.5
 const CAMERA_MAX_DISTANCE=88.0
 const CAMERA_HEIGHT_RATIO=0.61
@@ -385,6 +385,7 @@ func _ready():
 	make_living_camp_props(home_a,home_b)
 	make_climate_surface_pass(home_a,home_b)
 	make_realistic_visual_pass(home_a,home_b)
+	make_earth_and_shelter_polish(home_a,home_b)
 
 	for i in range(10): make_person(i)
 	make_selection_marker()
@@ -509,6 +510,10 @@ func make_tree(p,scale):
 	for a in [0.0,120.0,240.0]:
 		var root=box(p+Vector3(cos(deg_to_rad(a))*.28*scale,.12,sin(deg_to_rad(a))*.28*scale),Vector3(.11*scale,.12*scale,.72*scale),Color("#46301f"))
 		root.rotation_degrees.y=a+rng.randf_range(-12,12)
+	for i in range(rng.randi_range(1,3)):
+		var a=rng.randf_range(0,TAU)
+		var branch=box(p+Vector3(cos(a)*.18*scale,2.25*scale,sin(a)*.18*scale),Vector3(.07*scale,.07*scale,rng.randf_range(.72,1.1)*scale),Color("#3b281c"))
+		branch.rotation_degrees=Vector3(rng.randf_range(-18,18),rad_to_deg(a)+90.0,rng.randf_range(18,36))
 
 func make_rock(p,scale):
 	var rock_cols=[Color("#777a72"),Color("#696d68"),Color("#858277"),Color("#6d7069")]
@@ -533,6 +538,36 @@ func make_entity_shadow(parent,rx,rz,alpha=.22):
 	sh.name="Cien postaci"
 	sh.scale=Vector3(rx,1.0,rz)
 	return sh
+
+func make_ground_shadow(p,size,rot=0.0,alpha=.20):
+	var sh=make_surface_stain(p,size,Color(0.0,0.0,0.0,alpha),rot)
+	sh.name="Cien kontaktowy"
+	sh.position.y=.083
+	return sh
+
+func make_grit_scatter(center,rx,rz,count,rot=0.0):
+	var cols=[Color("#6f6f64"),Color("#56584f"),Color("#7b735f"),Color("#3f3528"),Color("#6a4a2d")]
+	for i in range(world_count(count)):
+		var off=rotated_offset(rng.randf_range(-rx,rx),rng.randf_range(-rz,rz),rot)
+		var p=center+off+Vector3(0,.115,0)
+		if abs(p.x-river_x_at_z(p.z))<3.25:
+			continue
+		if rng.randf()<.68:
+			var chip=box(p,Vector3(rng.randf_range(.08,.24),rng.randf_range(.025,.07),rng.randf_range(.08,.28)),cols[rng.randi_range(0,cols.size()-1)])
+			chip.rotation_degrees=Vector3(rng.randf_range(-6,6),rot+rng.randf_range(-55,55),rng.randf_range(-5,5))
+		else:
+			var peb=cyl(p,.055,.035,cols[rng.randi_range(0,cols.size()-1)])
+			peb.scale.x=rng.randf_range(1.1,1.8)
+			peb.rotation_degrees.y=rot+rng.randf_range(-60,60)
+
+func make_twig_litter(center,rx,rz,count,rot=0.0):
+	for i in range(world_count(count)):
+		var off=rotated_offset(rng.randf_range(-rx,rx),rng.randf_range(-rz,rz),rot)
+		var p=center+off+Vector3(0,.135,0)
+		if abs(p.x-river_x_at_z(p.z))<3.15:
+			continue
+		var twig=box(p,Vector3(rng.randf_range(.32,.82),.04,.045),Color("#4b3120"))
+		twig.rotation_degrees=Vector3(rng.randf_range(-3,3),rot+rng.randf_range(-80,80),rng.randf_range(-2,2))
 
 func make_terrain_layers():
 	var cols=[Color("#415734"),Color("#344b30"),Color("#4b5d39"),Color("#514e35"),Color("#3b5434")]
@@ -729,6 +764,24 @@ func make_realistic_visual_pass(home_a,home_b):
 	make_outer_forest_ring()
 	make_background_landforms()
 
+func make_earth_and_shelter_polish(home_a,home_b):
+	make_ground_shadow(Vector3.ZERO,Vector2(5.4,4.0),8,.18)
+	make_ground_shadow(hearth_pos,Vector2(4.8,3.8),-8,.19)
+	make_ground_shadow(STOCKPILE_POS,Vector2(5.2,3.7),-12,.17)
+	make_ground_shadow(RESEARCH_POS,Vector2(3.9,2.7),12,.16)
+	make_ground_shadow(home_a+Vector3(0,0,-.8),Vector2(6.2,5.0),8,.20)
+	make_ground_shadow(home_b+Vector3(0,0,-.8),Vector2(6.2,5.0),-12,.20)
+	for hub in [Vector3.ZERO,hearth_pos,STOCKPILE_POS,RESEARCH_POS,home_a+Vector3(0,0,-3.7),home_b+Vector3(0,0,-3.7),Vector3(4.8,0,11.6)]:
+		make_grit_scatter(hub,3.1,2.2,26,rng.randf_range(-18,18))
+		make_twig_litter(hub,2.8,1.7,12,rng.randf_range(-24,24))
+	for z in [-22,-15,-8,-1,7,15,23]:
+		var x=river_x_at_z(z)
+		make_grit_scatter(Vector3(x-4.55,0,z),1.2,2.4,12,rng.randf_range(-8,8))
+		make_grit_scatter(Vector3(x+4.55,0,z),1.2,2.4,12,rng.randf_range(-8,8))
+	for p in [Vector3(-11,0,-13),Vector3(-14,0,-1),Vector3(12,0,-13),Vector3(15,0,2),Vector3(-17,0,12),Vector3(18,0,12)]:
+		make_ground_patch(p,Vector2(rng.randf_range(3.8,6.2),rng.randf_range(1.6,2.8)),Color("#334a31"),rng.randf_range(0,180))
+		make_grass_clump(p+Vector3(rng.randf_range(-.7,.7),.08,rng.randf_range(-.6,.6)),rng.randf_range(1.1,1.6))
+
 func make_path(a,b,width):
 	var d=b-a
 	var length=max(.1,Vector2(d.x,d.z).length())
@@ -746,6 +799,7 @@ func make_hearth():
 	h.position=hearth_pos
 	add_child(h)
 	add_obstacle(hearth_pos,1.45)
+	make_ground_shadow(hearth_pos,Vector2(4.55,3.65),-4,.17)
 	box_in(h,Vector3(0,.04,0),Vector3(4.1,.08,3.7),Color("#65583d"))
 	for i in range(10):
 		var a=TAU*float(i)/10.0
@@ -771,6 +825,7 @@ func make_stockpile():
 	s.position=STOCKPILE_POS
 	add_child(s)
 	add_obstacle(STOCKPILE_POS,2.2)
+	make_ground_shadow(STOCKPILE_POS,Vector2(5.05,3.45),-9,.16)
 	box_in(s,Vector3(0,.045,0),Vector3(4.8,.09,3.2),Color("#5f5138"))
 	prop_scene(s,PROP_WOOD,Vector3(-1.42,.08,-.55),-12,.88)
 	prop_scene(s,PROP_LOG_STACK,Vector3(-1.45,.08,.72),18,.68)
@@ -799,6 +854,7 @@ func make_research_stones():
 	r.position=RESEARCH_POS
 	add_child(r)
 	add_obstacle(RESEARCH_POS,1.55)
+	make_ground_shadow(RESEARCH_POS,Vector2(3.6,2.55),10,.15)
 	box_in(r,Vector3(0,.04,0),Vector3(3.1,.08,2.2),Color("#696144"))
 	for i in range(4):
 		var a=TAU*float(i)/4.0+PI*.25
@@ -817,13 +873,14 @@ func make_workshop(p):
 	w.rotation_degrees.y=rng.randf_range(-160,160)
 	add_child(w)
 	add_obstacle(p,3.05)
+	make_ground_shadow(p,Vector2(5.3,4.25),w.rotation_degrees.y,.18)
 	box_in(w,Vector3(0,.08,0),Vector3(4.8,.16,3.8),Color("#65573c"))
 	for x in [-1.9,1.9]:
 		for z in [-1.45,1.45]:
 			cyl_in(w,Vector3(x,.82,z),.12,1.65,Color("#5d3d28"))
-	var roof_a=box_in(w,Vector3(-.95,1.84,0),Vector3(2.35,.2,4.2),Color("#7a3e22"))
+	var roof_a=box_in(w,Vector3(-.95,1.84,0),Vector3(2.35,.2,4.2),Color("#5f432d"))
 	roof_a.rotation_degrees.z=14
-	var roof_b=box_in(w,Vector3(.95,1.84,0),Vector3(2.35,.2,4.2),Color("#7a3e22"))
+	var roof_b=box_in(w,Vector3(.95,1.84,0),Vector3(2.35,.2,4.2),Color("#4f3728"))
 	roof_b.rotation_degrees.z=-14
 	box_in(w,Vector3(-1.15,.38,.75),Vector3(1.6,.38,.75),Color("#755333"))
 	for i in range(5):
@@ -1438,13 +1495,14 @@ func make_house(p,rot):
 	add_obstacle(p,3.15)
 	var timber=Color("#3f2b1e")
 	var dark_timber=Color("#2b1f17")
-	var roof_col=Color("#6f3a26")
-	var roof_hi=Color("#85482e")
+	var roof_col=Color("#5d3f2c")
+	var roof_hi=Color("#735238")
+	make_ground_shadow(p+rotated_offset(0,-.8,rot),Vector2(6.05,4.75),rot,.20)
 	box_in(h,Vector3(0,.08,-.42),Vector3(5.15,.16,4.55),Color("#5e5138"))
 	var a=WALL.instantiate(); a.position=Vector3(-1.8,0,0); h.add_child(a); tint_imported_meshes(a,Color("#9b8a6b"))
 	var b=WALL.instantiate(); b.position=Vector3(1.8,0,0); h.add_child(b); tint_imported_meshes(b,Color("#8d8065"))
 	var d=DOOR.instantiate(); d.position=Vector3(0,0,-3.5); d.rotation_degrees.y=180; h.add_child(d); tint_imported_meshes(d,Color("#46301f"))
-	var r=ROOF.instantiate(); r.position=Vector3(0,3,-1.5); r.scale=Vector3(.65,.65,.65); h.add_child(r); tint_imported_meshes(r,Color("#6a3925"))
+	var r=ROOF.instantiate(); r.position=Vector3(0,3,-1.5); r.scale=Vector3(.65,.65,.65); h.add_child(r); tint_imported_meshes(r,Color("#553a29"))
 	var roof_a=box_in(h,Vector3(-1.02,2.92,-1.5),Vector3(2.45,.14,4.7),roof_col)
 	roof_a.rotation_degrees.z=16
 	var roof_b=box_in(h,Vector3(1.02,2.92,-1.5),Vector3(2.45,.14,4.7),roof_col.darkened(.08))
@@ -1459,6 +1517,10 @@ func make_house(p,rot):
 		var side=-1.0 if i%2==0 else 1.0
 		var moss=box_in(h,Vector3(side*rng.randf_range(.55,1.52),3.08,rng.randf_range(-3.2,.62)),Vector3(rng.randf_range(.36,.9),.035,rng.randf_range(.08,.18)),Color("#343f27"))
 		moss.rotation_degrees=Vector3(0,rng.randf_range(-5,5),16*side)
+	for i in range(14):
+		var side=-1.0 if i%2==0 else 1.0
+		var reed=box_in(h,Vector3(side*rng.randf_range(.35,1.62),3.14,rng.randf_range(-3.55,1.0)),Vector3(rng.randf_range(.48,1.12),.035,.045),Color("#3f3428") if i%3==0 else Color("#6a5539"))
+		reed.rotation_degrees=Vector3(0,rng.randf_range(-8,8),16*side+rng.randf_range(-2,2))
 	for x in [-2.3,2.3]:
 		for z in [-3.0,1.22]:
 			var post=cyl_in(h,Vector3(x,1.02,z),.075,2.05,timber)
@@ -1497,15 +1559,20 @@ func make_house(p,rot):
 
 func make_granary(p):
 	add_obstacle(p,2.9)
+	make_ground_shadow(p,Vector2(5.15,4.0),rng.randf_range(-12,12),.18)
 	make_surface_stain(p,Vector2(5.4,4.4),Color("#332b20"),rng.randf_range(-12,12))
 	box(p+Vector3(0,.18,0),Vector3(4.4,.35,3.4),Color("#59432e"))
 	for x in [-1.8,1.8]:
 		for z in [-1.35,1.35]:
 			cyl(p+Vector3(x,.95,z),.12,1.9,Color("#402b1d"))
-	var roof_a=box(p+Vector3(-.9,2.15,0),Vector3(2.2,.22,3.9),Color("#6f3a26"))
+	var roof_a=box(p+Vector3(-.9,2.15,0),Vector3(2.2,.22,3.9),Color("#5d3f2c"))
 	roof_a.rotation_degrees.z=18
-	var roof_b=box(p+Vector3(.9,2.15,0),Vector3(2.2,.22,3.9),Color("#613322"))
+	var roof_b=box(p+Vector3(.9,2.15,0),Vector3(2.2,.22,3.9),Color("#4f3728"))
 	roof_b.rotation_degrees.z=-18
+	for i in range(8):
+		var side=-1.0 if i%2==0 else 1.0
+		var reed=box(p+Vector3(side*rng.randf_range(.42,1.28),2.27,rng.randf_range(-1.72,1.75)),Vector3(rng.randf_range(.42,.9),.035,.045),Color("#6b553a"))
+		reed.rotation_degrees=Vector3(0,rng.randf_range(-6,6),18*side)
 	for i in range(4):
 		var c=CRATE.instantiate(); c.position=p+Vector3(-1.35+i*.9,.36,.25); c.scale=Vector3(.8,.8,.8); add_child(c)
 	box(p+Vector3(0,1.2,-1.75),Vector3(2.0,.75,.22),Color("#b49b69"))

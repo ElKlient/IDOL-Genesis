@@ -33,6 +33,18 @@ Your job now:
 
 Do not touch people animation, terrain art direction, gameplay balance, or HUD design unless fixing a direct runtime break.
 
+## Round 0.8.26 instruction from Container A
+
+Base is now `0.8.26 Earth and Shelter Polish`. The patch adds more small static nodes: grit, twigs, roof strips, extra tree branches and object shadows.
+
+Your job now:
+
+1. Pull latest `main`.
+2. Run the required Godot import/runtime checks and report timings if easy to capture.
+3. Inspect whether the added node density is acceptable for Android or needs batching/reduction.
+4. Verify no generated cache/import/UID files are accidentally staged.
+5. Keep the user Termux command simple: no `.godot` deletion and no `git stash -u` for normal updates.
+
 Read first:
 
 1. `WORKFLOW_FIRST.md`

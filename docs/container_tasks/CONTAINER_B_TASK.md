@@ -38,6 +38,18 @@ Specific things to watch:
 - root rotation when settlers turn near hearth/stockpile/bridges,
 - whether root gear hides the silhouette or creates new visual junk.
 
+## Round 0.8.26 instruction from Container A
+
+Base is now `0.8.26 Earth and Shelter Polish`. The world is visually heavier: object shadows, darker roofs, more grit/twigs/rocks and a busier Idol plaza.
+
+Your job now:
+
+1. Pull latest `main`.
+2. Watch whether settlers remain readable while moving through the busier center.
+3. If they still look like rigid mannequins, make one minimal people-only animation patch and document exactly which pose axis/rhythm changed.
+4. Check if new ground clutter visually hides feet or makes the walk look worse from the default camera.
+5. Do not touch visual terrain, roofs, UI, assets, resources or Android workflow.
+
 Read first:
 
 1. `WORKFLOW_FIRST.md`
