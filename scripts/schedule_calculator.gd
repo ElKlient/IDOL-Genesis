@@ -1,60 +1,118 @@
 extends RefCounted
 
-enum DayState { WORK, HOME }
+enum DayState { WORK, HOME, TRAVEL, REST }
 
+var mode: String = "preset"
 var start_day_index: int = 0
 var work_days: int = 14
 var home_days: int = 7
-var starts_with_work: bool = true
+var commute_before_days: int = 1
+var commute_after_days: int = 1
+var rest_every_work_days: int = 6
+var custom_pattern: Array[int] = []
 var last_error: String = ""
 
 
-func configure(start_date_text: String, work_units: int, home_units: int, unit: String, start_with_work: bool = true) -> bool:
+func configure_preset(
+	start_date_text: String,
+	work_units: int,
+	home_units: int,
+	unit: String,
+	commute_before: int,
+	commute_after: int,
+	use_weekly_rest: bool
+) -> bool:
 	var parsed := parse_date(start_date_text)
 	if parsed.is_empty():
-		last_error = "Podaj date w formacie RRRR-MM-DD."
+		last_error = "Podaj datę w formacie RRRR-MM-DD."
 		return false
 
 	var multiplier := 7 if unit == "weeks" else 1
+	mode = "preset"
 	work_days = max(1, work_units * multiplier)
 	home_days = max(1, home_units * multiplier)
-	starts_with_work = start_with_work
+	commute_before_days = max(0, commute_before)
+	commute_after_days = max(0, commute_after)
+	rest_every_work_days = 6 if use_weekly_rest else 0
+	custom_pattern.clear()
+	start_day_index = day_index_from_date(int(parsed["year"]), int(parsed["month"]), int(parsed["day"]))
+	last_error = ""
+	return true
+
+
+func configure_custom(start_date_text: String, pattern: Array[int]) -> bool:
+	var parsed := parse_date(start_date_text)
+	if parsed.is_empty():
+		last_error = "Podaj datę w formacie RRRR-MM-DD."
+		return false
+	if pattern.is_empty():
+		last_error = "Własny cykl musi mieć przynajmniej jeden dzień."
+		return false
+
+	custom_pattern.clear()
+	for state in pattern:
+		var clean_state := clampi(int(state), DayState.WORK, DayState.REST)
+		custom_pattern.append(clean_state)
+
+	mode = "custom"
 	start_day_index = day_index_from_date(int(parsed["year"]), int(parsed["month"]), int(parsed["day"]))
 	last_error = ""
 	return true
 
 
 func get_state_for_day(day_index: int) -> int:
-	var cycle_days := work_days + home_days
+	if mode == "custom":
+		var custom_cycle_days := max(1, custom_pattern.size())
+		var custom_offset := positive_mod(day_index - start_day_index, custom_cycle_days)
+		return int(custom_pattern[custom_offset])
+
+	var cycle_days := max(1, work_days + home_days)
 	var offset := positive_mod(day_index - start_day_index, cycle_days)
 
-	if starts_with_work:
-		return DayState.WORK if offset < work_days else DayState.HOME
+	if offset < work_days:
+		return DayState.REST if _is_rest_day_in_work_block(offset) else DayState.WORK
 
-	return DayState.HOME if offset < home_days else DayState.WORK
+	var home_offset := offset - work_days
+	if home_offset < commute_after_days:
+		return DayState.TRAVEL
+	if home_offset >= home_days - commute_before_days:
+		return DayState.TRAVEL
+	return DayState.HOME
 
 
 func count_month(year: int, month: int) -> Dictionary:
-	var work_count := 0
-	var home_count := 0
+	var result := _empty_counts()
 	var days := days_in_month(year, month)
 
 	for day in range(1, days + 1):
-		var state := get_state_for_day(day_index_from_date(year, month, day))
-		if state == DayState.WORK:
-			work_count += 1
-		else:
-			home_count += 1
+		_add_state_to_counts(result, get_state_for_day(day_index_from_date(year, month, day)))
 
-	return {
-		"work": work_count,
-		"home": home_count,
-	}
+	return result
+
+
+func count_months(start_year: int, start_month: int, month_count: int) -> Dictionary:
+	var result := _empty_counts()
+	var year := start_year
+	var month := start_month
+
+	for _i in range(month_count):
+		var month_counts := count_month(year, month)
+		result["work"] += int(month_counts["work"])
+		result["home"] += int(month_counts["home"])
+		result["travel"] += int(month_counts["travel"])
+		result["rest"] += int(month_counts["rest"])
+
+		month += 1
+		if month > 12:
+			month = 1
+			year += 1
+
+	return result
 
 
 func days_until_next_change(day_index: int) -> int:
 	var state := get_state_for_day(day_index)
-	var cycle_days := work_days + home_days
+	var cycle_days := max(1, get_cycle_days())
 
 	for offset in range(1, cycle_days + 1):
 		if get_state_for_day(day_index + offset) != state:
@@ -63,8 +121,47 @@ func days_until_next_change(day_index: int) -> int:
 	return 0
 
 
+func get_cycle_days() -> int:
+	if mode == "custom":
+		return max(1, custom_pattern.size())
+	return max(1, work_days + home_days)
+
+
 func cycle_label() -> String:
-	return "%d dni praca / %d dni dom" % [work_days, home_days]
+	if mode == "custom":
+		return "własny cykl: %d dni" % get_cycle_days()
+	return "%d dni wyjazdu / %d dni domu" % [work_days, home_days]
+
+
+func _is_rest_day_in_work_block(work_offset: int) -> bool:
+	if rest_every_work_days <= 0:
+		return false
+	if work_offset < rest_every_work_days:
+		return false
+	if work_offset >= work_days - 1:
+		return false
+	return positive_mod(work_offset + 1, rest_every_work_days + 1) == 0
+
+
+func _empty_counts() -> Dictionary:
+	return {
+		"work": 0,
+		"home": 0,
+		"travel": 0,
+		"rest": 0,
+	}
+
+
+func _add_state_to_counts(counts: Dictionary, state: int) -> void:
+	match state:
+		DayState.WORK:
+			counts["work"] += 1
+		DayState.TRAVEL:
+			counts["travel"] += 1
+		DayState.REST:
+			counts["rest"] += 1
+		_:
+			counts["home"] += 1
 
 
 static func parse_date(text: String) -> Dictionary:
