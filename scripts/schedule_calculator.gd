@@ -19,7 +19,7 @@ func configure(start_date_text: String, work_units: int, home_units: int, unit: 
 	work_days = max(1, work_units * multiplier)
 	home_days = max(1, home_units * multiplier)
 	starts_with_work = start_with_work
-	start_day_index = day_index_from_date(parsed["year"], parsed["month"], parsed["day"])
+	start_day_index = day_index_from_date(int(parsed["year"]), int(parsed["month"]), int(parsed["day"]))
 	last_error = ""
 	return true
 
@@ -35,20 +35,21 @@ func get_state_for_day(day_index: int) -> int:
 
 
 func count_month(year: int, month: int) -> Dictionary:
-	var result := {
-		"work": 0,
-		"home": 0,
-	}
+	var work_count := 0
+	var home_count := 0
 	var days := days_in_month(year, month)
 
 	for day in range(1, days + 1):
 		var state := get_state_for_day(day_index_from_date(year, month, day))
 		if state == DayState.WORK:
-			result["work"] += 1
+			work_count += 1
 		else:
-			result["home"] += 1
+			home_count += 1
 
-	return result
+	return {
+		"work": work_count,
+		"home": home_count,
+	}
 
 
 func days_until_next_change(day_index: int) -> int:
@@ -95,8 +96,7 @@ static func parse_date(text: String) -> Dictionary:
 static func day_index_from_date(year: int, month: int, day: int) -> int:
 	var unix_time := Time.get_unix_time_from_datetime_dict({
 		"year": year,
-		"month": month,
-		"day": day,
+		"month": month,		"day": day,
 		"hour": 0,
 		"minute": 0,
 		"second": 0,
