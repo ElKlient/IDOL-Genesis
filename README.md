@@ -17,11 +17,13 @@ Prosty kalendarz dla kierowcow jezdzacych w systemach pracy typu 2/1, 2/2, 3/1 a
 
 ## Android / Termux workflow
 
-Po wrzuceniu projektu do GitHuba kierowca moze aktualizowac aplikacje tak samo jak projekt gry:
+Projekt jest obecnie trzymany na osobnej galezi `driver-shift-calendar` w repo `ElKlient/IDOL-Genesis`, zeby mozna go bylo pobrac bez zakladania nowego repo:
 
 ```bash
+cd /storage/emulated/0/Godot
+git clone --depth 1 --branch driver-shift-calendar git@github.com:ElKlient/IDOL-Genesis.git DriverShiftCalendar
 cd /storage/emulated/0/Godot/DriverShiftCalendar
-git pull origin main
+git pull origin driver-shift-calendar
 git --no-pager log -1 --oneline
 ```
 
