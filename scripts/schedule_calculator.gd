@@ -1,6 +1,7 @@
 extends RefCounted
 
 enum DayState { NONE, WORK, HOME, TRAVEL, REST, VACATION }
+const WEEKDAY_NAMES := ["poniedziałek", "wtorek", "środa", "czwartek", "piątek", "sobota", "niedziela"]
 
 var mode: String = "preset"
 var start_day_index: int = 0
@@ -9,12 +10,14 @@ var home_days: int = 7
 var commute_before_days: int = 1
 var commute_after_days: int = 1
 var rest_every_work_days: int = 6
+var fixed_start_weekday: int = -1
 var custom_pattern: Array[int] = []
 var last_error: String = ""
 
 
 func configure_empty() -> bool:
 	mode = "none"
+	fixed_start_weekday = -1
 	last_error = ""
 	return true
 
@@ -26,7 +29,8 @@ func configure_preset(
 	unit: String,
 	commute_before: int,
 	commute_after: int,
-	use_weekly_rest: bool
+	use_weekly_rest: bool,
+	fixed_weekday: int = -1
 ) -> bool:
 	var parsed := parse_date(start_date_text)
 	if parsed.is_empty():
@@ -40,13 +44,15 @@ func configure_preset(
 	commute_before_days = maxi(0, commute_before)
 	commute_after_days = maxi(0, commute_after)
 	rest_every_work_days = 6 if use_weekly_rest else 0
+	fixed_start_weekday = _clean_fixed_weekday(fixed_weekday)
 	custom_pattern.clear()
-	start_day_index = day_index_from_date(int(parsed["year"]), int(parsed["month"]), int(parsed["day"]))
+	var parsed_day_index := day_index_from_date(int(parsed["year"]), int(parsed["month"]), int(parsed["day"]))
+	start_day_index = _aligned_start_day_index(parsed_day_index)
 	last_error = ""
 	return true
 
 
-func configure_custom(start_date_text: String, pattern: Array[int]) -> bool:
+func configure_custom(start_date_text: String, pattern: Array[int], fixed_weekday: int = -1) -> bool:
 	var parsed := parse_date(start_date_text)
 	if parsed.is_empty():
 		last_error = "Podaj datę w formacie RRRR-MM-DD."
@@ -61,7 +67,9 @@ func configure_custom(start_date_text: String, pattern: Array[int]) -> bool:
 		custom_pattern.append(clean_state)
 
 	mode = "custom"
-	start_day_index = day_index_from_date(int(parsed["year"]), int(parsed["month"]), int(parsed["day"]))
+	fixed_start_weekday = _clean_fixed_weekday(fixed_weekday)
+	var parsed_day_index := day_index_from_date(int(parsed["year"]), int(parsed["month"]), int(parsed["day"]))
+	start_day_index = _aligned_start_day_index(parsed_day_index)
 	last_error = ""
 	return true
 
@@ -71,12 +79,18 @@ func get_state_for_day(day_index: int) -> int:
 		return DayState.NONE
 
 	if mode == "custom":
-		var custom_cycle_days: int = maxi(1, custom_pattern.size())
+		var custom_pattern_days: int = maxi(1, custom_pattern.size())
+		var custom_cycle_days: int = get_cycle_days()
 		var custom_offset := positive_mod(day_index - start_day_index, custom_cycle_days)
+		if custom_offset >= custom_pattern_days:
+			return DayState.HOME
 		return int(custom_pattern[custom_offset])
 
-	var cycle_days: int = maxi(1, work_days + home_days)
+	var base_cycle_days: int = maxi(1, work_days + home_days)
+	var cycle_days: int = get_cycle_days()
 	var offset := positive_mod(day_index - start_day_index, cycle_days)
+	if offset >= base_cycle_days:
+		return DayState.HOME
 
 	if offset < work_days:
 		return DayState.REST if _is_rest_day_in_work_block(offset) else DayState.WORK
@@ -134,16 +148,44 @@ func days_until_next_change(day_index: int) -> int:
 
 func get_cycle_days() -> int:
 	if mode == "custom":
-		return maxi(1, custom_pattern.size())
-	return maxi(1, work_days + home_days)
+		return _effective_cycle_days(custom_pattern.size())
+	return _effective_cycle_days(work_days + home_days)
 
 
 func cycle_label() -> String:
 	if mode == "none":
 		return "brak ustawionego systemu"
 	if mode == "custom":
-		return "własny cykl: %d dni" % get_cycle_days()
-	return "%d dni wyjazdu / %d dni domu" % [work_days, home_days]
+		return "własny cykl: %d dni%s" % [get_cycle_days(), _fixed_start_label()]
+	return "%d dni wyjazdu / %d dni domu%s" % [work_days, home_days, _fixed_start_label()]
+
+
+func _clean_fixed_weekday(weekday: int) -> int:
+	return weekday if weekday >= 0 and weekday <= 6 else -1
+
+
+func _aligned_start_day_index(day_index: int) -> int:
+	if fixed_start_weekday < 0:
+		return day_index
+
+	var shift_days := positive_mod(fixed_start_weekday - weekday_monday_first(day_index), 7)
+	return day_index + shift_days
+
+
+func _effective_cycle_days(base_cycle_days: int) -> int:
+	var cycle_days := maxi(1, base_cycle_days)
+	if fixed_start_weekday < 0:
+		return cycle_days
+
+	var next_weekday := weekday_monday_first(start_day_index + cycle_days)
+	var extra_home_days := positive_mod(fixed_start_weekday - next_weekday, 7)
+	return cycle_days + extra_home_days
+
+
+func _fixed_start_label() -> String:
+	if fixed_start_weekday < 0:
+		return ""
+	return ", stały start: %s" % WEEKDAY_NAMES[fixed_start_weekday]
 
 
 func _is_rest_day_in_work_block(work_offset: int) -> bool:
