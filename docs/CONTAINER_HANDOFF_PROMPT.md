@@ -12,6 +12,8 @@ Aktualny cel klimatu: niskopoligonowa osada epoki kamienia / wczesnego sredniowi
 
 Aktualna baza po Kontenerze A: `0.8.23 Realistic Visual Pass`. Scena ma mocniejszy kierunek referencyjny z telefonu: ciemniejsza trawa, cieplejsze swiatlo, bardziej konkretne brzegi rzeki, dwa drewniane przejscia, bogatsze chaty z kominami/dymem/swiatlem, gestsza palisada, schowane pływające ladunki ludzi i ciemniejsze premium UI. Nastepne kontenery maja oceniac przede wszystkim czy to na Androidzie czyta sie jako osada z klimatem, a nie plaska makieta.
 
+Aktualizacja Kontenera A: `0.8.24 Organic World Pass` po screenach z Androida. Prostokatne laty ziemi zostaly zastapione owalnymi warstwami, rzeka jest ciagla siatka z pasami brzegu, bazowy teren jest wiekszy, obrzeza maja wiecej lasu, chaty/spichlerz sa przygaszone i zabrudzone, a UI/marker wyboru mniej dominuja obraz. Przy kolejnej ocenie sprawdzic, czy scena nadal czyta sie jak kafle i czy kolor dachow/ziemi jest wystarczajaco realistyczny na telefonie.
+
 ## Biezace zadania B/C/D/E
 
 Kontener A zostawia konkretne zadania w `docs/container_tasks/`. Kazdy kontener pomocniczy ma po starcie przeczytac odpowiedni plik:

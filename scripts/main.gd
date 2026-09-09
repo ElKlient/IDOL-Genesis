@@ -22,7 +22,7 @@ const PROP_PADDLE=preload("res://assets/environment/kenney_nature/canoe_paddle.g
 const PROP_LOG_STACK=preload("res://assets/environment/kenney_nature/log_stack.glb")
 const PROP_ROCK_LARGE=preload("res://assets/environment/kenney_nature/rock_largeA.glb")
 const RETARGETER=preload("res://scripts/retargeter.gd")
-const VERSION_TITLE="IDOL — GENESIS 0.8.23 REALISTIC VISUAL PASS"
+const VERSION_TITLE="IDOL — GENESIS 0.8.24 ORGANIC WORLD PASS"
 const CAMERA_MIN_DISTANCE=5.5
 const CAMERA_MAX_DISTANCE=88.0
 const CAMERA_HEIGHT_RATIO=0.61
@@ -248,20 +248,25 @@ func mat(c):
 		m.transparency=BaseMaterial3D.TRANSPARENCY_ALPHA
 	material_cache[key]=m
 	return m
+func mat_flat(c):
+	var m=mat(c).duplicate()
+	m.cull_mode=BaseMaterial3D.CULL_DISABLED
+	return m
+
 func box(p,s,c):
 	var n=MeshInstance3D.new(); var b=BoxMesh.new(); b.size=s; n.mesh=b; n.position=p; n.material_override=mat(c); add_child(n); return n
 func box_in(parent,p,s,c):
 	var n=MeshInstance3D.new(); var b=BoxMesh.new(); b.size=s; n.mesh=b; n.position=p; n.material_override=mat(c); parent.add_child(n); return n
 func cyl(p,r,h,c):
-	var n=MeshInstance3D.new(); var m=CylinderMesh.new(); m.top_radius=r; m.bottom_radius=r; m.height=h; n.mesh=m; n.position=p; n.material_override=mat(c); add_child(n); return n
+	var n=MeshInstance3D.new(); var m=CylinderMesh.new(); m.radial_segments=10; m.rings=1; m.top_radius=r; m.bottom_radius=r; m.height=h; n.mesh=m; n.position=p; n.material_override=mat(c); add_child(n); return n
 func cyl_in(parent,p,r,h,c):
-	var n=MeshInstance3D.new(); var m=CylinderMesh.new(); m.top_radius=r; m.bottom_radius=r; m.height=h; n.mesh=m; n.position=p; n.material_override=mat(c); parent.add_child(n); return n
+	var n=MeshInstance3D.new(); var m=CylinderMesh.new(); m.radial_segments=10; m.rings=1; m.top_radius=r; m.bottom_radius=r; m.height=h; n.mesh=m; n.position=p; n.material_override=mat(c); parent.add_child(n); return n
 func cone_in(parent,p,r,h,c):
-	var n=MeshInstance3D.new(); var m=CylinderMesh.new(); m.top_radius=.02; m.bottom_radius=r; m.height=h; n.mesh=m; n.position=p; n.material_override=mat(c); parent.add_child(n); return n
+	var n=MeshInstance3D.new(); var m=CylinderMesh.new(); m.radial_segments=10; m.rings=1; m.top_radius=.02; m.bottom_radius=r; m.height=h; n.mesh=m; n.position=p; n.material_override=mat(c); parent.add_child(n); return n
 func sphere(p,r,c):
-	var n=MeshInstance3D.new(); var m=SphereMesh.new(); m.radius=r; m.height=r*2.0; n.mesh=m; n.position=p; n.material_override=mat(c); add_child(n); return n
+	var n=MeshInstance3D.new(); var m=SphereMesh.new(); m.radial_segments=12; m.rings=6; m.radius=r; m.height=r*2.0; n.mesh=m; n.position=p; n.material_override=mat(c); add_child(n); return n
 func sphere_in(parent,p,r,c):
-	var n=MeshInstance3D.new(); var m=SphereMesh.new(); m.radius=r; m.height=r*2.0; n.mesh=m; n.position=p; n.material_override=mat(c); parent.add_child(n); return n
+	var n=MeshInstance3D.new(); var m=SphereMesh.new(); m.radial_segments=12; m.rings=6; m.radius=r; m.height=r*2.0; n.mesh=m; n.position=p; n.material_override=mat(c); parent.add_child(n); return n
 
 func prop_scene(parent,scene,p,rot_y=0.0,scale_value=1.0):
 	var n=scene.instantiate()
@@ -289,22 +294,22 @@ func _ready():
 	rng.seed=5302026
 	process_priority=80
 	world_env=WorldEnvironment.new(); var e=Environment.new()
-	e.background_mode=Environment.BG_COLOR; e.background_color=Color("#778777")
-	e.ambient_light_source=Environment.AMBIENT_SOURCE_COLOR; e.ambient_light_color=Color("#ffe2b6"); e.ambient_light_energy=.58
+	e.background_mode=Environment.BG_COLOR; e.background_color=Color("#5f6c5f")
+	e.ambient_light_source=Environment.AMBIENT_SOURCE_COLOR; e.ambient_light_color=Color("#efd7b0"); e.ambient_light_energy=.48
 	e.fog_enabled=true
-	e.fog_light_color=Color("#8f967f")
-	e.fog_light_energy=.22
-	e.fog_density=(.008 if is_mobile_runtime() else .012)
-	e.fog_sun_scatter=.23
+	e.fog_light_color=Color("#737d6f")
+	e.fog_light_energy=.16
+	e.fog_density=(.006 if is_mobile_runtime() else .01)
+	e.fog_sun_scatter=.18
 	world_env.environment=e; add_child(world_env)
-	sun=DirectionalLight3D.new(); sun.rotation_degrees=Vector3(-55,-35,0); sun.light_color=Color("#ffd9a3"); sun.light_energy=1.58; sun.shadow_enabled=(not is_mobile_runtime()) or MOBILE_SHADOWS; add_child(sun)
+	sun=DirectionalLight3D.new(); sun.rotation_degrees=Vector3(-55,-35,0); sun.light_color=Color("#f0c48b"); sun.light_energy=1.28; sun.shadow_enabled=(not is_mobile_runtime()) or MOBILE_SHADOWS; add_child(sun)
 
-	var ground=MeshInstance3D.new(); var pm=PlaneMesh.new(); pm.size=Vector2(68,68); ground.mesh=pm; ground.material_override=mat(Color("#435d37")); add_child(ground)
+	var ground=MeshInstance3D.new(); var pm=PlaneMesh.new(); pm.size=Vector2(96,96); ground.mesh=pm; ground.material_override=mat(Color("#344c31")); add_child(ground)
 	make_terrain_layers()
 	make_river()
-	for i in range(world_count(42)):
-		var p=Vector3(rng.randf_range(-31,31),0,rng.randf_range(-31,31))
-		if p.length()<10: continue
+	for i in range(world_count(58)):
+		var p=Vector3(rng.randf_range(-43,43),0,rng.randf_range(-43,43))
+		if p.length()<10 or abs(p.x-river_x_at_z(p.z))<4.8: continue
 		make_tree(p,rng.randf_range(.85,1.22))
 	for i in range(world_count(26)):
 		var p=Vector3(rng.randf_range(-30,30),.25,rng.randf_range(-30,30))
@@ -348,18 +353,93 @@ func _ready():
 	update_camera()
 	make_ui()
 
+func river_normal_at_z(z):
+	var dx=(river_x_at_z(z+1.0)-river_x_at_z(z-1.0))*.5
+	var tangent=Vector3(dx,0,1).normalized()
+	return Vector3(-tangent.z,0,tangent.x)
+
+func make_river_center_strip(name,y,half_width,col):
+	var verts=PackedVector3Array()
+	var uvs=PackedVector2Array()
+	var indices=PackedInt32Array()
+	var steps=36
+	for i in range(steps+1):
+		var z=-34.0+float(i)*(68.0/float(steps))
+		var x=river_x_at_z(z)
+		var n=river_normal_at_z(z)
+		var w=half_width+sin(z*.31)*.22+sin(z*.11+1.7)*.18
+		verts.append(Vector3(x,y,z)+n*-w)
+		verts.append(Vector3(x,y,z)+n*w)
+		uvs.append(Vector2(0,float(i)*.34))
+		uvs.append(Vector2(1,float(i)*.34))
+	for i in range(steps):
+		var a=i*2
+		indices.append(a)
+		indices.append(a+2)
+		indices.append(a+1)
+		indices.append(a+1)
+		indices.append(a+2)
+		indices.append(a+3)
+	var arrays=[]
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX]=verts
+	arrays[Mesh.ARRAY_TEX_UV]=uvs
+	arrays[Mesh.ARRAY_INDEX]=indices
+	var mesh=ArrayMesh.new()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES,arrays)
+	var inst=MeshInstance3D.new()
+	inst.name=name
+	inst.mesh=mesh
+	inst.material_override=mat_flat(col)
+	add_child(inst)
+	return inst
+
+func make_river_side_strip(name,side,inner_width,outer_width,y,col):
+	var verts=PackedVector3Array()
+	var uvs=PackedVector2Array()
+	var indices=PackedInt32Array()
+	var steps=36
+	for i in range(steps+1):
+		var z=-34.0+float(i)*(68.0/float(steps))
+		var x=river_x_at_z(z)
+		var n=river_normal_at_z(z)
+		var wiggle=sin(z*.25+float(side))*.18
+		verts.append(Vector3(x,y,z)+n*side*(inner_width+wiggle))
+		verts.append(Vector3(x,y,z)+n*side*(outer_width+wiggle*.6))
+		uvs.append(Vector2(0,float(i)*.32))
+		uvs.append(Vector2(1,float(i)*.32))
+	for i in range(steps):
+		var a=i*2
+		indices.append(a)
+		indices.append(a+1)
+		indices.append(a+2)
+		indices.append(a+1)
+		indices.append(a+3)
+		indices.append(a+2)
+	var arrays=[]
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX]=verts
+	arrays[Mesh.ARRAY_TEX_UV]=uvs
+	arrays[Mesh.ARRAY_INDEX]=indices
+	var mesh=ArrayMesh.new()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES,arrays)
+	var inst=MeshInstance3D.new()
+	inst.name=name
+	inst.mesh=mesh
+	inst.material_override=mat_flat(col)
+	add_child(inst)
+	return inst
+
 func make_river():
+	make_river_center_strip("Rzeka - ciagla woda",.026,3.15,Color("#2f6f78"))
+	make_river_side_strip("Lewy mulisty brzeg",-1.0,3.05,4.15,.052,Color("#4a4431"))
+	make_river_side_strip("Prawy mulisty brzeg",1.0,3.05,4.15,.052,Color("#4a4431"))
+	make_river_side_strip("Lewa mokra trawa",-1.0,4.05,4.8,.066,Color("#2f3f2d"))
+	make_river_side_strip("Prawa mokra trawa",1.0,4.05,4.8,.066,Color("#2f3f2d"))
 	for z in range(-30,31,3):
 		var x=river_x_at_z(z)
-		var bend=float(z+30)/60.0
-		var water_col=Color("#346f80").lerp(Color("#5faab0"),.28+sin(bend*PI)*.22)
-		box(Vector3(x,.018,z),Vector3(6.85,.075,3.35),water_col)
-		box(Vector3(x-3.72,.04,z),Vector3(.92,.07,3.18),Color("#5f563d"))
-		box(Vector3(x+3.72,.04,z),Vector3(.92,.07,3.18),Color("#5f563d"))
-		box(Vector3(x-4.18,.063,z),Vector3(.34,.04,3.05),Color("#3f4b34"))
-		box(Vector3(x+4.18,.063,z),Vector3(.34,.04,3.05),Color("#3f4b34"))
 		if z%9==0:
-			make_river_ripple(Vector3(x+rng.randf_range(-2.35,2.35),.102,z+rng.randf_range(-1.0,1.0)),rng.randf_range(-18,18))
+			make_river_ripple(Vector3(x+rng.randf_range(-2.15,2.15),.084,z+rng.randf_range(-1.0,1.0)),rng.randf_range(-18,18))
 		if z%6==0:
 			make_rock(Vector3(x-3.95,.18,z+rng.randf_range(-.9,.9)),.45)
 			make_rock(Vector3(x+3.95,.18,z+rng.randf_range(-.9,.9)),.42)
@@ -369,17 +449,18 @@ func make_river():
 
 func make_tree(p,scale):
 	add_obstacle(p,.82*scale)
-	var trunk=cyl(p+Vector3(0,1.35*scale,0),.18*scale,2.7*scale,Color("#5f422c"))
+	make_surface_stain(p,Vector2(2.25*scale,1.75*scale),Color("#202a1e"),rng.randf_range(0,180))
+	var trunk=cyl(p+Vector3(0,1.35*scale,0),.18*scale,2.7*scale,Color("#4d3425"))
 	trunk.rotation_degrees=Vector3(rng.randf_range(-3,3),rng.randf_range(0,180),rng.randf_range(-4,4))
-	var crown=sphere(p+Vector3(0,3.0*scale,0),.88*scale,Color("#274f2c"))
-	crown.scale=Vector3(1.1,.72,1.05)
-	var side=sphere(p+Vector3(.32*scale,3.34*scale,-.18*scale),.6*scale,Color("#326238"))
-	side.scale=Vector3(.95,.68,.95)
-	var top=sphere(p+Vector3(-.2*scale,3.72*scale,.18*scale),.5*scale,Color("#3a743f"))
-	top.scale=Vector3(.9,.68,.9)
+	var crown=sphere(p+Vector3(0,3.0*scale,0),.88*scale,Color("#1e3f25"))
+	crown.scale=Vector3(1.18,.64,1.05)
+	var side=sphere(p+Vector3(.32*scale,3.28*scale,-.18*scale),.6*scale,Color("#2b5130"))
+	side.scale=Vector3(1.08,.58,.92)
+	var top=sphere(p+Vector3(-.2*scale,3.62*scale,.18*scale),.5*scale,Color("#355f36"))
+	top.scale=Vector3(.95,.56,.9)
 	top.rotation_degrees.y=rng.randf_range(0,180)
 	for a in [0.0,120.0,240.0]:
-		var root=box(p+Vector3(cos(deg_to_rad(a))*.28*scale,.12,sin(deg_to_rad(a))*.28*scale),Vector3(.11*scale,.12*scale,.72*scale),Color("#563a27"))
+		var root=box(p+Vector3(cos(deg_to_rad(a))*.28*scale,.12,sin(deg_to_rad(a))*.28*scale),Vector3(.11*scale,.12*scale,.72*scale),Color("#46301f"))
 		root.rotation_degrees.y=a+rng.randf_range(-12,12)
 
 func make_rock(p,scale):
@@ -389,34 +470,36 @@ func make_rock(p,scale):
 	return r
 
 func make_ground_patch(p,size,c,rot=0.0):
-	var patch=box(Vector3(p.x,.032,p.z),Vector3(size.x,.035,size.y),c)
+	var patch=cyl(Vector3(p.x,.032,p.z),.5,.028,c)
+	patch.scale=Vector3(size.x,1.0,size.y)
 	patch.rotation_degrees.y=rot
 	return patch
 
 func make_surface_stain(p,size,c,rot=0.0):
-	var stain=box(Vector3(p.x,.071,p.z),Vector3(size.x,.018,size.y),c)
+	var stain=cyl(Vector3(p.x,.071,p.z),.5,.014,c)
+	stain.scale=Vector3(size.x,1.0,size.y)
 	stain.rotation_degrees.y=rot
 	return stain
 
 func make_terrain_layers():
-	var cols=[Color("#5d7046"),Color("#49613b"),Color("#61754b"),Color("#6b6648"),Color("#4d653c")]
-	for i in range(world_count(38)):
-		var p=Vector3(rng.randf_range(-31,31),0,rng.randf_range(-31,31))
+	var cols=[Color("#415734"),Color("#344b30"),Color("#4b5d39"),Color("#514e35"),Color("#3b5434")]
+	for i in range(world_count(46)):
+		var p=Vector3(rng.randf_range(-42,42),0,rng.randf_range(-42,42))
 		if abs(p.x-river_x_at_z(p.z))<4.1:
 			continue
-		make_ground_patch(p,Vector2(rng.randf_range(4.5,10.0),rng.randf_range(2.8,7.6)),cols[i%cols.size()],rng.randf_range(0,180))
-	make_ground_patch(Vector3(-2,0,2),Vector2(11.0,8.0),Color("#665d3f"),8)
-	make_ground_patch(Vector3(-6,0,4),Vector2(7.5,5.0),Color("#5d5339"),-13)
-	make_ground_patch(Vector3(7,0,-7),Vector2(8.4,5.2),Color("#6a6042"),17)
-	make_ground_patch(Vector3(-10.5,0,7.0),Vector2(8.8,4.6),Color("#67573a"),-8)
-	make_ground_patch(Vector3(5.5,0,8.0),Vector2(7.2,3.8),Color("#5b583d"),18)
-	make_ground_patch(Vector3(12.5,0,4.8),Vector2(6.6,3.6),Color("#625239"),-17)
-	make_ground_patch(Vector3(22.0,0,11.0),Vector2(9.5,5.4),Color("#485d39"),6)
-	for i in range(6):
-		make_ground_patch(Vector3(-29.0+i*10.6,0,31.0+rng.randf_range(-.8,.8)),Vector2(8.0,2.7),Color("#40543a"),rng.randf_range(-8,8))
+		make_ground_patch(p,Vector2(rng.randf_range(5.2,12.5),rng.randf_range(3.2,8.8)),cols[i%cols.size()],rng.randf_range(0,180))
+	make_ground_patch(Vector3(-1.8,0,2.0),Vector2(14.5,9.4),Color("#554b32"),5)
+	make_ground_patch(Vector3(-5.8,0,4.0),Vector2(9.0,5.4),Color("#4f462f"),-13)
+	make_ground_patch(Vector3(7,0,-7),Vector2(10.2,6.1),Color("#5a5035"),17)
+	make_ground_patch(Vector3(-10.5,0,7.0),Vector2(10.4,5.4),Color("#584932"),-8)
+	make_ground_patch(Vector3(5.5,0,8.0),Vector2(8.7,4.5),Color("#4f4e34"),18)
+	make_ground_patch(Vector3(12.5,0,4.8),Vector2(7.6,4.2),Color("#544631"),-17)
+	make_ground_patch(Vector3(22.0,0,11.0),Vector2(10.5,6.4),Color("#3a5134"),6)
+	for i in range(8):
+		make_ground_patch(Vector3(-39.0+i*11.1,0,41.0+rng.randf_range(-1.4,1.4)),Vector2(10.0,3.4),Color("#2f442e"),rng.randf_range(-8,8))
 
 func make_river_ripple(p,rot):
-	var ripple=box(p,Vector3(rng.randf_range(.85,1.7),.018,.045),Color("#b8d8d8"))
+	var ripple=box(p,Vector3(rng.randf_range(.75,1.55),.012,.035),Color(0.72,0.86,0.84,.56))
 	ripple.rotation_degrees.y=rot
 
 func make_reeds(p):
@@ -428,7 +511,7 @@ func make_reeds(p):
 		seed.rotation_degrees.x=90
 
 func make_grass_clump(p,scale=1.0):
-	var shades=[Color("#6f8a4f"),Color("#78935a"),Color("#5f7c45"),Color("#7f9460")]
+	var shades=[Color("#536d3f"),Color("#607847"),Color("#435d36"),Color("#6a7850")]
 	for i in range(rng.randi_range(3,5)):
 		var blade=box(p+Vector3(rng.randf_range(-.16,.16),.16*scale,rng.randf_range(-.16,.16)),Vector3(.045*scale,rng.randf_range(.22,.42)*scale,.045*scale),shades[rng.randi_range(0,shades.size()-1)])
 		blade.rotation_degrees=Vector3(rng.randf_range(-16,16),rng.randf_range(0,180),rng.randf_range(-16,16))
@@ -488,10 +571,51 @@ func make_warm_pool(p,range_value,energy):
 	glow.shadow_enabled=false
 	add_child(glow)
 
+func make_plaza_depth_pass(home_a,home_b):
+	make_ground_patch(Vector3(.2,0,.45),Vector2(8.8,6.8),Color("#3d3527"),-8)
+	make_ground_patch(Vector3(-2.4,0,2.2),Vector2(6.8,4.6),Color("#453b2b"),12)
+	make_surface_stain(Vector3.ZERO,Vector2(5.8,4.2),Color("#25231d"),7)
+	make_surface_stain(hearth_pos,Vector2(5.2,4.4),Color("#2d261d"),-11)
+	for i in range(18):
+		var a=TAU*float(i)/18.0
+		var r=rng.randf_range(3.1,4.25)
+		var p=Vector3(cos(a)*r,.13,sin(a)*r*.78)
+		var stone=box(p,Vector3(rng.randf_range(.22,.52),rng.randf_range(.08,.2),rng.randf_range(.18,.46)),Color("#5e6058"))
+		stone.rotation_degrees=Vector3(rng.randf_range(-7,7),rad_to_deg(a)+rng.randf_range(-18,18),rng.randf_range(-5,5))
+	for p in [home_a+Vector3(2.4,0,2.6),home_b+Vector3(-2.2,0,2.8),STOCKPILE_POS+Vector3(2.2,0,-.8),RESEARCH_POS+Vector3(-1.7,0,1.1)]:
+		make_bush_cluster(p,rng.randf_range(.55,.78))
+	for a in [35.0,145.0,225.0,315.0]:
+		var p=Vector3(cos(deg_to_rad(a))*3.6,0,sin(deg_to_rad(a))*2.8)
+		var pole=cyl(p+Vector3(0,.58,0),.045,1.15,Color("#312219"))
+		pole.rotation_degrees=Vector3(rng.randf_range(-5,5),a,rng.randf_range(-5,5))
+		cone_in(self,p+Vector3(0,1.22,0),.12,.28,Color("#b85d2d"))
+
+func make_outer_forest_ring():
+	for i in range(world_count(34)):
+		var side=rng.randi_range(0,3)
+		var p=Vector3.ZERO
+		if side==0:
+			p=Vector3(rng.randf_range(-45,45),0,rng.randf_range(37,45))
+		elif side==1:
+			p=Vector3(rng.randf_range(-45,45),0,rng.randf_range(-45,-37))
+		elif side==2:
+			p=Vector3(rng.randf_range(-45,-37),0,rng.randf_range(-45,45))
+		else:
+			p=Vector3(rng.randf_range(37,45),0,rng.randf_range(-45,45))
+		if abs(p.x-river_x_at_z(p.z))<5.2:
+			continue
+		make_tree(p,rng.randf_range(.82,1.28))
+	for i in range(world_count(18)):
+		var p=Vector3(rng.randf_range(-42,42),0,rng.randf_range(-42,42))
+		if p.length()<16 or abs(p.x-river_x_at_z(p.z))<5:
+			continue
+		make_bush_cluster(p,rng.randf_range(.62,1.05))
+
 func make_realistic_visual_pass(home_a,home_b):
 	make_ground_patch(Vector3(-.8,0,1.2),Vector2(13.8,9.2),Color("#544930"),-4)
 	make_ground_patch(Vector3(4.5,0,5.2),Vector2(9.4,4.6),Color("#5d5136"),18)
 	make_ground_patch(Vector3(-8.3,0,-3.1),Vector2(8.0,5.6),Color("#564b33"),9)
+	make_plaza_depth_pass(home_a,home_b)
 	make_wooden_crossing(1.8,-4)
 	make_wooden_crossing(13.8,6)
 	for z in range(-27,29,4):
@@ -516,13 +640,17 @@ func make_realistic_visual_pass(home_a,home_b):
 	make_warm_pool(hearth_pos+Vector3(0,1.2,0),7.8,.38)
 	make_warm_pool(home_a+Vector3(0,1.45,-2.9),3.4,.18)
 	make_warm_pool(home_b+Vector3(0,1.45,-2.9),3.4,.18)
+	make_outer_forest_ring()
 
 func make_path(a,b,width):
 	var d=b-a
 	var length=max(.1,Vector2(d.x,d.z).length())
 	var mid=(a+b)*.5
-	var path=box(Vector3(mid.x,.045,mid.z),Vector3(width,.05,length),Color("#756849"))
+	var path=box(Vector3(mid.x,.047,mid.z),Vector3(width,.035,length),Color("#5e5339"))
 	path.rotation_degrees.y=rad_to_deg(atan2(d.x,d.z))
+	for t in [.24,.5,.76]:
+		var p=a.lerp(b,t)
+		make_surface_stain(p,Vector2(width*rng.randf_range(1.15,1.8),rng.randf_range(1.0,2.4)),Color("#463d2b"),path.rotation_degrees.y+rng.randf_range(-16,16))
 	return path
 
 func make_hearth():
@@ -1036,6 +1164,12 @@ func make_bedroll(p,rot,col):
 	head.rotation_degrees.z=90
 	box_in(roll,Vector3(.12,.15,0),Vector3(.45,.06,.48),Color("#d4bd88"))
 
+func tint_imported_meshes(root,c):
+	for child in root.get_children():
+		if child is MeshInstance3D:
+			child.material_override=mat(c)
+		tint_imported_meshes(child,c)
+
 func make_hide_processing_yard():
 	var center=Vector3(4.8,0,11.6)
 	make_ground_patch(center,Vector2(5.4,3.1),Color("#604f35"),-10)
@@ -1162,23 +1296,22 @@ func make_idol():
 
 func make_memory_flower():
 	var root=Vector3(1.55,0,-1.25)
-	cyl(root+Vector3(0,.38,0),.035,.76,Color("#2f7d3d"))
-	var leaf=box(root+Vector3(.12,.28,0),Vector3(.24,.055,.08),Color("#3a8f46"))
+	cyl(root+Vector3(0,.24,0),.022,.48,Color("#2f5f32"))
+	var leaf=box(root+Vector3(.09,.2,0),Vector3(.18,.04,.06),Color("#3b6337"))
 	leaf.rotation_degrees.z=-25
-	var head=root+Vector3(0,.86,0)
-	sphere(head, .07, Color("#f0c957"))
-	sphere(head+Vector3(-.11,.065,0), .095, Color("#f8f8f4"))
-	sphere(head+Vector3(.11,.065,0), .095, Color("#f8f8f4"))
-	sphere(head+Vector3(-.11,-.085,0), .095, Color("#c92232"))
-	sphere(head+Vector3(.11,-.085,0), .095, Color("#c92232"))
+	var head=root+Vector3(0,.54,0)
+	sphere(head, .045, Color("#c8a84a"))
+	for i in range(5):
+		var a=TAU*float(i)/5.0
+		sphere(head+Vector3(cos(a)*.07,sin(a)*.035,sin(a)*.025), .052, Color("#d8c88b") if i%2==0 else Color("#9d5641"))
 
 func make_selection_marker():
 	selected_marker=Node3D.new()
 	selected_marker.name="Znacznik wybranego"
 	add_child(selected_marker)
-	var disk=cyl_in(selected_marker,Vector3(0,.035,0),.92,.045,Color("#d9bd58"))
+	var disk=cyl_in(selected_marker,Vector3(0,.035,0),.82,.035,Color(.82,.63,.22,.46))
 	disk.scale.x=1.25
-	var core=cyl_in(selected_marker,Vector3(0,.07,0),.24,.05,Color("#f2e59a"))
+	var core=cyl_in(selected_marker,Vector3(0,.065,0),.18,.04,Color(.98,.86,.42,.62))
 	core.scale.x=1.25
 	update_selection_marker()
 
@@ -1216,15 +1349,15 @@ func select_person_at_screen(pos):
 func make_house(p,rot):
 	var h=Node3D.new(); h.position=p; h.rotation_degrees.y=rot; h.scale=Vector3(1.05,1.05,1.05); add_child(h)
 	add_obstacle(p,3.15)
-	var timber=Color("#4b3120")
-	var dark_timber=Color("#342319")
-	var roof_col=Color("#954627")
-	var roof_hi=Color("#b35c32")
+	var timber=Color("#3f2b1e")
+	var dark_timber=Color("#2b1f17")
+	var roof_col=Color("#6f3a26")
+	var roof_hi=Color("#85482e")
 	box_in(h,Vector3(0,.08,-.42),Vector3(5.15,.16,4.55),Color("#5e5138"))
-	var a=WALL.instantiate(); a.position=Vector3(-1.8,0,0); h.add_child(a)
-	var b=WALL.instantiate(); b.position=Vector3(1.8,0,0); h.add_child(b)
-	var d=DOOR.instantiate(); d.position=Vector3(0,0,-3.5); d.rotation_degrees.y=180; h.add_child(d)
-	var r=ROOF.instantiate(); r.position=Vector3(0,3,-1.5); r.scale=Vector3(.65,.65,.65); h.add_child(r)
+	var a=WALL.instantiate(); a.position=Vector3(-1.8,0,0); h.add_child(a); tint_imported_meshes(a,Color("#9b8a6b"))
+	var b=WALL.instantiate(); b.position=Vector3(1.8,0,0); h.add_child(b); tint_imported_meshes(b,Color("#8d8065"))
+	var d=DOOR.instantiate(); d.position=Vector3(0,0,-3.5); d.rotation_degrees.y=180; h.add_child(d); tint_imported_meshes(d,Color("#46301f"))
+	var r=ROOF.instantiate(); r.position=Vector3(0,3,-1.5); r.scale=Vector3(.65,.65,.65); h.add_child(r); tint_imported_meshes(r,Color("#6a3925"))
 	var roof_a=box_in(h,Vector3(-1.02,2.92,-1.5),Vector3(2.45,.14,4.7),roof_col)
 	roof_a.rotation_degrees.z=16
 	var roof_b=box_in(h,Vector3(1.02,2.92,-1.5),Vector3(2.45,.14,4.7),roof_col.darkened(.08))
@@ -1235,6 +1368,10 @@ func make_house(p,rot):
 		strip_a.rotation_degrees.z=16
 		var strip_b=box_in(h,Vector3(1.05,3.0,zz),Vector3(2.18,.08,.105),roof_hi.darkened(.12))
 		strip_b.rotation_degrees.z=-16
+	for i in range(8):
+		var side=-1.0 if i%2==0 else 1.0
+		var moss=box_in(h,Vector3(side*rng.randf_range(.55,1.52),3.08,rng.randf_range(-3.2,.62)),Vector3(rng.randf_range(.36,.9),.035,rng.randf_range(.08,.18)),Color("#343f27"))
+		moss.rotation_degrees=Vector3(0,rng.randf_range(-5,5),16*side)
 	for x in [-2.3,2.3]:
 		for z in [-3.0,1.22]:
 			var post=cyl_in(h,Vector3(x,1.02,z),.075,2.05,timber)
@@ -1244,7 +1381,7 @@ func make_house(p,rot):
 		box_in(h,Vector3(0,y,1.26),Vector3(4.35,.11,.15),dark_timber)
 	for x in [-2.25,2.25]:
 		box_in(h,Vector3(x,1.1,-2.7),Vector3(.16,2.0,.16),timber)
-		box_in(h,Vector3(x*.72,1.34,-3.44),Vector3(.46,.38,.055),Color("#f0b65c"))
+		box_in(h,Vector3(x*.72,1.34,-3.44),Vector3(.42,.32,.055),Color("#ba7940"))
 	var chimney=box_in(h,Vector3(-.92,3.15,.16),Vector3(.34,.78,.34),Color("#5f615b"))
 	chimney.rotation_degrees.y=8
 	box_in(h,Vector3(-.92,3.62,.16),Vector3(.48,.12,.48),Color("#43453f"))
@@ -1258,12 +1395,14 @@ func make_house(p,rot):
 		cyl_in(h,Vector3(x,.82,-4.45),.055,.98,timber)
 	var light=OmniLight3D.new()
 	light.position=Vector3(0,1.18,-3.72)
-	light.light_color=Color("#ffb46c")
-	light.light_energy=.16
-	light.omni_range=3.1
+	light.light_color=Color("#dd9251")
+	light.light_energy=.11
+	light.omni_range=2.6
 	light.shadow_enabled=false
 	h.add_child(light)
-	make_surface_stain(p+rotated_offset(0,-4.25,rot),Vector2(3.6,1.35),Color("#443928"),rot)
+	make_surface_stain(p+rotated_offset(0,-4.25,rot),Vector2(4.4,1.8),Color("#322a20"),rot)
+	make_bush_cluster(p+rotated_offset(-2.65,-3.6,rot),.62)
+	make_bush_cluster(p+rotated_offset(2.55,-3.35,rot),.54)
 	for i in range(6):
 		var pebble=box_in(h,Vector3(rng.randf_range(-2.1,2.1),.2,rng.randf_range(-2.5,1.65)),Vector3(.28,.16,.24),Color("#75776d"))
 		pebble.rotation_degrees.y=rng.randf_range(0,180)
@@ -1271,17 +1410,18 @@ func make_house(p,rot):
 
 func make_granary(p):
 	add_obstacle(p,2.9)
-	box(p+Vector3(0,.18,0),Vector3(4.4,.35,3.4),Color("#6b5034"))
+	make_surface_stain(p,Vector2(5.4,4.4),Color("#332b20"),rng.randf_range(-12,12))
+	box(p+Vector3(0,.18,0),Vector3(4.4,.35,3.4),Color("#59432e"))
 	for x in [-1.8,1.8]:
 		for z in [-1.35,1.35]:
-			cyl(p+Vector3(x,.95,z),.12,1.9,Color("#5b3924"))
-	var roof_a=box(p+Vector3(-.9,2.15,0),Vector3(2.2,.22,3.9),Color("#8a3f22"))
+			cyl(p+Vector3(x,.95,z),.12,1.9,Color("#402b1d"))
+	var roof_a=box(p+Vector3(-.9,2.15,0),Vector3(2.2,.22,3.9),Color("#6f3a26"))
 	roof_a.rotation_degrees.z=18
-	var roof_b=box(p+Vector3(.9,2.15,0),Vector3(2.2,.22,3.9),Color("#8a3f22"))
+	var roof_b=box(p+Vector3(.9,2.15,0),Vector3(2.2,.22,3.9),Color("#613322"))
 	roof_b.rotation_degrees.z=-18
 	for i in range(4):
 		var c=CRATE.instantiate(); c.position=p+Vector3(-1.35+i*.9,.36,.25); c.scale=Vector3(.8,.8,.8); add_child(c)
-	box(p+Vector3(0,1.2,-1.75),Vector3(2.0,.75,.22),Color("#c9b27a"))
+	box(p+Vector3(0,1.2,-1.75),Vector3(2.0,.75,.22),Color("#b49b69"))
 	box(p+Vector3(0,1.2,-1.89),Vector3(1.7,.12,.08),Color("#3d2a1b"))
 
 func make_build_site(p,kind):
@@ -1759,10 +1899,10 @@ func make_button_style(fill,border):
 	return st
 
 func apply_command_button_style(b):
-	var normal=make_button_style(Color(.105,.11,.09,.82),Color(.86,.80,.64,.18))
-	var hover=make_button_style(Color(.16,.15,.11,.9),Color(.95,.86,.62,.34))
-	var pressed=make_button_style(Color(.23,.18,.10,.94),Color(1.0,.82,.44,.46))
-	var focus=make_button_style(Color(.105,.11,.09,.82),Color(.95,.86,.62,.22))
+	var normal=make_button_style(Color(.075,.08,.068,.74),Color(.78,.72,.58,.18))
+	var hover=make_button_style(Color(.12,.12,.085,.82),Color(.9,.8,.58,.3))
+	var pressed=make_button_style(Color(.18,.14,.08,.9),Color(.94,.74,.38,.4))
+	var focus=make_button_style(Color(.075,.08,.068,.74),Color(.86,.78,.58,.22))
 	b.add_theme_stylebox_override("normal",normal)
 	b.add_theme_stylebox_override("hover",hover)
 	b.add_theme_stylebox_override("pressed",pressed)
@@ -1775,11 +1915,11 @@ func apply_command_button_style(b):
 func make_ui():
 	layout_camera_sticks()
 	var layer=CanvasLayer.new(); add_child(layer)
-	make_glass_panel(layer,Vector2(14,14),Vector2(620,148),.78,.24)
+	make_glass_panel(layer,Vector2(14,14),Vector2(620,148),.66,.2)
 	hud=Label.new(); hud.position=Vector2(27,25); hud.add_theme_font_size_override("font_size",12); hud.add_theme_color_override("font_color",Color("#f7f0dc")); hud.add_theme_constant_override("outline_size",1); hud.add_theme_color_override("font_outline_color",Color(0,0,0,.9)); layer.add_child(hud)
 	var vp=get_viewport().get_visible_rect().size
 	var menu_w=356.0
-	make_glass_panel(layer,Vector2(float(vp.x)-menu_w-34.0,12),Vector2(menu_w+24.0,272),.42,.18)
+	make_glass_panel(layer,Vector2(float(vp.x)-menu_w-34.0,12),Vector2(menu_w+24.0,272),.34,.16)
 	var menu=VBoxContainer.new(); menu.position=Vector2(float(vp.x)-menu_w-22.0,16); menu.size=Vector2(menu_w,258); menu.add_theme_constant_override("separation",4); layer.add_child(menu)
 	var title=Label.new(); title.text="ROZKAZY I MOCE IDOLA"; title.add_theme_font_size_override("font_size",15); title.add_theme_color_override("font_color",Color("#f2ead6")); menu.add_child(title)
 	var grid=GridContainer.new(); grid.columns=2; grid.add_theme_constant_override("h_separation",5); grid.add_theme_constant_override("v_separation",2); menu.add_child(grid)
@@ -1790,9 +1930,9 @@ func make_ui():
 	for s in ["KAMERA OS.","PRZYWOŁAJ","BŁOGOSŁAW","WIĘŹ +","KRĄG ŻYCIA"]:
 		var action=s
 		var b=Button.new(); b.text=action; b.custom_minimum_size=Vector2(172,25); apply_command_button_style(b); b.pressed.connect(func(): handle_idol_action(action)); grid.add_child(b)
-	make_glass_panel(layer,Vector2(14,172),Vector2(430,192),.68,.18)
+	make_glass_panel(layer,Vector2(14,172),Vector2(430,192),.58,.16)
 	info=Label.new(); info.position=Vector2(28,182); info.add_theme_font_size_override("font_size",11); info.add_theme_color_override("font_color",Color("#efe8d4")); info.add_theme_constant_override("outline_size",1); info.add_theme_color_override("font_outline_color",Color(0,0,0,.88)); layer.add_child(info)
-	var chat_bg=make_glass_panel(layer,Vector2(float(vp.x)*.282,float(vp.y)-156.0),Vector2(float(vp.x)*.436,130),.72,.24)
+	var chat_bg=make_glass_panel(layer,Vector2(float(vp.x)*.282,float(vp.y)-156.0),Vector2(float(vp.x)*.436,130),.64,.2)
 	chat_feed=Label.new(); chat_feed.position=chat_bg.position+Vector2(12,7); chat_feed.size=chat_bg.size-Vector2(22,12); chat_feed.add_theme_font_size_override("font_size",13); chat_feed.add_theme_color_override("font_color",Color("#f7fff6")); chat_feed.add_theme_constant_override("outline_size",1); chat_feed.add_theme_color_override("font_outline_color",Color(0,0,0,.96)); chat_feed.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART; chat_feed.clip_text=true; chat_feed.text="ROZMOWY OSADY\n..."; layer.add_child(chat_feed)
 	make_camera_sticks(layer)
 
@@ -1821,8 +1961,8 @@ func make_touch_panel(pos,size):
 	p.size=size
 	p.mouse_filter=Control.MOUSE_FILTER_IGNORE
 	var st=StyleBoxFlat.new()
-	st.bg_color=Color(.018,.02,.017,.32)
-	st.border_color=Color(.88,.82,.66,.28)
+	st.bg_color=Color(.018,.02,.017,.26)
+	st.border_color=Color(.82,.76,.62,.24)
 	st.border_width_left=2
 	st.border_width_top=2
 	st.border_width_right=2
@@ -3553,10 +3693,10 @@ func update_world_lighting(d):
 	var warm=(arc+1.0)*.5
 	if sun:
 		sun.rotation_degrees=Vector3(-48.0+arc*8.0,-60.0+day_clock*120.0,0)
-		sun.light_energy=1.05+warm*.28
+		sun.light_energy=.92+warm*.2
 	if world_env and world_env.environment:
-		world_env.environment.background_color=Color("#687567").lerp(Color("#98a68e"),warm)
-		world_env.environment.ambient_light_energy=.50+warm*.18
+		world_env.environment.background_color=Color("#586656").lerp(Color("#7b876f"),warm)
+		world_env.environment.ambient_light_energy=.42+warm*.14
 
 func _process(d):
 	update_world_lighting(d)

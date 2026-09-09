@@ -276,3 +276,36 @@ Validation completed in this local pass:
 - Godot headless editor import: clean
 - Godot headless runtime startup: clean
 - 8 second headless startup: clean until expected timeout
+
+## Container A Patch - 0.8.24 Organic World Pass - 2026-09-09
+
+Goal: respond to the user's Android screenshots showing that `0.8.23` still looked too much like a flat rectangular toy map and not enough like the visual concept.
+
+Implemented in `scripts/main.gd`:
+
+- bumped version title to `IDOL -- GENESIS 0.8.24 ORGANIC WORLD PASS`,
+- added `mat_flat(c)` for custom flat meshes and reduced procedural primitive segment counts so cylinders/spheres read more low-poly and cost less,
+- expanded the base ground plane from 68x68 to 96x96 and increased forest density around the edge of the playable view,
+- replaced segmented rectangular river blocks with continuous ArrayMesh water and separate continuous muddy/wet-grass riverbank strips,
+- changed ground patches and surface stains from boxes to low elliptical discs to remove the obvious square-tile look seen on Android screenshots,
+- darkened terrain, tree crowns, grass, fog, sunlight and dynamic lighting so the image is earthier and less plastic,
+- added tree-base shadows, central Idol plaza shadows, extra stones, poles and bushes to give the camp more grounded mass,
+- tinted imported house meshes and muted roof/wall/door colors, with moss/dirt strips on roofs and less bright house lights,
+- toned down the test memory flower, UI panel opacity/button colors and selected-person marker.
+
+Preserved:
+
+- people model, skeleton, procedural walk, retargeter flag and AI,
+- resource/build/hunt gameplay,
+- 0.8.23 hiding of floating carried-resource visuals.
+
+Validation completed:
+
+- `git diff --check`: clean
+- Godot headless editor import: clean
+- Godot headless runtime startup: clean
+- 8 second headless startup: clean until expected timeout
+
+Known limitation:
+
+- local screenshot capture in this container is not reliable because Godot `--headless --write-movie` crashes inside the dummy renderer. Android screenshot/video remains the useful visual QA path for now.

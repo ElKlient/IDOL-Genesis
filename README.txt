@@ -1,6 +1,6 @@
 START DLA KONTENEROW: najpierw przeczytaj WORKFLOW_FIRST.md.
 
-IDOL Genesis 0.8.23 - REALISTIC VISUAL PASS
+IDOL Genesis 0.8.24 - ORGANIC WORLD PASS
 
 Prompt roboczy tej łatki:
 Zbuduj pierwszy grywalny rdzeń osady epoki kamienia. Gracz jest Idolem: wolą osady, nie dowódcą armii. Ludzie mają samodzielnie dzielić robotę, nosić surowce, budować podstawowe budynki, odpoczywać, tworzyć pierwsze więzi i odkrywać proste technologie przez zadania.
@@ -10,6 +10,16 @@ Kierunek gry:
 - ludzie nie są wojskiem do szkolenia, tylko pierwszą społecznością
 - później mają tworzyć pary, rozmnażać się, budować relacje, dzielić się na grupy i wchodzić w konflikty
 - rozwój technologii wynika z prostych zadań, które Idol zleca mieszkańcom
+
+Zmiany 0.8.24:
+- przebudowano wizualny fundament sceny po screenach z Androida: mniej makiety z prostokątów, więcej organicznego, ziemistego obrazu
+- rzeka nie jest już zlepkiem prostokątnych segmentów; dostała ciągłą siatkę wody oraz osobne pasy błota i mokrej trawy
+- prostokątne plamy terenu i zabrudzeń zamieniono na owalne, niskie dyski, żeby z wysokiej kamery teren nie wyglądał jak kafelki
+- zwiększono rozmiar bazowego terenu i dodano więcej lasu na obrzeżach, żeby kamera rzadziej widziała pustą krawędź planszy
+- drzewa dostały ciemniejsze korony, niższy low-poly mesh, cienie u podstawy i bardziej matowe kolory
+- dachy, ściany i drzwi chat są przygaszone materiałowo; dodano brud/mch na dachach i subtelniejsze światła wejściowe
+- centralny plac Idola dostał cięższy ubity grunt, dodatkowe kamienie, paliki i ciemniejsze cienie
+- UI i marker wyboru są mniej czarne/jaskrawe, żeby świat był bardziej widoczny i mniej debugowy
 
 Zmiany 0.8.23:
 - dodano mocny pass wizualny pod referencję z telefonu: ciemniejsza trawa, cieplejsze światło, mniej wypłukane tło i bardziej ziemista baza osady
