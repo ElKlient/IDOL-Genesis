@@ -79,6 +79,8 @@ var save_close_button: Button
 var settings_header_button: Button
 var navigation_panel: PanelContainer
 var quick_navigation_panel: PanelContainer
+var quick_navigation_body: VBoxContainer
+var quick_navigation_toggle: CheckButton
 var quick_range_option: OptionButton
 var quick_month_picker_button: Button
 var month_picker_panel: PanelContainer
@@ -123,6 +125,7 @@ var fixed_start_previous_pressed := false
 var main_view_saved := false
 var cycle_pending_apply := false
 var day_tools_visible := true
+var quick_navigation_body_visible := true
 var reset_undo_available := false
 var reset_undo_snapshot: Dictionary = {}
 var undo_available := false
@@ -438,9 +441,30 @@ func _build_quick_navigation_panel() -> PanelContainer:
 	panel.visible = false
 	var box := _panel_box(panel, 10)
 
+	var header := HBoxContainer.new()
+	header.add_theme_constant_override("separation", 10)
+	box.add_child(header)
+
+	var title := _make_section_label("Nawigacja")
+	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	header.add_child(title)
+
+	quick_navigation_toggle = CheckButton.new()
+	quick_navigation_toggle.text = ""
+	quick_navigation_toggle.button_pressed = quick_navigation_body_visible
+	quick_navigation_toggle.toggled.connect(_on_quick_navigation_toggled)
+	quick_navigation_toggle.custom_minimum_size = Vector2(88, 48)
+	quick_navigation_toggle.size_flags_horizontal = Control.SIZE_SHRINK_END
+	_register_scroll_safe_control(quick_navigation_toggle)
+	header.add_child(quick_navigation_toggle)
+
+	quick_navigation_body = VBoxContainer.new()
+	quick_navigation_body.add_theme_constant_override("separation", 8)
+	box.add_child(quick_navigation_body)
+
 	var nav := HBoxContainer.new()
 	nav.add_theme_constant_override("separation", 8)
-	box.add_child(nav)
+	quick_navigation_body.add_child(nav)
 
 	var previous_button := _make_nav_button("<")
 	_connect_tap(previous_button, Callable(self, "_on_previous_month"))
@@ -461,7 +485,7 @@ func _build_quick_navigation_panel() -> PanelContainer:
 
 	var year_buttons := HBoxContainer.new()
 	year_buttons.add_theme_constant_override("separation", 8)
-	box.add_child(year_buttons)
+	quick_navigation_body.add_child(year_buttons)
 
 	var previous_year_button := _make_nav_button("<< rok")
 	_connect_tap(previous_year_button, Callable(self, "_on_previous_year"))
@@ -476,8 +500,9 @@ func _build_quick_navigation_panel() -> PanelContainer:
 	year_buttons.add_child(next_year_button)
 
 	month_picker_panel = _build_month_picker_panel()
-	box.add_child(month_picker_panel)
+	quick_navigation_body.add_child(month_picker_panel)
 	_set_month_picker_visible(false)
+	_apply_quick_navigation_body_visibility()
 
 	return panel
 
@@ -869,6 +894,25 @@ func _set_month_picker_visible(visible: bool) -> void:
 		quick_month_picker_button.text = "Schowaj miesiące" if visible else "Miesiące"
 
 
+func _on_quick_navigation_toggled(enabled: bool) -> void:
+	if _tap_is_blocked():
+		quick_navigation_toggle.set_pressed_no_signal(quick_navigation_body_visible)
+		return
+
+	quick_navigation_body_visible = enabled
+	_apply_quick_navigation_body_visibility()
+	_save_settings_to_disk()
+
+
+func _apply_quick_navigation_body_visibility() -> void:
+	if quick_navigation_body != null:
+		quick_navigation_body.visible = quick_navigation_body_visible
+	if quick_navigation_toggle != null:
+		quick_navigation_toggle.set_pressed_no_signal(quick_navigation_body_visible)
+	if not quick_navigation_body_visible:
+		_set_month_picker_visible(false)
+
+
 func _toggle_settings_panel() -> void:
 	if main_view_saved:
 		return
@@ -950,6 +994,7 @@ func _save_settings_to_disk() -> void:
 	config.set_value("ui", "main_view_saved", main_view_saved)
 	config.set_value("ui", "cycle_pending_apply", cycle_pending_apply)
 	config.set_value("ui", "day_tools_visible", day_tools_visible)
+	config.set_value("ui", "quick_navigation_body_visible", quick_navigation_body_visible)
 	config.set_value("undo", "available", undo_available)
 	config.set_value("undo", "snapshot", undo_snapshot.duplicate(true))
 	config.set_value("undo_reset", "available", reset_undo_available)
@@ -988,6 +1033,8 @@ func _load_settings_from_disk() -> void:
 	main_view_saved = bool(config.get_value("ui", "main_view_saved", false))
 	cycle_pending_apply = bool(config.get_value("ui", "cycle_pending_apply", false))
 	day_tools_visible = bool(config.get_value("ui", "day_tools_visible", true))
+	quick_navigation_body_visible = bool(config.get_value("ui", "quick_navigation_body_visible", true))
+	_apply_quick_navigation_body_visibility()
 	undo_available = bool(config.get_value("undo", "available", false))
 	_load_undo_snapshot(config.get_value("undo", "snapshot", {}))
 	reset_undo_available = bool(config.get_value("undo_reset", "available", false))
@@ -1326,6 +1373,7 @@ func _calendar_state_snapshot() -> Dictionary:
 		"main_view_saved": main_view_saved,
 		"cycle_pending_apply": cycle_pending_apply,
 		"day_tools_visible": day_tools_visible,
+		"quick_navigation_body_visible": quick_navigation_body_visible,
 		"settings_visible": settings_panel != null and settings_panel.visible,
 		"current_year": current_year,
 		"current_month": current_month,
@@ -1351,6 +1399,8 @@ func _restore_calendar_state(snapshot: Dictionary) -> void:
 	main_view_saved = bool(snapshot.get("main_view_saved", false))
 	cycle_pending_apply = bool(snapshot.get("cycle_pending_apply", false))
 	day_tools_visible = bool(snapshot.get("day_tools_visible", true))
+	quick_navigation_body_visible = bool(snapshot.get("quick_navigation_body_visible", true))
+	_apply_quick_navigation_body_visibility()
 	current_year = int(snapshot.get("current_year", current_year))
 	current_month = clampi(int(snapshot.get("current_month", current_month)), 1, 12)
 
@@ -1483,6 +1533,8 @@ func _reset_calendar_settings() -> void:
 	main_view_saved = false
 	cycle_pending_apply = false
 	day_tools_visible = true
+	quick_navigation_body_visible = true
+	_apply_quick_navigation_body_visibility()
 	_set_option_selected(schedule_option, 0)
 	_set_option_selected(range_option, 0)
 	_sync_quick_range_option()
@@ -1612,9 +1664,12 @@ func _make_month_section(year: int, month: int) -> VBoxContainer:
 	section.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	section.add_theme_constant_override("separation", 16)
 
-	var title := _make_label("%s %d" % [MONTH_NAMES[month - 1], year], 33 if _range_months() == 1 else 28, COLOR_TEXT)
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	section.add_child(title)
+	if year == current_year and month == current_month:
+		section.add_child(_make_month_title_row(year, month))
+	else:
+		var title := _make_label("%s %d" % [MONTH_NAMES[month - 1], year], 33 if _range_months() == 1 else 28, COLOR_TEXT)
+		title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		section.add_child(title)
 
 	if year == current_year and month == current_month and _should_show_first_cycle_hint():
 		var hint := _make_label("Kliknij swój pierwszy dzień i wyznacz swój cykl.", 25, COLOR_TODAY)
@@ -1646,6 +1701,27 @@ func _make_month_section(year: int, month: int) -> VBoxContainer:
 		grid.add_child(_make_day_cell(year, month, day, day_index, state, day_index == today_day_index))
 
 	return section
+
+
+func _make_month_title_row(year: int, month: int) -> HBoxContainer:
+	var row := HBoxContainer.new()
+	row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_theme_constant_override("separation", 8)
+
+	var previous_button := _make_month_title_button("<")
+	_connect_tap(previous_button, Callable(self, "_on_previous_month"))
+	row.add_child(previous_button)
+
+	var title := _make_label("%s %d" % [MONTH_NAMES[month - 1], year], 33 if _range_months() == 1 else 28, COLOR_TEXT)
+	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	row.add_child(title)
+
+	var next_button := _make_month_title_button(">")
+	_connect_tap(next_button, Callable(self, "_on_next_month"))
+	row.add_child(next_button)
+
+	return row
 
 
 func _make_year_overview_section(year: int) -> VBoxContainer:
@@ -2354,6 +2430,15 @@ func _make_nav_button(text: String) -> Button:
 	button.text = text
 	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_prepare_control(button, 22, 58)
+	return button
+
+
+func _make_month_title_button(text: String) -> Button:
+	var button := Button.new()
+	button.text = text
+	_prepare_control(button, 22, 46)
+	button.custom_minimum_size.x = 58
+	button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	return button
 
 
