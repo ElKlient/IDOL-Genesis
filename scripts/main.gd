@@ -1407,11 +1407,17 @@ func _reset_calendar_settings() -> void:
 	calculator.configure_empty()
 	error_label.visible = false
 	error_label.text = ""
+	var now := Time.get_datetime_dict_from_system()
+	current_year = int(now["year"])
+	current_month = int(now["month"])
+	_refresh_today_day_index()
 	_rebuild_calendar()
 	_apply_main_view_mode(false)
 	_apply_day_tools_visibility()
 	_set_settings_visible(true)
 	_update_undo_buttons()
+	if main_scroll != null:
+		main_scroll.set_deferred("scroll_vertical", 0)
 	_save_settings_to_disk()
 
 
