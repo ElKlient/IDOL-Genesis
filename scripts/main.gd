@@ -19,6 +19,7 @@ const MONTH_NAMES := [
 ]
 const WEEKDAY_SHORT_TILE := ["pon", "wt", "śr", "czw", "pt", "sob", "nd"]
 const WEEKDAY_NAMES := ["Poniedziałek", "Wtorek", "Środa", "Czwartek", "Piątek", "Sobota", "Niedziela"]
+const RANGE_LABELS := ["Miesiąc", "Kwartał", "4 mies.", "Rok"]
 
 const COLOR_PANEL := Color(0.070, 0.085, 0.087, 0.82)
 const COLOR_PANEL_SOFT := Color(0.105, 0.120, 0.116, 0.76)
@@ -75,6 +76,10 @@ var reset_undo_button: Button
 var save_close_button: Button
 var settings_header_button: Button
 var navigation_panel: PanelContainer
+var quick_navigation_panel: PanelContainer
+var quick_range_option: OptionButton
+var quick_month_picker_button: Button
+var month_picker_panel: PanelContainer
 var settings_toggle_button: Button
 var settings_panel: PanelContainer
 var legend_bar: HBoxContainer
@@ -125,6 +130,7 @@ var profile_count := DEFAULT_PROFILE_COUNT
 var selected_profile_index := 1
 var saved_profiles: Dictionary = {}
 var profile_panel_visible := false
+var month_picker_visible := false
 var touch_start_position := Vector2.ZERO
 var touch_tracking_active := false
 var touch_drag_cancelled := false
@@ -266,6 +272,9 @@ func _build_ui() -> void:
 	legend_bar = _build_legend()
 	root.add_child(legend_bar)
 
+	quick_navigation_panel = _build_quick_navigation_panel()
+	root.add_child(quick_navigation_panel)
+
 	settings_toggle_button = Button.new()
 	settings_toggle_button.text = "Zastosuj"
 	_connect_tap(settings_toggle_button, Callable(self, "_on_settings_primary_pressed"))
@@ -394,10 +403,8 @@ func _build_navigation_panel() -> PanelContainer:
 	nav.add_child(previous_button)
 
 	range_option = OptionButton.new()
-	range_option.add_item("Miesiąc")
-	range_option.add_item("Kwartał")
-	range_option.add_item("4 mies.")
-	range_option.add_item("Rok")
+	for label_text in RANGE_LABELS:
+		range_option.add_item(label_text)
 	_set_option_selected(range_option, 0)
 	range_option.item_selected.connect(_on_range_selected)
 	_prepare_control(range_option, 22, 60)
@@ -419,6 +426,82 @@ func _build_navigation_panel() -> PanelContainer:
 	var next_year_button := _make_nav_button("rok >>")
 	_connect_tap(next_year_button, Callable(self, "_on_next_year"))
 	year_buttons.add_child(next_year_button)
+
+	return panel
+
+
+func _build_quick_navigation_panel() -> PanelContainer:
+	var panel := _panel()
+	panel.visible = false
+	var box := _panel_box(panel, 10)
+
+	var nav := HBoxContainer.new()
+	nav.add_theme_constant_override("separation", 8)
+	box.add_child(nav)
+
+	var previous_button := _make_nav_button("<")
+	_connect_tap(previous_button, Callable(self, "_on_previous_month"))
+	nav.add_child(previous_button)
+
+	quick_range_option = OptionButton.new()
+	for label_text in RANGE_LABELS:
+		quick_range_option.add_item(label_text)
+	_set_option_selected(quick_range_option, range_option.selected if range_option != null else 0)
+	quick_range_option.item_selected.connect(_on_quick_range_selected)
+	_prepare_control(quick_range_option, 20, 54)
+	_prepare_large_dropdown(quick_range_option)
+	nav.add_child(quick_range_option)
+
+	var next_button := _make_nav_button(">")
+	_connect_tap(next_button, Callable(self, "_on_next_month"))
+	nav.add_child(next_button)
+
+	var year_buttons := HBoxContainer.new()
+	year_buttons.add_theme_constant_override("separation", 8)
+	box.add_child(year_buttons)
+
+	var previous_year_button := _make_nav_button("<< rok")
+	_connect_tap(previous_year_button, Callable(self, "_on_previous_year"))
+	year_buttons.add_child(previous_year_button)
+
+	quick_month_picker_button = _make_nav_button("Miesiące")
+	_connect_tap(quick_month_picker_button, Callable(self, "_toggle_month_picker"))
+	year_buttons.add_child(quick_month_picker_button)
+
+	var next_year_button := _make_nav_button("rok >>")
+	_connect_tap(next_year_button, Callable(self, "_on_next_year"))
+	year_buttons.add_child(next_year_button)
+
+	month_picker_panel = _build_month_picker_panel()
+	box.add_child(month_picker_panel)
+	_set_month_picker_visible(false)
+
+	return panel
+
+
+func _build_month_picker_panel() -> PanelContainer:
+	var panel := PanelContainer.new()
+	panel.add_theme_stylebox_override("panel", _style(COLOR_PANEL_SOFT, 8))
+
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 8)
+	margin.add_theme_constant_override("margin_right", 8)
+	margin.add_theme_constant_override("margin_top", 8)
+	margin.add_theme_constant_override("margin_bottom", 8)
+	panel.add_child(margin)
+
+	var grid := GridContainer.new()
+	grid.columns = 3
+	grid.add_theme_constant_override("h_separation", 8)
+	grid.add_theme_constant_override("v_separation", 8)
+	margin.add_child(grid)
+
+	for month_index in range(1, 13):
+		var month_button := Button.new()
+		month_button.text = MONTH_NAMES[month_index - 1]
+		_connect_tap(month_button, Callable(self, "_on_month_picker_pressed").bind(month_index))
+		_prepare_control(month_button, 16, 48)
+		grid.add_child(month_button)
 
 	return panel
 
@@ -771,6 +854,18 @@ func _set_profile_panel_visible(visible: bool) -> void:
 		profile_panel.visible = visible
 
 
+func _toggle_month_picker() -> void:
+	_set_month_picker_visible(not month_picker_visible)
+
+
+func _set_month_picker_visible(visible: bool) -> void:
+	month_picker_visible = visible
+	if month_picker_panel != null:
+		month_picker_panel.visible = visible
+	if quick_month_picker_button != null:
+		quick_month_picker_button.text = "Schowaj miesiące" if visible else "Miesiące"
+
+
 func _toggle_settings_panel() -> void:
 	if main_view_saved:
 		return
@@ -799,6 +894,10 @@ func _apply_main_view_mode(saved: bool) -> void:
 
 	if navigation_panel != null:
 		navigation_panel.visible = not saved
+	if quick_navigation_panel != null:
+		quick_navigation_panel.visible = saved
+		if not saved:
+			_set_month_picker_visible(false)
 	if summary_label != null:
 		summary_label.visible = not saved
 	if legend_bar != null:
@@ -900,6 +999,7 @@ func _load_settings_from_disk() -> void:
 
 	_set_option_selected(schedule_option, _valid_option_index(schedule_option, int(config.get_value("calendar", "schedule_selected", 0))))
 	_set_option_selected(range_option, _valid_option_index(range_option, int(config.get_value("calendar", "range_selected", 0))))
+	_sync_quick_range_option()
 	_set_option_selected(pause_option, _valid_option_index(pause_option, int(config.get_value("work", "pause_selected", 0))))
 	_set_spin_value(system_work_spin, int(config.get_value("calendar", "work_days", int(system_work_spin.value))))
 	_set_spin_value(system_home_spin, int(config.get_value("calendar", "home_days", int(system_home_spin.value))))
@@ -1253,6 +1353,7 @@ func _restore_calendar_state(snapshot: Dictionary) -> void:
 
 	_set_option_selected(schedule_option, _valid_option_index(schedule_option, int(snapshot.get("schedule_selected", 0))))
 	_set_option_selected(range_option, _valid_option_index(range_option, int(snapshot.get("range_selected", 0))))
+	_sync_quick_range_option()
 	_set_option_selected(pause_option, _valid_option_index(pause_option, int(snapshot.get("pause_selected", 0))))
 	_set_spin_value(system_work_spin, int(snapshot.get("work_days", int(system_work_spin.value))))
 	_set_spin_value(system_home_spin, int(snapshot.get("home_days", int(system_home_spin.value))))
@@ -1381,6 +1482,7 @@ func _reset_calendar_settings() -> void:
 	day_tools_visible = true
 	_set_option_selected(schedule_option, 0)
 	_set_option_selected(range_option, 0)
+	_sync_quick_range_option()
 	_set_option_selected(pause_option, 0)
 	_set_spin_value(system_work_spin, 14)
 	_set_spin_value(system_home_spin, 7)
@@ -1760,10 +1862,47 @@ func _on_schedule_selected(index: int) -> void:
 func _on_range_selected(index: int) -> void:
 	var previous_index := int(range_option.get_meta("last_selected", range_option.selected))
 	if _option_change_was_scroll(range_option, index):
+		_sync_quick_range_option()
 		return
 
 	_capture_undo_state_for_option(range_option, previous_index)
+	_sync_quick_range_option()
 	_rebuild_calendar()
+	_save_settings_to_disk()
+
+
+func _on_quick_range_selected(index: int) -> void:
+	if range_option == null or quick_range_option == null:
+		return
+
+	if _option_change_was_scroll(quick_range_option, index):
+		_sync_quick_range_option()
+		return
+
+	var previous_index := int(range_option.get_meta("last_selected", range_option.selected))
+	var valid_index := _valid_option_index(range_option, index)
+	_set_option_selected(range_option, valid_index)
+	_set_option_selected(quick_range_option, _valid_option_index(quick_range_option, valid_index))
+	_capture_undo_state_for_option(range_option, previous_index)
+	_set_month_picker_visible(false)
+	_rebuild_calendar()
+	_save_settings_to_disk()
+
+
+func _on_month_picker_pressed(month_index: int) -> void:
+	if current_month == month_index and _range_months() == 1:
+		_set_month_picker_visible(false)
+		return
+
+	_capture_undo_state()
+	current_month = clampi(month_index, 1, 12)
+	if range_option != null:
+		_set_option_selected(range_option, 0)
+	_sync_quick_range_option()
+	_set_month_picker_visible(false)
+	_rebuild_calendar()
+	if main_scroll != null:
+		main_scroll.set_deferred("scroll_vertical", 0)
 	_save_settings_to_disk()
 
 
@@ -2133,6 +2272,13 @@ func _action_button(text: String, accent: Color = COLOR_TILE_EMPTY) -> Button:
 func _set_option_selected(option: OptionButton, index: int) -> void:
 	option.selected = index
 	option.set_meta("last_selected", index)
+
+
+func _sync_quick_range_option() -> void:
+	if range_option == null or quick_range_option == null:
+		return
+
+	_set_option_selected(quick_range_option, _valid_option_index(quick_range_option, range_option.selected))
 
 
 func _prepare_large_dropdown(option: OptionButton) -> void:
