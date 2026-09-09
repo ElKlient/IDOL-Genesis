@@ -80,6 +80,20 @@ Your job now:
 
 If startup looks slower, report whether it is from one-time import or from actual scene/runtime density.
 
+## Round 0.8.28 instruction from Container A
+
+Base is now `0.8.28 RTS Forest Optimization`. The patch reduces mobile world density, replaces many single trees with `MultiMeshInstance3D` forest clusters, cuts random grass/flowers/rocks/twigs and avoids broad asset imports.
+
+Your job now:
+
+1. Pull latest `main`.
+2. Run `git diff --check`, Godot headless editor import and Godot headless runtime.
+3. Inspect whether `MultiMeshInstance3D` forest clusters lower practical node pressure compared with the previous single-tree pass.
+4. Verify no `.godot/`, generated imported cache, broad vendor pack, `*.gd.uid` or accidental Android build output is staged.
+5. Reconfirm the user Termux update command stays simple: no `.godot` deletion and no `git stash -u`.
+
+If startup looks slower, separate one-time import cost from actual scene/runtime density.
+
 ## 30 minute check
 
 While active or waiting, every 30 minutes check this file and `WORKFLOW_FIRST.md` for new Container A instructions.

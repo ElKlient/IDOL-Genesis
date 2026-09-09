@@ -76,3 +76,16 @@ All helper containers must treat `0.8.27` as the newest base:
 - E: continue the settlement economy: manual placement UX, building requirements, simple resource progression and clearer objectives.
 
 If you are active, pull now and log whether your lane needs a patch, Android test, or Container A decision.
+
+## Active visual/performance sprint - 0.8.28
+
+Container A pushed the RTS forest optimization pass as `0.8.28 RTS Forest Optimization`.
+
+All helper containers must treat `0.8.28` as the newest base:
+
+- B: verify settlers around the new forest masses, especially path turns near blocking forest clusters and nonblocking wood-source clusters.
+- C: inspect the existing Kenney pine/tree assets and decide whether the next patch should promote a small set into active assets or keep the procedural MultiMesh forest.
+- D: validate Android/Godot import/runtime and scene density after the tree clustering, mobile density cut and prop reduction.
+- E: check gameplay readability: build/resource UI should still be clear now that forest masses take more visual space.
+
+If you are active, pull now and log whether your lane needs a patch, Android test, asset promotion, or Container A decision.

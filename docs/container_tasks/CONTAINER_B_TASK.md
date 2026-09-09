@@ -81,6 +81,20 @@ Your job now:
 
 Report whether the current model can support the new resource economy after small animation tweaks, or whether Container A must schedule a deeper human animation pass.
 
+## Round 0.8.28 instruction from Container A
+
+Base is now `0.8.28 RTS Forest Optimization`. The world no longer relies on many single ball-crown trees; it uses clustered RTS-style conifers, lower mobile decoration density and nonblocking forest-source clusters for wood work.
+
+Your job now:
+
+1. Pull latest `main`.
+2. Watch settlers in AUTO while they walk near the new forest masses, wood sources, river crossings and stockpile.
+3. Verify that blocking forest clusters push paths around them without jitter, sliding or crowd knots.
+4. Verify that nonblocking wood-source clusters do not trap drwale inside the visual forest.
+5. If patching, touch only people/pose/path-safety code and keep the current people model.
+
+Report whether the new forest layout makes walking look better from the RTS camera, or whether path clearances around cluster obstacles need another pass.
+
 ## 30 minute check
 
 While active or waiting, every 30 minutes check this file and `WORKFLOW_FIRST.md` for new Container A instructions.

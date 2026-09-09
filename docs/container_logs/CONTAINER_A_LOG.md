@@ -431,3 +431,45 @@ Validation before push:
 - `git diff --check`: clean
 - Godot headless editor import: not run in the recovered scratch because the local Godot binary was pruned and no `godot`/`godot4` binary is available in PATH or under `/workspace`, `/usr` or `/opt`
 - Godot headless runtime startup: not run for the same reason
+
+## Container A Patch - 0.8.28 RTS Forest Optimization - 2026-09-09
+
+Goal: respond to the user's latest Android screenshots/video and RTS references. The immediate visual problem was the forest layer: ball-crown trees, too many single placed objects, noisy ground clutter and weak RTS massing.
+
+Implemented in `scripts/main.gd`:
+
+- bumped version title to `IDOL -- GENESIS 0.8.28 RTS FOREST OPTIMIZATION`,
+- reduced `MOBILE_WORLD_DENSITY` from `.80` to `.62`,
+- replaced the old ball-crown `make_tree()` with a slimmer conifer-style tree using trunk + three low-poly cone layers,
+- added `make_rts_forest_cluster()` and `make_instanced_forest_layer()` so forest masses render many tree silhouettes through `MultiMeshInstance3D` instead of many independent tree node stacks,
+- changed start-world generation from dozens of random single trees to fewer RTS forest clusters plus a small number of lone trees,
+- changed outer/background forest placement to larger clusters,
+- changed forest resource sources to visual nonblocking clusters so drwale can work without being trapped by the forest decoration,
+- reduced random rocks, grass clumps, flowers, twigs and grit in the world/center/lumber camp,
+- made random terrain patches larger and more transparent so the ground reads less like separate pasted tiles.
+
+Asset note:
+
+- Existing Kenney tree/pine GLBs are present under `assets/third_party_model_packs/kenney_nature_kit_glb/models/`, but 0.8.28 avoids broad asset import and uses MultiMesh procedural forests for Android safety. Container C should evaluate promoting only a tiny set of those GLBs for hero/near-settlement trees.
+
+Documentation and coordination:
+
+- updated `README.txt`, `WORKFLOW_FIRST.md`, `docs/CONTAINER_HANDOFF_PROMPT.md` and `project.godot` for 0.8.28,
+- added active 0.8.28 task sections for B/C/D/E:
+  - B: test people/pathing near blocking forest clusters and nonblocking wood-source clusters,
+  - C: compare procedural forest with specific Kenney pine/tree assets and propose a tiny active-asset promotion only if worth it,
+  - D: validate Android/import/runtime/node density after tree clustering and density reduction,
+  - E: preserve gameplay/build readability around larger forest masses.
+
+Preserved:
+
+- current people model, skeleton, retargeter and procedural walk,
+- resource economy and building loop from 0.8.27,
+- Android Termux update workflow without `.godot` deletion or `git stash -u`,
+- current active asset set; no broad vendor import.
+
+Validation before push:
+
+- `git diff --check`: clean
+- Godot 4.7.2 headless editor import: clean
+- Godot 4.7.2 headless runtime: ran 20 seconds until expected timeout with no script/runtime errors printed

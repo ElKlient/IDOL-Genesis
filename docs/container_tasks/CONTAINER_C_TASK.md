@@ -92,6 +92,20 @@ Focus functions:
 - `make_quarry()`
 - `make_mine()`
 
+## Round 0.8.28 instruction from Container A
+
+Base is now `0.8.28 RTS Forest Optimization`. Container A replaced the toy ball-tree look with procedural conifer clusters using `MultiMeshInstance3D`, but the repo already contains Kenney nature tree assets under `assets/third_party_model_packs/kenney_nature_kit_glb/models/`.
+
+Your job now:
+
+1. Pull latest `main`.
+2. Inspect the new forest functions: `make_tree()`, `make_rts_forest_cluster()`, `make_outer_forest_ring()` and `add_forest_source()`.
+3. Compare them with specific available assets such as `tree_pineTallA.glb`, `tree_pineTallB.glb`, `tree_pineTallC_detailed.glb`, `tree_pineDefaultA.glb`, `tree_thin.glb` and `tree_cone.glb`.
+4. If patching, promote only a tiny mobile-safe set of tree GLBs into active `assets/environment/` and use them for hero/near-settlement trees, not for every forest instance.
+5. Do not import a broad pack, do not touch people animation, economy balance, Android workflow or UI commands.
+
+Report whether asset trees beat the procedural MultiMesh forest enough to justify the import cost on Android.
+
 ## 30 minute check
 
 While active or waiting, every 30 minutes check this file and `WORKFLOW_FIRST.md` for new Container A instructions.

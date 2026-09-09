@@ -1,6 +1,6 @@
 START DLA KONTENEROW: najpierw przeczytaj WORKFLOW_FIRST.md.
 
-IDOL Genesis 0.8.27 - RESOURCE INFRASTRUCTURE
+IDOL Genesis 0.8.28 - RTS FOREST OPTIMIZATION
 
 Prompt roboczy tej łatki:
 Zbuduj pierwszy grywalny rdzeń osady epoki kamienia. Gracz jest Idolem: wolą osady, nie dowódcą armii. Ludzie mają samodzielnie dzielić robotę, nosić surowce, budować podstawowe budynki, odpoczywać, tworzyć pierwsze więzi i odkrywać proste technologie przez zadania.
@@ -10,6 +10,16 @@ Kierunek gry:
 - ludzie nie są wojskiem do szkolenia, tylko pierwszą społecznością
 - później mają tworzyć pary, rozmnażać się, budować relacje, dzielić się na grupy i wchodzić w konflikty
 - rozwój technologii wynika z prostych zadań, które Idol zleca mieszkańcom
+
+Zmiany 0.8.28:
+- przebudowano drzewa z kulistych koron na smukłe świerki/iglaki RTS, bliższe referencji z ostatnich screenów
+- większe połacie lasu są teraz klastrami `MultiMeshInstance3D`, więc jeden las daje wiele sylwetek przy dużo mniejszej liczbie node'ów
+- startowa generacja świata używa kęp lasu zamiast kilkudziesięciu losowo wklejonych pojedynczych drzew
+- obniżono mobilną gęstość świata z `.80` do `.62`, żeby Android mniej dusił się od dekoracyjnych obiektów
+- ograniczono drobny gruz, gałęzie, trawę, kwiaty i kamienie, żeby scena mniej wyglądała jak rozsypana makieta
+- losowe plamy terenu są większe i bardziej przezroczyste, przez co mniej widać kafle/wyspy pod kamerą RTS
+- źródła drewna dla drwala używają nieblokujących klastrów lasu, żeby osadnicy nie wariowali w środku połaci zasobu
+- zadania B/C/D/E zostały przestawione na bazę `0.8.28`: B testuje ludzi przy nowych masach lasu, C ocenia wymianę na gotowe modele Kenney, D mierzy Android/import/runtime, E pilnuje czytelności gameplayu przy budowie i zasobach
 
 Zmiany 0.8.27:
 - dodano pierwszą pełną infrastrukturę surowcową: obóz drwali, chatę myśliwego, chatę rybacką, kamieniołom i kopalnię rud

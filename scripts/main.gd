@@ -22,7 +22,7 @@ const PROP_PADDLE=preload("res://assets/environment/kenney_nature/canoe_paddle.g
 const PROP_LOG_STACK=preload("res://assets/environment/kenney_nature/log_stack.glb")
 const PROP_ROCK_LARGE=preload("res://assets/environment/kenney_nature/rock_largeA.glb")
 const RETARGETER=preload("res://scripts/retargeter.gd")
-const VERSION_TITLE="IDOL — GENESIS 0.8.27 RESOURCE INFRASTRUCTURE"
+const VERSION_TITLE="IDOL — GENESIS 0.8.28 RTS FOREST OPTIMIZATION"
 const CAMERA_MIN_DISTANCE=5.5
 const CAMERA_MAX_DISTANCE=88.0
 const CAMERA_HEIGHT_RATIO=0.61
@@ -81,7 +81,7 @@ const USE_PROXY_SETTLER_BODY=false
 const USE_SETTLER_ROOT_GEAR=true
 const USE_FLOATING_CARGO=false
 const USE_HEAD_FACE_ATTACHMENTS=false
-const MOBILE_WORLD_DENSITY=.80
+const MOBILE_WORLD_DENSITY=.62
 const MOBILE_SHADOWS=false
 const USE_PROCEDURAL_CLIMATE_TEXTURES=true
 const CLIMATE_TEXTURE_SIZE_DESKTOP=96
@@ -384,11 +384,15 @@ func _ready():
 	make_base_terrain()
 	make_terrain_layers()
 	make_river()
-	for i in range(world_count(58)):
+	for i in range(world_count(16)):
 		var p=Vector3(rng.randf_range(-43,43),0,rng.randf_range(-43,43))
-		if p.length()<10 or abs(p.x-river_x_at_z(p.z))<4.8: continue
+		if p.length()<12 or abs(p.x-river_x_at_z(p.z))<5.2: continue
+		make_rts_forest_cluster(p,rng.randf_range(3.6,5.8),rng.randi_range(5,9),rng.randf_range(0,180),true)
+	for i in range(world_count(9)):
+		var p=Vector3(rng.randf_range(-39,39),0,rng.randf_range(-39,39))
+		if p.length()<13 or abs(p.x-river_x_at_z(p.z))<4.8: continue
 		make_tree(p,rng.randf_range(.85,1.22))
-	for i in range(world_count(26)):
+	for i in range(world_count(18)):
 		var p=Vector3(rng.randf_range(-30,30),.25,rng.randf_range(-30,30))
 		make_rock(p,rng.randf_range(.65,1.25))
 
@@ -526,25 +530,95 @@ func make_river():
 			make_reeds(Vector3(x-3.8,.08,z+rng.randf_range(-1.1,1.1)))
 			make_reeds(Vector3(x+3.8,.08,z+rng.randf_range(-1.1,1.1)))
 
+func forest_cone_material(base):
+	var m=mat(base).duplicate()
+	m.roughness=1.0
+	return m
+
+func make_forest_cone_mesh():
+	var m=CylinderMesh.new()
+	m.radial_segments=7
+	m.rings=1
+	m.top_radius=.035
+	m.bottom_radius=.5
+	m.height=1.0
+	return m
+
+func make_forest_trunk_mesh():
+	var m=CylinderMesh.new()
+	m.radial_segments=6
+	m.rings=1
+	m.top_radius=.42
+	m.bottom_radius=.5
+	m.height=1.0
+	return m
+
+func make_instanced_forest_layer(parent,name,mesh,mat_override,entries,center_y,scale_vec):
+	if entries.is_empty():
+		return null
+	var mm=MultiMesh.new()
+	mm.transform_format=MultiMesh.TRANSFORM_3D
+	mm.mesh=mesh
+	mm.instance_count=entries.size()
+	for i in range(entries.size()):
+		var e=entries[i]
+		var s=float(e["scale"])
+		var h=float(e["height"])
+		var pos:Vector3=e["pos"]
+		var yaw=float(e["yaw"])
+		var basis=Basis(Vector3.UP,yaw).scaled(Vector3(scale_vec.x*s,scale_vec.y*s*h,scale_vec.z*s))
+		mm.set_instance_transform(i,Transform3D(basis,Vector3(pos.x,center_y*s*h,pos.z)))
+	var inst=MultiMeshInstance3D.new()
+	inst.name=name
+	inst.multimesh=mm
+	inst.material_override=mat_override
+	parent.add_child(inst)
+	return inst
+
+func make_rts_forest_cluster(center,radius,count,rot=0.0,blocks_path=true):
+	var root=Node3D.new()
+	root.name="Las RTS"
+	root.position=center
+	add_child(root)
+	if blocks_path:
+		add_obstacle(center,radius*.52)
+	make_surface_stain(center,Vector2(radius*1.28,radius*.92),Color(.025,.05,.032,.30),rot)
+	var tree_count=world_count(count)
+	var entries=[]
+	for i in range(tree_count):
+		var a=TAU*float(i)/max(1.0,float(tree_count))+rng.randf_range(-.34,.34)
+		var r=radius*sqrt(rng.randf_range(.04,1.0))
+		var local=rotated_offset(cos(a)*r,sin(a)*r*rng.randf_range(.72,1.05),rot)
+		entries.append({
+			"pos":Vector3(local.x,0,local.z),
+			"scale":rng.randf_range(.82,1.24),
+			"height":rng.randf_range(.92,1.18),
+			"yaw":rng.randf_range(0,TAU)
+		})
+	var trunk_mesh=make_forest_trunk_mesh()
+	var cone_mesh=make_forest_cone_mesh()
+	make_instanced_forest_layer(root,"pnie",trunk_mesh,mat(Color("#45301f")),entries,1.42,Vector3(.24,2.85,.24))
+	make_instanced_forest_layer(root,"dolne igliwie",cone_mesh,forest_cone_material(Color("#214c2a")),entries,2.08,Vector3(1.56,1.18,1.32))
+	make_instanced_forest_layer(root,"środkowe igliwie",cone_mesh,forest_cone_material(Color("#2f6738")),entries,2.75,Vector3(1.18,1.02,1.02))
+	make_instanced_forest_layer(root,"górne igliwie",cone_mesh,forest_cone_material(Color("#5f8f58")),entries,3.28,Vector3(.82,.86,.78))
+	return root
+
 func make_tree(p,scale):
-	add_obstacle(p,.82*scale)
-	make_surface_stain(p,Vector2(2.25*scale,1.75*scale),Color(.03,.04,.025,.24),rng.randf_range(0,180))
-	var trunk=cyl(p+Vector3(0,1.35*scale,0),.18*scale,2.7*scale,Color("#4d3425"))
-	trunk.rotation_degrees=Vector3(rng.randf_range(-3,3),rng.randf_range(0,180),rng.randf_range(-4,4))
-	var crown=sphere(p+Vector3(0,3.0*scale,0),.88*scale,Color("#1e3f25"))
-	crown.scale=Vector3(1.18,.64,1.05)
-	var side=sphere(p+Vector3(.32*scale,3.28*scale,-.18*scale),.6*scale,Color("#2b5130"))
-	side.scale=Vector3(1.08,.58,.92)
-	var top=sphere(p+Vector3(-.2*scale,3.62*scale,.18*scale),.5*scale,Color("#355f36"))
-	top.scale=Vector3(.95,.56,.9)
-	top.rotation_degrees.y=rng.randf_range(0,180)
-	for a in [0.0,120.0,240.0]:
-		var root=box(p+Vector3(cos(deg_to_rad(a))*.28*scale,.12,sin(deg_to_rad(a))*.28*scale),Vector3(.11*scale,.12*scale,.72*scale),Color("#46301f"))
-		root.rotation_degrees.y=a+rng.randf_range(-12,12)
-	for i in range(rng.randi_range(1,3)):
-		var a=rng.randf_range(0,TAU)
-		var branch=box(p+Vector3(cos(a)*.18*scale,2.25*scale,sin(a)*.18*scale),Vector3(.07*scale,.07*scale,rng.randf_range(.72,1.1)*scale),Color("#3b281c"))
-		branch.rotation_degrees=Vector3(rng.randf_range(-18,18),rad_to_deg(a)+90.0,rng.randf_range(18,36))
+	add_obstacle(p,.62*scale)
+	make_surface_stain(p,Vector2(1.7*scale,1.35*scale),Color(.02,.045,.03,.24),rng.randf_range(0,180))
+	var root=Node3D.new()
+	root.name="Świerk RTS"
+	root.position=p
+	root.rotation_degrees.y=rng.randf_range(0,180)
+	add_child(root)
+	var trunk=cyl_in(root,Vector3(0,1.45*scale,0),.12*scale,2.9*scale,Color("#46301f"))
+	trunk.rotation_degrees=Vector3(rng.randf_range(-2,2),0,rng.randf_range(-3,3))
+	var lower=cone_in(root,Vector3(0,2.1*scale,0),.78*scale,1.18*scale,Color("#204b2a"))
+	lower.scale=Vector3(1.12,1.0,.95)
+	var mid=cone_in(root,Vector3(.03*scale,2.78*scale,-.02*scale),.58*scale,1.0*scale,Color("#2f6738"))
+	mid.scale=Vector3(1.04,1.0,.94)
+	var top=cone_in(root,Vector3(-.02*scale,3.35*scale,.03*scale),.38*scale,.78*scale,Color("#628d58"))
+	top.scale=Vector3(.98,1.0,.9)
 
 func make_rock(p,scale):
 	var rock_cols=[Color("#777a72"),Color("#696d68"),Color("#858277"),Color("#6d7069")]
@@ -601,12 +675,12 @@ func make_twig_litter(center,rx,rz,count,rot=0.0):
 		twig.rotation_degrees=Vector3(rng.randf_range(-3,3),rot+rng.randf_range(-80,80),rng.randf_range(-2,2))
 
 func make_terrain_layers():
-	var cols=[Color("#415734"),Color("#344b30"),Color("#4b5d39"),Color("#514e35"),Color("#3b5434")]
-	for i in range(world_count(46)):
+	var cols=[Color(.25,.34,.21,.42),Color(.20,.29,.18,.38),Color(.30,.37,.23,.36),Color(.32,.31,.21,.34),Color(.22,.32,.20,.38)]
+	for i in range(world_count(28)):
 		var p=Vector3(rng.randf_range(-42,42),0,rng.randf_range(-42,42))
 		if abs(p.x-river_x_at_z(p.z))<4.1:
 			continue
-		make_ground_patch(p,Vector2(rng.randf_range(5.2,12.5),rng.randf_range(3.2,8.8)),cols[i%cols.size()],rng.randf_range(0,180))
+		make_ground_patch(p,Vector2(rng.randf_range(7.0,15.0),rng.randf_range(4.8,10.8)),cols[i%cols.size()],rng.randf_range(0,180))
 	make_ground_patch(Vector3(-1.8,0,2.0),Vector2(14.5,9.4),Color("#554b32"),5)
 	make_ground_patch(Vector3(-5.8,0,4.0),Vector2(9.0,5.4),Color("#4f462f"),-13)
 	make_ground_patch(Vector3(7,0,-7),Vector2(10.2,6.1),Color("#5a5035"),17)
@@ -710,21 +784,21 @@ func make_plaza_depth_pass(home_a,home_b):
 		cone_in(self,p+Vector3(0,1.22,0),.12,.28,Color("#b85d2d"))
 
 func make_outer_forest_ring():
-	for i in range(world_count(34)):
+	for i in range(world_count(13)):
 		var side=rng.randi_range(0,3)
 		var p=Vector3.ZERO
 		if side==0:
-			p=Vector3(rng.randf_range(-45,45),0,rng.randf_range(37,45))
+			p=Vector3(rng.randf_range(-46,46),0,rng.randf_range(35,46))
 		elif side==1:
-			p=Vector3(rng.randf_range(-45,45),0,rng.randf_range(-45,-37))
+			p=Vector3(rng.randf_range(-46,46),0,rng.randf_range(-46,-35))
 		elif side==2:
-			p=Vector3(rng.randf_range(-45,-37),0,rng.randf_range(-45,45))
+			p=Vector3(rng.randf_range(-46,-35),0,rng.randf_range(-46,46))
 		else:
-			p=Vector3(rng.randf_range(37,45),0,rng.randf_range(-45,45))
+			p=Vector3(rng.randf_range(35,46),0,rng.randf_range(-46,46))
 		if abs(p.x-river_x_at_z(p.z))<5.2:
 			continue
-		make_tree(p,rng.randf_range(.82,1.28))
-	for i in range(world_count(18)):
+		make_rts_forest_cluster(p,rng.randf_range(4.6,7.4),rng.randi_range(7,12),rng.randf_range(0,180),true)
+	for i in range(world_count(7)):
 		var p=Vector3(rng.randf_range(-42,42),0,rng.randf_range(-42,42))
 		if p.length()<16 or abs(p.x-river_x_at_z(p.z))<5:
 			continue
@@ -745,7 +819,7 @@ func make_background_landforms():
 		hill.name="Niski grzbiet terenu"
 		hill.scale=Vector3(rng.randf_range(4.4,7.8),rng.randf_range(.28,.52),rng.randf_range(2.0,4.4))
 		hill.rotation_degrees.y=rng.randf_range(0,180)
-	for i in range(world_count(28)):
+	for i in range(world_count(14)):
 		var side=rng.randi_range(0,3)
 		var p=Vector3.ZERO
 		if side==0:
@@ -758,7 +832,9 @@ func make_background_landforms():
 			p=Vector3(rng.randf_range(34,48),0,rng.randf_range(-47,47))
 		if abs(p.x-river_x_at_z(p.z))<5.2:
 			continue
-		if rng.randf()<.58:
+		if rng.randf()<.42:
+			make_rts_forest_cluster(p,rng.randf_range(3.2,5.4),rng.randi_range(5,8),rng.randf_range(0,180),true)
+		elif rng.randf()<.68:
 			make_bush_cluster(p,rng.randf_range(.82,1.18))
 		else:
 			make_rock(p+Vector3(0,.08,0),rng.randf_range(.62,1.08))
@@ -785,7 +861,7 @@ func make_realistic_visual_pass(home_a,home_b):
 	for p in [Vector3(-15.2,0,-2.6),Vector3(-13.8,0,4.6),Vector3(12.6,0,-2.1),Vector3(13.8,0,6.2),Vector3(-18.0,0,13.2),Vector3(20.2,0,16.4)]:
 		make_bush_cluster(p,rng.randf_range(.92,1.28))
 	for p in [Vector3(-29,0,-24),Vector3(-25,0,21),Vector3(-19,0,25),Vector3(21,0,-22),Vector3(27,0,-16),Vector3(28,0,18),Vector3(18,0,26)]:
-		make_tree(p,rng.randf_range(.92,1.34))
+		make_rts_forest_cluster(p,rng.randf_range(3.0,5.2),rng.randi_range(5,8),rng.randf_range(0,180),true)
 	make_smoke_column(Vector3(hearth_pos.x,1.15,hearth_pos.z),1.14)
 	make_smoke_column(home_a+Vector3(-.5,3.2,-.8),.82)
 	make_smoke_column(home_b+Vector3(.45,3.15,-.9),.78)
@@ -803,12 +879,12 @@ func make_earth_and_shelter_polish(home_a,home_b):
 	make_ground_shadow(home_a+Vector3(0,0,-.8),Vector2(6.2,5.0),8,.20)
 	make_ground_shadow(home_b+Vector3(0,0,-.8),Vector2(6.2,5.0),-12,.20)
 	for hub in [Vector3.ZERO,hearth_pos,STOCKPILE_POS,RESEARCH_POS,home_a+Vector3(0,0,-3.7),home_b+Vector3(0,0,-3.7),Vector3(4.8,0,11.6)]:
-		make_grit_scatter(hub,3.1,2.2,26,rng.randf_range(-18,18))
-		make_twig_litter(hub,2.8,1.7,12,rng.randf_range(-24,24))
+		make_grit_scatter(hub,3.1,2.2,14,rng.randf_range(-18,18))
+		make_twig_litter(hub,2.8,1.7,6,rng.randf_range(-24,24))
 	for z in [-22,-15,-8,-1,7,15,23]:
 		var x=river_x_at_z(z)
-		make_grit_scatter(Vector3(x-4.55,0,z),1.2,2.4,12,rng.randf_range(-8,8))
-		make_grit_scatter(Vector3(x+4.55,0,z),1.2,2.4,12,rng.randf_range(-8,8))
+		make_grit_scatter(Vector3(x-4.55,0,z),1.2,2.4,6,rng.randf_range(-8,8))
+		make_grit_scatter(Vector3(x+4.55,0,z),1.2,2.4,6,rng.randf_range(-8,8))
 	for p in [Vector3(-11,0,-13),Vector3(-14,0,-1),Vector3(12,0,-13),Vector3(15,0,2),Vector3(-17,0,12),Vector3(18,0,12)]:
 		make_ground_patch(p,Vector2(rng.randf_range(3.8,6.2),rng.randf_range(1.6,2.8)),Color("#334a31"),rng.randf_range(0,180))
 		make_grass_clump(p+Vector3(rng.randf_range(-.7,.7),.08,rng.randf_range(-.6,.6)),rng.randf_range(1.1,1.6))
@@ -942,7 +1018,7 @@ func make_lumber_camp(p):
 	prop_scene(camp,PROP_WOOD,Vector3(.52,.08,.96),-18,.68)
 	prop_scene(camp,PROP_AXE,Vector3(1.35,.16,.1),-34,.72)
 	make_firewood_stack(p+rotated_offset(-2.15,1.15,camp.rotation_degrees.y),camp.rotation_degrees.y+8)
-	make_twig_litter(p,2.5,1.7,18,camp.rotation_degrees.y)
+	make_twig_litter(p,2.5,1.7,8,camp.rotation_degrees.y)
 	lumber_work_points.append({"pos":p+rotated_offset(-.45,1.9,camp.rotation_degrees.y),"node":camp})
 
 func make_hunter_hut(p):
@@ -1104,12 +1180,12 @@ func make_world_details(home_a,home_b):
 		add_stone_source(p)
 	for p in [Vector3(-14,0,2),Vector3(15,0,8),Vector3(-5,0,-21),Vector3(21,0,18),Vector3(25,0,13)]:
 		add_berry_source(p)
-	for i in range(world_count(128)):
+	for i in range(world_count(76)):
 		var p=Vector3(rng.randf_range(-31,31),.08,rng.randf_range(-31,31))
 		if p.length()<4.0 or abs(p.x-river_x_at_z(p.z))<3.9:
 			continue
 		make_grass_clump(p,rng.randf_range(.72,1.18))
-	for i in range(world_count(34)):
+	for i in range(world_count(14)):
 		var p=Vector3(rng.randf_range(-28,28),.08,rng.randf_range(-28,28))
 		if p.length()<5.0 or abs(p.x-river_x_at_z(p.z))<4.2:
 			continue
@@ -1215,15 +1291,12 @@ func add_forest_source(p,radius=4.3):
 	add_child(root)
 	make_ground_patch(p,Vector2(radius*1.28,radius*.82),Color("#243c28"),rng.randf_range(0,180))
 	make_surface_stain(p,Vector2(radius*.9,radius*.55),Color("#1f2f22"),rng.randf_range(0,180))
-	for i in range(world_count(7)):
-		var a=TAU*float(i)/7.0+rng.randf_range(-.2,.2)
-		var r=rng.randf_range(radius*.28,radius*.72)
-		make_tree(p+Vector3(cos(a)*r,0,sin(a)*r*.82),rng.randf_range(.7,1.05))
-	for i in range(world_count(5)):
+	make_rts_forest_cluster(p,radius*.86,rng.randi_range(8,12),rng.randf_range(0,180),false)
+	for i in range(world_count(2)):
 		make_bush_cluster(p+Vector3(rng.randf_range(-radius*.65,radius*.65),0,rng.randf_range(-radius*.45,radius*.45)),rng.randf_range(.58,.9))
 	prop_world(PROP_LOG_STACK,p+Vector3(-1.25,.08,.6),rng.randf_range(-25,25),.58)
 	prop_world(PROP_WOOD,p+Vector3(.85,.08,-.55),rng.randf_range(-30,30),.6)
-	make_twig_litter(p,radius*.7,radius*.45,18,rng.randf_range(0,180))
+	make_twig_litter(p,radius*.7,radius*.45,8,rng.randf_range(0,180))
 	make_source_sign(root,"LAS",Vector3(0,1.05,-1.35))
 	var entry={"pos":p,"node":root,"radius":radius}
 	forest_sources.append(entry)

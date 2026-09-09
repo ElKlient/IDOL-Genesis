@@ -93,6 +93,20 @@ Focus functions:
 - `chapter_goal()`
 - `choose_work(v)`
 
+## Round 0.8.28 instruction from Container A
+
+Base is now `0.8.28 RTS Forest Optimization`. The world has larger forest masses and less random small clutter, so the next gameplay work must preserve readability around resources and building placement.
+
+Your job now:
+
+1. Pull latest `main`.
+2. Review whether forest sources, deposits, fish spots and build buttons remain readable under the current HUD.
+3. Prepare the next small manual-placement patch only after confirming the new forest masses do not hide legal/illegal building feedback.
+4. Keep touch controls compact and avoid adding a large management screen.
+5. Do not touch terrain art, people animation, asset imports or Android workflow.
+
+Report whether manual placement should start with ghost previews near resource sources or with a simpler "let them choose" build mode first.
+
 ## 30 minute check
 
 While active or waiting, every 30 minutes check this file and `WORKFLOW_FIRST.md` for new Container A instructions.
