@@ -51,11 +51,14 @@ var subtitle_label: Label
 var summary_label: Label
 var reset_settings_button: Button
 var save_close_button: Button
+var settings_header_button: Button
 var navigation_panel: PanelContainer
 var settings_toggle_button: Button
 var settings_panel: PanelContainer
 var legend_bar: HBoxContainer
 var day_tools_panel: PanelContainer
+var day_tools_body: VBoxContainer
+var day_tools_toggle: CheckButton
 var start_input: LineEdit
 var schedule_option: OptionButton
 var range_option: OptionButton
@@ -89,6 +92,8 @@ var scroll_safe_buttons: Array[BaseButton] = []
 var weekly_rest_previous_pressed := true
 var fixed_start_previous_pressed := false
 var main_view_saved := false
+var cycle_pending_apply := false
+var day_tools_visible := true
 var touch_start_position := Vector2.ZERO
 var touch_tracking_active := false
 var touch_drag_cancelled := false
@@ -182,6 +187,14 @@ func _build_ui() -> void:
 	save_close_button.size_flags_horizontal = Control.SIZE_SHRINK_END
 	header.add_child(save_close_button)
 
+	settings_header_button = Button.new()
+	settings_header_button.text = "Ustawienia"
+	_connect_tap(settings_header_button, Callable(self, "_open_calendar_settings"))
+	_prepare_control(settings_header_button, 15, 54)
+	settings_header_button.size_flags_horizontal = Control.SIZE_SHRINK_END
+	settings_header_button.visible = false
+	header.add_child(settings_header_button)
+
 	subtitle_label = _make_label("Pusty grafik. %s" % APP_VERSION_LABEL, 20, COLOR_TEXT_MUTED)
 	subtitle_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	root.add_child(subtitle_label)
@@ -254,7 +267,7 @@ func _build_settings_panel() -> PanelContainer:
 
 	start_input = LineEdit.new()
 	start_input.placeholder_text = "Kliknij dzień w kalendarzu albo wpisz RRRR-MM-DD"
-	start_input.text_submitted.connect(func(_text: String) -> void: _apply_settings())
+	start_input.text_submitted.connect(func(_text: String) -> void: _mark_cycle_pending())
 	_prepare_control(start_input, 21, 62)
 	box.add_child(start_input)
 
@@ -289,7 +302,7 @@ func _build_settings_panel() -> PanelContainer:
 	box.add_child(custom_panel)
 
 	var apply_button := Button.new()
-	apply_button.text = "Zapisz ustawienia"
+	apply_button.text = "Zastosuj"
 	_connect_tap(apply_button, Callable(self, "_save_settings_and_close"))
 	_prepare_control(apply_button, 22, 62)
 	box.add_child(apply_button)
@@ -336,6 +349,7 @@ func _build_navigation_panel() -> PanelContainer:
 	_set_option_selected(range_option, 0)
 	range_option.item_selected.connect(_on_range_selected)
 	_prepare_control(range_option, 22, 60)
+	_prepare_large_dropdown(range_option)
 	nav.add_child(range_option)
 
 	var next_button := _make_nav_button(">")
@@ -361,11 +375,30 @@ func _build_day_tools_panel() -> PanelContainer:
 	var panel := _panel()
 	var box := _panel_box(panel)
 
-	box.add_child(_make_section_label("Dzień pracy i pauza"))
+	var header := HBoxContainer.new()
+	header.add_theme_constant_override("separation", 10)
+	box.add_child(header)
+
+	var title := _make_section_label("Dzień pracy i pauza")
+	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	header.add_child(title)
+
+	day_tools_toggle = CheckButton.new()
+	day_tools_toggle.text = ""
+	day_tools_toggle.button_pressed = day_tools_visible
+	day_tools_toggle.toggled.connect(_on_day_tools_toggled)
+	day_tools_toggle.custom_minimum_size = Vector2(88, 48)
+	day_tools_toggle.size_flags_horizontal = Control.SIZE_SHRINK_END
+	_register_scroll_safe_control(day_tools_toggle)
+	header.add_child(day_tools_toggle)
+
+	day_tools_body = VBoxContainer.new()
+	day_tools_body.add_theme_constant_override("separation", 8)
+	box.add_child(day_tools_body)
 
 	var buttons := VBoxContainer.new()
 	buttons.add_theme_constant_override("separation", 8)
-	box.add_child(buttons)
+	day_tools_body.add_child(buttons)
 
 	var start_button := Button.new()
 	start_button.text = "Rozpocząłem pracę"
@@ -381,7 +414,7 @@ func _build_day_tools_panel() -> PanelContainer:
 
 	var pause_row := HBoxContainer.new()
 	pause_row.add_theme_constant_override("separation", 8)
-	box.add_child(pause_row)
+	day_tools_body.add_child(pause_row)
 
 	pause_option = OptionButton.new()
 	pause_option.add_item("9h")
@@ -402,11 +435,13 @@ func _build_day_tools_panel() -> PanelContainer:
 
 	work_status_label = _make_label("Tu później aplikacja policzy czas pracy.", 18, COLOR_TEXT_MUTED)
 	work_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	box.add_child(work_status_label)
+	day_tools_body.add_child(work_status_label)
 
 	pause_result_label = _make_label("", 19, COLOR_TEXT)
 	pause_result_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	box.add_child(pause_result_label)
+	day_tools_body.add_child(pause_result_label)
+
+	_apply_day_tools_visibility()
 
 	return panel
 
@@ -492,17 +527,46 @@ func _build_note_dialog() -> void:
 
 
 func _save_settings_and_close() -> void:
-	if _apply_settings(true):
+	if _apply_settings(false, true):
 		_save_settings_to_disk()
 
 
 func _save_and_close_main_view() -> void:
-	if not _apply_settings(false):
+	if not _apply_settings(false, true):
 		return
 
 	main_view_saved = true
 	_save_settings_to_disk()
 	_apply_main_view_mode(true)
+
+
+func _open_calendar_settings() -> void:
+	main_view_saved = false
+	_apply_main_view_mode(false)
+	_set_settings_visible(true)
+	_save_settings_to_disk()
+
+
+func _mark_cycle_pending() -> void:
+	cycle_pending_apply = true
+	_save_settings_to_disk()
+
+
+func _on_day_tools_toggled(visible: bool) -> void:
+	if _tap_is_blocked():
+		day_tools_toggle.set_pressed_no_signal(day_tools_visible)
+		return
+
+	day_tools_visible = visible
+	_apply_day_tools_visibility()
+	_save_settings_to_disk()
+
+
+func _apply_day_tools_visibility() -> void:
+	if day_tools_body != null:
+		day_tools_body.visible = day_tools_visible
+	if day_tools_toggle != null:
+		day_tools_toggle.set_pressed_no_signal(day_tools_visible)
 
 
 func _toggle_settings_panel() -> void:
@@ -524,6 +588,8 @@ func _set_settings_visible(visible: bool) -> void:
 		reset_settings_button.visible = true
 	if save_close_button != null:
 		save_close_button.visible = not main_view_saved
+	if settings_header_button != null:
+		settings_header_button.visible = main_view_saved
 
 
 func _apply_main_view_mode(saved: bool) -> void:
@@ -545,8 +611,11 @@ func _apply_main_view_mode(saved: bool) -> void:
 		reset_settings_button.visible = true
 	if save_close_button != null:
 		save_close_button.visible = not saved
+	if settings_header_button != null:
+		settings_header_button.visible = saved
 	if day_tools_panel != null:
 		day_tools_panel.visible = true
+	_apply_day_tools_visibility()
 
 
 func _save_settings_to_disk() -> void:
@@ -555,6 +624,8 @@ func _save_settings_to_disk() -> void:
 
 	var config := ConfigFile.new()
 	config.set_value("ui", "main_view_saved", main_view_saved)
+	config.set_value("ui", "cycle_pending_apply", cycle_pending_apply)
+	config.set_value("ui", "day_tools_visible", day_tools_visible)
 	config.set_value("calendar", "current_year", current_year)
 	config.set_value("calendar", "current_month", current_month)
 	config.set_value("calendar", "schedule_selected", schedule_option.selected)
@@ -584,6 +655,8 @@ func _load_settings_from_disk() -> void:
 		return
 
 	main_view_saved = bool(config.get_value("ui", "main_view_saved", false))
+	cycle_pending_apply = bool(config.get_value("ui", "cycle_pending_apply", false))
+	day_tools_visible = bool(config.get_value("ui", "day_tools_visible", true))
 	current_year = int(config.get_value("calendar", "current_year", current_year))
 	current_month = clampi(int(config.get_value("calendar", "current_month", current_month)), 1, 12)
 
@@ -611,6 +684,7 @@ func _load_settings_from_disk() -> void:
 	work_start_unix = int(config.get_value("work", "start_unix", 0))
 	work_end_unix = int(config.get_value("work", "end_unix", 0))
 	_restore_work_panel_text()
+	_apply_day_tools_visibility()
 
 
 func _valid_option_index(option: OptionButton, index: int) -> int:
@@ -671,8 +745,58 @@ func _restore_work_panel_text() -> void:
 	_update_pause_result()
 
 
+func _adopt_manual_cycle_from_overrides() -> void:
+	var day_indices := _manual_override_day_indices()
+	if day_indices.is_empty():
+		return
+
+	var start_index := int(day_indices[0])
+	var end_index := int(day_indices[day_indices.size() - 1])
+	var max_length := int(custom_length_spin.max_value)
+	var cycle_length := clampi(end_index - start_index + 1, 1, max_length)
+
+	_set_option_selected(schedule_option, schedule_option.get_item_count() - 1)
+	_set_spin_value(custom_length_spin, cycle_length)
+	start_input.text = _date_key_from_day_index(start_index)
+	custom_panel.visible = true
+	_reset_custom_pattern(cycle_length)
+
+	for key in manual_overrides.keys():
+		var parsed := ScheduleCalculator.parse_date(String(key))
+		if parsed.is_empty():
+			continue
+
+		var day_index := ScheduleCalculator.day_index_from_date(
+			int(parsed["year"]),
+			int(parsed["month"]),
+			int(parsed["day"])
+		)
+		var offset := day_index - start_index
+		if offset >= 0 and offset < custom_pattern.size():
+			custom_pattern[offset] = int(manual_overrides[key])
+
+
+func _manual_override_day_indices() -> Array[int]:
+	var day_indices: Array[int] = []
+	for key in manual_overrides.keys():
+		var parsed := ScheduleCalculator.parse_date(String(key))
+		if parsed.is_empty():
+			continue
+
+		day_indices.append(ScheduleCalculator.day_index_from_date(
+			int(parsed["year"]),
+			int(parsed["month"]),
+			int(parsed["day"])
+		))
+
+	day_indices.sort()
+	return day_indices
+
+
 func _reset_calendar_settings() -> void:
 	main_view_saved = false
+	cycle_pending_apply = false
+	day_tools_visible = true
 	_set_option_selected(schedule_option, 0)
 	_set_option_selected(range_option, 0)
 	_set_option_selected(pause_option, 0)
@@ -702,15 +826,21 @@ func _reset_calendar_settings() -> void:
 	error_label.text = ""
 	_rebuild_calendar()
 	_apply_main_view_mode(false)
+	_apply_day_tools_visibility()
 	_set_settings_visible(true)
 	_save_settings_to_disk()
 
 
-func _apply_settings(close_settings_after_save: bool = false) -> bool:
+func _apply_settings(close_settings_after_save: bool = false, adopt_pending_cycle: bool = false) -> bool:
 	var ok := true
 	var fixed_start_weekday := _selected_fixed_start_weekday()
 
-	if schedule_option.selected == 0:
+	if cycle_pending_apply and adopt_pending_cycle and _should_adopt_manual_cycle_from_overrides():
+		_adopt_manual_cycle_from_overrides()
+
+	if cycle_pending_apply and not adopt_pending_cycle:
+		ok = calculator.configure_empty()
+	elif schedule_option.selected == 0:
 		ok = calculator.configure_empty()
 	elif fixed_start_weekday == -2:
 		ok = false
@@ -731,6 +861,8 @@ func _apply_settings(close_settings_after_save: bool = false) -> bool:
 	error_label.text = calculator.last_error
 
 	if ok:
+		if adopt_pending_cycle:
+			cycle_pending_apply = false
 		_rebuild_calendar()
 		if close_settings_after_save:
 			_set_settings_visible(false)
@@ -748,8 +880,8 @@ func _rebuild_calendar() -> void:
 	var month_count := _range_months()
 	var counts := _count_visible_months(current_year, current_month, month_count)
 
-	if _calendar_is_empty():
-		summary_label.text = "Kalendarz jest pusty. Kliknij dzień i wybierz, czym jest: praca, pauza 24h, dom albo urlop."
+	if calculator.mode == "none":
+		summary_label.text = "Uzupełnij swoje pierwsze dwa cykle pracy."
 	else:
 		var today_state := _visual_state_for_day(today_day_index, _date_key_from_day_index(today_day_index))
 		var change_days := calculator.days_until_next_change(today_day_index)
@@ -896,14 +1028,18 @@ func _open_day_actions(year: int, month: int, day: int) -> void:
 
 
 func _set_selected_day_state(state: int) -> void:
-	if state == ScheduleCalculator.DayState.VACATION:
+	if _manual_cycle_setup_active():
+		_stage_selected_day_state(state)
+	elif state == ScheduleCalculator.DayState.VACATION:
 		manual_overrides[selected_day_key] = state
 		_rebuild_calendar()
 	elif _is_preset_schedule():
 		if state == ScheduleCalculator.DayState.WORK:
 			start_input.text = selected_day_key
 			manual_overrides.clear()
-			_apply_settings()
+			manual_overrides[selected_day_key] = state
+			cycle_pending_apply = true
+			_rebuild_calendar()
 		elif state == ScheduleCalculator.DayState.NONE:
 			manual_overrides[selected_day_key] = state
 			_rebuild_calendar()
@@ -914,10 +1050,33 @@ func _set_selected_day_state(state: int) -> void:
 		_ensure_custom_mode_for_selected_day()
 		var offset := ScheduleCalculator.positive_mod(selected_day_index - calculator.start_day_index, custom_pattern.size())
 		custom_pattern[offset] = state
-		_apply_settings()
+		cycle_pending_apply = true
+		_rebuild_calendar()
 
 	day_action_dialog.hide()
 	_save_settings_to_disk()
+
+
+func _manual_cycle_setup_active() -> bool:
+	return not main_view_saved and (schedule_option == null or schedule_option.selected == 0 or _is_custom_schedule())
+
+
+func _should_adopt_manual_cycle_from_overrides() -> bool:
+	return not manual_overrides.is_empty() and (schedule_option.selected == 0 or _is_custom_schedule())
+
+
+func _stage_selected_day_state(state: int) -> void:
+	if not _is_custom_schedule():
+		_set_option_selected(schedule_option, schedule_option.get_item_count() - 1)
+		custom_panel.visible = true
+
+	if manual_overrides.is_empty() or start_input.text.strip_edges().is_empty():
+		start_input.text = selected_day_key
+
+	manual_overrides[selected_day_key] = state
+	cycle_pending_apply = true
+	calculator.configure_empty()
+	_rebuild_calendar()
 
 
 func _ensure_custom_mode_for_selected_day() -> void:
@@ -964,9 +1123,13 @@ func _on_schedule_selected(index: int) -> void:
 	if schedule_option.selected == 0:
 		start_input.text = ""
 		manual_overrides.clear()
+		cycle_pending_apply = false
 	elif not _is_custom_schedule():
 		_apply_preset_to_spins(schedule_option.selected)
-	_apply_settings()
+		cycle_pending_apply = true
+	else:
+		cycle_pending_apply = true
+	_save_settings_to_disk()
 
 
 func _on_range_selected(index: int) -> void:
@@ -991,7 +1154,8 @@ func _on_weekly_rest_toggled(enabled: bool) -> void:
 		return
 
 	weekly_rest_previous_pressed = enabled
-	_apply_settings()
+	cycle_pending_apply = true
+	_save_settings_to_disk()
 
 
 func _on_fixed_start_toggled(enabled: bool) -> void:
@@ -1004,14 +1168,16 @@ func _on_fixed_start_toggled(enabled: bool) -> void:
 	fixed_start_previous_pressed = enabled
 	if fixed_start_option != null:
 		fixed_start_option.visible = enabled
-	_apply_settings()
+	cycle_pending_apply = true
+	_save_settings_to_disk()
 
 
 func _on_fixed_start_day_selected(index: int) -> void:
 	if _option_change_was_scroll(fixed_start_option, index):
 		return
 
-	_apply_settings()
+	cycle_pending_apply = true
+	_save_settings_to_disk()
 
 
 func _on_custom_length_spin_changed(value: float) -> void:
@@ -1023,7 +1189,8 @@ func _on_custom_length_spin_changed(value: float) -> void:
 
 func _on_custom_length_changed(value: float) -> void:
 	_resize_custom_pattern(int(value))
-	_apply_settings()
+	cycle_pending_apply = true
+	_save_settings_to_disk()
 
 
 func _reset_custom_pattern(days: int) -> void:
@@ -1248,7 +1415,7 @@ func _make_spin(min_value: int, max_value: int, value: int, auto_apply: bool = t
 		spin.value_changed.connect(func(changed_value: float) -> void:
 			if _spin_change_was_scroll(spin, changed_value):
 				return
-			_apply_settings()
+			_mark_cycle_pending()
 		)
 	_prepare_control(spin, 20, 56)
 	return spin
@@ -1306,6 +1473,15 @@ func _action_button(text: String, accent: Color = COLOR_TILE_EMPTY) -> Button:
 func _set_option_selected(option: OptionButton, index: int) -> void:
 	option.selected = index
 	option.set_meta("last_selected", index)
+
+
+func _prepare_large_dropdown(option: OptionButton) -> void:
+	var popup := option.get_popup()
+	popup.min_size = Vector2i(300, 250)
+	popup.add_theme_font_size_override("font_size", 24)
+	popup.add_theme_constant_override("v_separation", 14)
+	popup.add_theme_constant_override("item_start_padding", 18)
+	popup.add_theme_constant_override("item_end_padding", 18)
 
 
 func _option_change_was_scroll(option: OptionButton, index: int) -> bool:
