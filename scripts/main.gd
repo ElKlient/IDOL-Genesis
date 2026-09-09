@@ -19,21 +19,22 @@ const MONTH_NAMES := [
 ]
 const WEEKDAY_SHORT_TILE := ["pon", "wt", "śr", "czw", "pt", "sob", "nd"]
 
-const COLOR_PANEL := Color(0.075, 0.090, 0.092, 0.76)
-const COLOR_PANEL_SOFT := Color(0.110, 0.125, 0.122, 0.72)
-const COLOR_TILE_EMPTY := Color(0.90, 0.93, 0.88, 0.24)
+const COLOR_PANEL := Color(0.070, 0.085, 0.087, 0.82)
+const COLOR_PANEL_SOFT := Color(0.105, 0.120, 0.116, 0.76)
+const COLOR_TILE_EMPTY := Color(0.90, 0.93, 0.88, 0.28)
 const COLOR_TILE_EMPTY_OUTSIDE := Color(0.90, 0.93, 0.88, 0.08)
 const COLOR_TEXT := Color(0.94, 0.955, 0.925)
 const COLOR_TEXT_MUTED := Color(0.76, 0.80, 0.77)
 const COLOR_TEXT_DIM := Color(0.54, 0.58, 0.55)
-const COLOR_WORK := Color(0.60, 0.28, 0.30, 0.82)
-const COLOR_HOME := Color(0.30, 0.54, 0.38, 0.82)
-const COLOR_TRAVEL := Color(0.73, 0.58, 0.30, 0.84)
-const COLOR_REST := Color(0.62, 0.50, 0.27, 0.84)
+const COLOR_WORK := Color(0.58, 0.27, 0.30, 0.86)
+const COLOR_HOME := Color(0.28, 0.50, 0.37, 0.86)
+const COLOR_TRAVEL := Color(0.72, 0.56, 0.29, 0.86)
+const COLOR_REST := Color(0.60, 0.49, 0.27, 0.86)
 const COLOR_TODAY := Color(0.92, 0.72, 0.38)
+const COLOR_NOTE := Color(0.43, 0.55, 0.60, 0.86)
 const PORTRAIT_WIDTH := 640
 const TILE_COLUMNS := 7
-const APP_VERSION_LABEL := "wersja: kafelki 7"
+const APP_VERSION_LABEL := "wersja: kafelki 7.1"
 
 var calculator := ScheduleCalculator.new()
 var current_year: int
@@ -342,6 +343,7 @@ func _build_day_action_dialog() -> void:
 	day_action_dialog.title = "Wybierz dzień"
 	day_action_dialog.exclusive = false
 	day_action_dialog.min_size = Vector2i(640, 650)
+	day_action_dialog.add_theme_stylebox_override("panel", _dialog_style())
 	add_child(day_action_dialog)
 
 	var margin := MarginContainer.new()
@@ -355,35 +357,40 @@ func _build_day_action_dialog() -> void:
 	box.add_theme_constant_override("separation", 10)
 	margin.add_child(box)
 
-	var set_travel := _action_button("Ten dzień = wyjazd / zjazd")
+	var set_travel := _action_button("Ten dzień = wyjazd / zjazd", COLOR_TRAVEL)
 	set_travel.pressed.connect(_set_selected_day_state.bind(ScheduleCalculator.DayState.TRAVEL))
 	box.add_child(set_travel)
 
-	var set_work := _action_button("Ten dzień = praca")
+	var set_work := _action_button("Ten dzień = praca", COLOR_WORK)
 	set_work.pressed.connect(_set_selected_day_state.bind(ScheduleCalculator.DayState.WORK))
 	box.add_child(set_work)
 
-	var set_rest := _action_button("Ten dzień = pauza 24h")
+	var set_rest := _action_button("Ten dzień = pauza 24h", COLOR_REST)
 	set_rest.pressed.connect(_set_selected_day_state.bind(ScheduleCalculator.DayState.REST))
 	box.add_child(set_rest)
 
-	var set_home := _action_button("Ten dzień = dom")
+	var set_home := _action_button("Ten dzień = dom", COLOR_HOME)
 	set_home.pressed.connect(_set_selected_day_state.bind(ScheduleCalculator.DayState.HOME))
 	box.add_child(set_home)
 
-	var clear_day := _action_button("Wyczyść ten dzień")
+	var clear_day := _action_button("Wyczyść ten dzień", Color(0.52, 0.55, 0.54, 0.86))
 	clear_day.pressed.connect(_set_selected_day_state.bind(ScheduleCalculator.DayState.NONE))
 	box.add_child(clear_day)
 
-	var note_button := _action_button("Dodaj notatkę")
+	var note_button := _action_button("Dodaj notatkę", COLOR_NOTE)
 	note_button.pressed.connect(_open_note_from_action_dialog)
 	box.add_child(note_button)
+
+	var close_button := day_action_dialog.get_ok_button()
+	close_button.text = "Zamknij"
+	_prepare_control(close_button, 18, 48)
 
 
 func _build_note_dialog() -> void:
 	note_dialog = ConfirmationDialog.new()
 	note_dialog.title = "Notatka"
 	note_dialog.confirmed.connect(_save_note)
+	note_dialog.add_theme_stylebox_override("panel", _dialog_style())
 	add_child(note_dialog)
 
 	var margin := MarginContainer.new()
@@ -546,6 +553,17 @@ func _fill_day_tile(button: Button, day: int, day_index: int, state: int, has_no
 		box.add_child(_tile_label(state_name, _tile_badge_font_size(), COLOR_TEXT))
 	elif has_note:
 		box.add_child(_tile_label("not.", _tile_badge_font_size(), COLOR_TEXT_MUTED))
+
+	var accent := Panel.new()
+	accent.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	accent.anchor_left = 0.24
+	accent.anchor_right = 0.76
+	accent.anchor_top = 1.0
+	accent.anchor_bottom = 1.0
+	accent.offset_top = -7.0
+	accent.offset_bottom = -3.0
+	accent.add_theme_stylebox_override("panel", _accent_style(_tile_accent_color(state, has_note)))
+	button.add_child(accent)
 
 
 func _tile_label(text: String, font_size: int, color: Color) -> Label:
@@ -869,6 +887,9 @@ func _make_label(text: String, font_size: int, color: Color) -> Label:
 	label.text = text
 	label.add_theme_font_size_override("font_size", font_size)
 	label.add_theme_color_override("font_color", color)
+	if font_size >= 20:
+		label.add_theme_constant_override("outline_size", 1)
+		label.add_theme_color_override("font_outline_color", Color(0.0, 0.0, 0.0, 0.35))
 	return label
 
 
@@ -880,10 +901,14 @@ func _make_nav_button(text: String) -> Button:
 	return button
 
 
-func _action_button(text: String) -> Button:
+func _action_button(text: String, accent: Color = COLOR_TILE_EMPTY) -> Button:
 	var button := Button.new()
 	button.text = text
 	_prepare_control(button, 21, 66)
+	button.add_theme_stylebox_override("normal", _control_style(_alpha(accent, 0.34)))
+	button.add_theme_stylebox_override("hover", _control_style(_alpha(accent, 0.44)))
+	button.add_theme_stylebox_override("pressed", _control_style(_alpha(accent, 0.26)))
+	button.add_theme_stylebox_override("focus", _control_style(_alpha(accent, 0.40), true))
 	return button
 
 
@@ -905,14 +930,14 @@ func _prepare_control(control: Control, font_size: int, min_height: int) -> void
 
 func _legend_item(color: Color, text: String) -> HBoxContainer:
 	var item := HBoxContainer.new()
-	item.add_theme_constant_override("separation", 4)
+	item.add_theme_constant_override("separation", 6)
 
-	var swatch := ColorRect.new()
-	swatch.color = color
-	swatch.custom_minimum_size = Vector2(16, 16)
+	var swatch := Panel.new()
+	swatch.custom_minimum_size = Vector2(18, 18)
+	swatch.add_theme_stylebox_override("panel", _accent_style(color))
 	item.add_child(swatch)
 
-	item.add_child(_make_label(text, 15, COLOR_TEXT_MUTED))
+	item.add_child(_make_label(text, 16, COLOR_TEXT_MUTED))
 	return item
 
 
@@ -959,6 +984,9 @@ func _style(color: Color, radius: int) -> StyleBoxFlat:
 	style.set_corner_radius_all(radius)
 	style.set_border_width_all(1)
 	style.border_color = Color(1.0, 1.0, 1.0, 0.10)
+	style.shadow_color = Color(0.0, 0.0, 0.0, 0.26)
+	style.shadow_size = 10
+	style.shadow_offset = Vector2(0, 4)
 	style.content_margin_left = 8
 	style.content_margin_right = 8
 	style.content_margin_top = 8
@@ -972,11 +1000,54 @@ func _control_style(color: Color, focused: bool = false) -> StyleBoxFlat:
 	style.set_corner_radius_all(8)
 	style.set_border_width_all(1)
 	style.border_color = COLOR_TODAY if focused else Color(1.0, 1.0, 1.0, 0.15)
+	style.shadow_color = Color(0.0, 0.0, 0.0, 0.20)
+	style.shadow_size = 5
+	style.shadow_offset = Vector2(0, 2)
 	style.content_margin_left = 12
 	style.content_margin_right = 12
 	style.content_margin_top = 8
 	style.content_margin_bottom = 8
 	return style
+
+
+func _accent_style(color: Color) -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = color
+	style.set_corner_radius_all(4)
+	style.set_border_width_all(1)
+	style.border_color = Color(1.0, 1.0, 1.0, 0.15)
+	return style
+
+
+func _dialog_style() -> StyleBoxFlat:
+	var style := _style(Color(0.18, 0.19, 0.18, 0.96), 10)
+	style.border_color = Color(1.0, 1.0, 1.0, 0.18)
+	style.shadow_size = 18
+	style.shadow_offset = Vector2(0, 7)
+	style.content_margin_left = 12
+	style.content_margin_right = 12
+	style.content_margin_top = 12
+	style.content_margin_bottom = 12
+	return style
+
+
+func _tile_accent_color(state: int, has_note: bool) -> Color:
+	match state:
+		ScheduleCalculator.DayState.WORK:
+			return _alpha(COLOR_WORK.lightened(0.18), 0.88)
+		ScheduleCalculator.DayState.HOME:
+			return _alpha(COLOR_HOME.lightened(0.18), 0.88)
+		ScheduleCalculator.DayState.TRAVEL:
+			return _alpha(COLOR_TRAVEL.lightened(0.16), 0.88)
+		ScheduleCalculator.DayState.REST:
+			return _alpha(COLOR_REST.lightened(0.16), 0.88)
+	if has_note:
+		return _alpha(COLOR_NOTE, 0.80)
+	return Color(1.0, 1.0, 1.0, 0.18)
+
+
+func _alpha(color: Color, alpha: float) -> Color:
+	return Color(color.r, color.g, color.b, alpha)
 
 
 func _format_duration(seconds: int) -> String:
