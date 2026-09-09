@@ -4,14 +4,16 @@ Prosty kalendarz dla kierowcow jezdzacych w systemach pracy typu 2/1, 2/2, 3/1 a
 
 ## MVP
 
-- miesieczny kalendarz z kolorami:
+- pionowy, kafelkowy kalendarz pod telefon:
+  - kazdy dzien jest osobnym kafelkiem z numerem i dniem tygodnia,
+  - start jest pusty, bez domyslnie wpisanego systemu,
+  - tlo ma ciemny motyw drogi i ciezarowki,
+- miesieczny kalendarz z lagodnymi kolorami:
   - czerwony: praca,
   - zielony: dom,
   - zolty: dojazd albo zjazd,
   - zloty: pauza 24h,
   - zolty obrys: dzisiaj,
-- pionowy, przewijany uklad pod telefon,
-- pusty kalendarz po starcie, bez domyslnie wybranego systemu,
 - data startu wpisywana recznie albo wybierana kliknieciem dnia,
 - gotowe systemy: 2/1, 2/2, 3/1, 3/2, 4/1 oraz 6 dni + 24h + 6 dni,
 - wlasny cykl ustawiany kliknieciem dni w kalendarzu,
