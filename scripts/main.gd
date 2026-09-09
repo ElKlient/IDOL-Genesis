@@ -39,7 +39,6 @@ const TILE_COLUMNS := 7
 const SETTINGS_PATH := "user://driver_calendar.cfg"
 const TAP_CANCEL_DISTANCE := 18.0
 const TAP_BLOCK_AFTER_DRAG_MS := 180
-const SWIPE_MIN_DISTANCE := 96.0
 const RETURN_TODAY_BUTTON_TOP := 84
 const RETURN_TODAY_BUTTON_HEIGHT := 44
 const RETURN_TODAY_BUTTON_WIDTH := 300
@@ -47,7 +46,6 @@ const RESET_UNDO_BUTTON_TOP := 84
 const RESET_UNDO_BUTTON_HEIGHT := 44
 const RESET_UNDO_BUTTON_WIDTH := 166
 const SCROLLBAR_TOUCH_WIDTH := 28
-const SCROLLBAR_SWIPE_GUARD_WIDTH := 52.0
 const CALENDAR_ONLY_RETURN_TOP := 20
 const CALENDAR_ONLY_RETURN_WIDTH := 142
 const CALENDAR_ONLY_RETURN_HEIGHT := 54
@@ -148,8 +146,6 @@ var touch_start_position := Vector2.ZERO
 var touch_tracking_active := false
 var touch_drag_cancelled := false
 var last_drag_release_msec := -10000
-var swipe_start_position := Vector2.ZERO
-var swipe_tracking_active := false
 
 
 func _ready() -> void:
@@ -169,7 +165,6 @@ func _ready() -> void:
 
 func _input(event: InputEvent) -> void:
 	_track_scroll_touch(event)
-	_track_month_swipe(event)
 
 
 func _force_portrait() -> void:
@@ -2671,53 +2666,6 @@ func _track_scroll_touch(event: InputEvent) -> void:
 		var mouse_motion := event as InputEventMouseMotion
 		if mouse_motion.button_mask != 0:
 			_update_touch_tracking(mouse_motion.position)
-
-
-func _track_month_swipe(event: InputEvent) -> void:
-	if not main_view_saved or _range_months() != 1:
-		swipe_tracking_active = false
-		return
-
-	if event is InputEventScreenTouch:
-		var touch := event as InputEventScreenTouch
-		if touch.pressed:
-			_begin_month_swipe(touch.position)
-		elif swipe_tracking_active:
-			_finish_month_swipe(touch.position)
-	elif event is InputEventMouseButton:
-		var mouse_button := event as InputEventMouseButton
-		if mouse_button.button_index == MOUSE_BUTTON_LEFT:
-			if mouse_button.pressed:
-				_begin_month_swipe(mouse_button.position)
-			elif swipe_tracking_active:
-				_finish_month_swipe(mouse_button.position)
-
-
-func _begin_month_swipe(position: Vector2) -> void:
-	if position.x >= get_viewport_rect().size.x - SCROLLBAR_SWIPE_GUARD_WIDTH:
-		swipe_tracking_active = false
-		return
-
-	swipe_start_position = position
-	swipe_tracking_active = true
-
-
-func _finish_month_swipe(position: Vector2) -> void:
-	var delta := position - swipe_start_position
-	swipe_tracking_active = false
-	if delta.length() < SWIPE_MIN_DISTANCE:
-		return
-
-	if absf(delta.x) >= absf(delta.y):
-		if delta.x < 0.0:
-			_on_next_month()
-		else:
-			_on_previous_month()
-	else:
-		if delta.y < 0.0:
-			_on_next_month()
-		else:
-			_on_previous_month()
 
 
 func _begin_touch_tracking(position: Vector2) -> void:
