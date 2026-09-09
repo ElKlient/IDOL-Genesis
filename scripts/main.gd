@@ -218,8 +218,8 @@ func _build_ui() -> void:
 	root.add_child(legend_bar)
 
 	settings_toggle_button = Button.new()
-	settings_toggle_button.text = "Zamknij ustawienia"
-	_connect_tap(settings_toggle_button, Callable(self, "_toggle_settings_panel"))
+	settings_toggle_button.text = "Zastosuj"
+	_connect_tap(settings_toggle_button, Callable(self, "_on_settings_primary_pressed"))
 	_prepare_control(settings_toggle_button, 22, 62)
 	root.add_child(settings_toggle_button)
 
@@ -303,11 +303,11 @@ func _build_settings_panel() -> PanelContainer:
 	custom_panel.visible = false
 	box.add_child(custom_panel)
 
-	var apply_button := Button.new()
-	apply_button.text = "Zastosuj"
-	_connect_tap(apply_button, Callable(self, "_save_settings_and_close"))
-	_prepare_control(apply_button, 22, 62)
-	box.add_child(apply_button)
+	var close_settings_button := Button.new()
+	close_settings_button.text = "Zamknij ustawienia"
+	_connect_tap(close_settings_button, Callable(self, "_close_settings_panel"))
+	_prepare_control(close_settings_button, 22, 62)
+	box.add_child(close_settings_button)
 
 	error_label = _make_label("", 18, Color(0.95, 0.58, 0.52))
 	error_label.visible = false
@@ -554,6 +554,17 @@ func _mark_cycle_pending() -> void:
 	_save_settings_to_disk()
 
 
+func _on_settings_primary_pressed() -> void:
+	if settings_panel != null and settings_panel.visible:
+		_save_settings_and_close()
+	else:
+		_set_settings_visible(true)
+
+
+func _close_settings_panel() -> void:
+	_set_settings_visible(false)
+
+
 func _on_day_tools_toggled(visible: bool) -> void:
 	if _tap_is_blocked():
 		day_tools_toggle.set_pressed_no_signal(day_tools_visible)
@@ -585,7 +596,7 @@ func _set_settings_visible(visible: bool) -> void:
 	if settings_panel != null:
 		settings_panel.visible = visible
 	if settings_toggle_button != null:
-		settings_toggle_button.text = "Zamknij ustawienia" if visible else "Ustaw kalendarz"
+		settings_toggle_button.text = "Zastosuj" if visible else "Ustaw kalendarz"
 	if reset_settings_button != null:
 		reset_settings_button.visible = true
 	if save_close_button != null:
