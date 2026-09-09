@@ -30,7 +30,7 @@ func _draw() -> void:
 
 	var line_left := Vector2(w * 0.45, h * 0.56)
 	var line_right := Vector2(w * 0.56, h)
-	draw_line(line_left, line_right, Color(0.78, 0.70, 0.48, 0.28), max(2.0, w * 0.006))
+	draw_line(line_left, line_right, Color(0.78, 0.70, 0.48, 0.28), maxf(2.0, w * 0.006))
 
 	var truck_origin := Vector2(w * 0.14, h * 0.64)
 	var truck_w := w * 0.72
