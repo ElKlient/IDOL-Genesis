@@ -35,19 +35,22 @@ const COLOR_NOTE := Color(0.43, 0.55, 0.60, 0.86)
 const COLOR_VACATION := Color(0.40, 0.48, 0.58, 0.86)
 const PORTRAIT_WIDTH := 640
 const TILE_COLUMNS := 7
-const APP_VERSION_LABEL := "wersja: kafelki 7.1"
 const SETTINGS_PATH := "user://driver_calendar.cfg"
 const TAP_CANCEL_DISTANCE := 18.0
 const TAP_BLOCK_AFTER_DRAG_MS := 180
 const SWIPE_MIN_DISTANCE := 96.0
+const RETURN_TODAY_BUTTON_TOP := 84
+const RETURN_TODAY_BUTTON_HEIGHT := 44
+const RETURN_TODAY_BUTTON_WIDTH := 310
 
 var calculator := ScheduleCalculator.new()
 var current_year: int
 var current_month: int
 var today_day_index: int
 
+var main_scroll: ScrollContainer
 var months_box: VBoxContainer
-var subtitle_label: Label
+var return_today_button: Button
 var summary_label: Label
 var reset_settings_button: Button
 var save_close_button: Button
@@ -148,16 +151,18 @@ func _build_ui() -> void:
 	safe_margin.add_theme_constant_override("margin_bottom", 20)
 	add_child(safe_margin)
 
-	var scroll := ScrollContainer.new()
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	scroll.scroll_deadzone = 6
-	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	safe_margin.add_child(scroll)
+	main_scroll = ScrollContainer.new()
+	main_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	main_scroll.scroll_deadzone = 6
+	main_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	main_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	safe_margin.add_child(main_scroll)
 
 	var center := CenterContainer.new()
 	center.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scroll.add_child(center)
+	main_scroll.add_child(center)
+
+	_add_return_today_overlay()
 
 	var root := VBoxContainer.new()
 	root.custom_minimum_size = Vector2(PORTRAIT_WIDTH, 0)
@@ -197,9 +202,9 @@ func _build_ui() -> void:
 	settings_header_button.visible = false
 	header.add_child(settings_header_button)
 
-	subtitle_label = _make_label("Pusty grafik. %s" % APP_VERSION_LABEL, 20, COLOR_TEXT_MUTED)
-	subtitle_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	root.add_child(subtitle_label)
+	var return_today_spacer := Control.new()
+	return_today_spacer.custom_minimum_size = Vector2(0, RETURN_TODAY_BUTTON_HEIGHT)
+	root.add_child(return_today_spacer)
 
 	navigation_panel = _build_navigation_panel()
 	root.add_child(navigation_panel)
@@ -371,6 +376,31 @@ func _build_navigation_panel() -> PanelContainer:
 	year_buttons.add_child(next_year_button)
 
 	return panel
+
+
+func _add_return_today_overlay() -> void:
+	var overlay := MarginContainer.new()
+	overlay.set_anchors_preset(Control.PRESET_TOP_WIDE)
+	overlay.offset_left = 18.0
+	overlay.offset_right = -18.0
+	overlay.offset_top = RETURN_TODAY_BUTTON_TOP
+	overlay.offset_bottom = RETURN_TODAY_BUTTON_TOP + RETURN_TODAY_BUTTON_HEIGHT
+	overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	overlay.z_index = 30
+	add_child(overlay)
+
+	var holder := CenterContainer.new()
+	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	holder.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	overlay.add_child(holder)
+
+	return_today_button = Button.new()
+	return_today_button.text = "Wróć do aktualnej daty"
+	_connect_tap(return_today_button, Callable(self, "_on_return_to_today_pressed"))
+	_prepare_control(return_today_button, 18, RETURN_TODAY_BUTTON_HEIGHT)
+	return_today_button.custom_minimum_size.x = RETURN_TODAY_BUTTON_WIDTH
+	return_today_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	holder.add_child(return_today_button)
 
 
 func _build_day_tools_panel() -> PanelContainer:
@@ -608,8 +638,6 @@ func _set_settings_visible(visible: bool) -> void:
 func _apply_main_view_mode(saved: bool) -> void:
 	main_view_saved = saved
 
-	if subtitle_label != null:
-		subtitle_label.visible = not saved
 	if navigation_panel != null:
 		navigation_panel.visible = not saved
 	if summary_label != null:
@@ -2062,6 +2090,17 @@ func _on_next_month() -> void:
 func _on_next_year() -> void:
 	current_year += 1
 	_rebuild_calendar()
+	_save_settings_to_disk()
+
+
+func _on_return_to_today_pressed() -> void:
+	var now := Time.get_datetime_dict_from_system()
+	current_year = int(now["year"])
+	current_month = int(now["month"])
+	_refresh_today_day_index()
+	_rebuild_calendar()
+	if main_scroll != null:
+		main_scroll.set_deferred("scroll_vertical", 0)
 	_save_settings_to_disk()
 
 
