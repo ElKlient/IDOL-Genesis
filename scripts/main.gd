@@ -48,6 +48,9 @@ const RESET_UNDO_BUTTON_HEIGHT := 44
 const RESET_UNDO_BUTTON_WIDTH := 166
 const SCROLLBAR_TOUCH_WIDTH := 28
 const SCROLLBAR_SWIPE_GUARD_WIDTH := 52.0
+const CALENDAR_ONLY_RETURN_TOP := 20
+const CALENDAR_ONLY_RETURN_WIDTH := 142
+const CALENDAR_ONLY_RETURN_HEIGHT := 54
 const PROFILE_BUTTON_TOP := 84
 const PROFILE_BUTTON_HEIGHT := 44
 const PROFILE_BUTTON_WIDTH := 142
@@ -75,6 +78,8 @@ var summary_label: Label
 var reset_settings_button: Button
 var undo_button: Button
 var reset_undo_button: Button
+var header_bar: HBoxContainer
+var return_today_spacer: Control
 var save_close_button: Button
 var settings_header_button: Button
 var navigation_panel: PanelContainer
@@ -87,6 +92,8 @@ var month_picker_panel: PanelContainer
 var settings_toggle_button: Button
 var settings_panel: PanelContainer
 var legend_bar: HBoxContainer
+var calendar_only_toggle_button: Button
+var calendar_only_return_button: Button
 var day_tools_panel: PanelContainer
 var day_tools_body: VBoxContainer
 var day_tools_toggle: CheckButton
@@ -123,6 +130,7 @@ var scroll_safe_buttons: Array[BaseButton] = []
 var weekly_rest_previous_pressed := true
 var fixed_start_previous_pressed := false
 var main_view_saved := false
+var calendar_only_mode := false
 var cycle_pending_apply := false
 var day_tools_visible := true
 var quick_navigation_body_visible := true
@@ -203,6 +211,7 @@ func _build_ui() -> void:
 	_add_return_today_overlay()
 	_add_reset_undo_overlay()
 	_add_profile_overlay()
+	_add_calendar_only_return_overlay()
 
 	var root := VBoxContainer.new()
 	root.custom_minimum_size = Vector2(PORTRAIT_WIDTH, 0)
@@ -210,15 +219,15 @@ func _build_ui() -> void:
 	root.add_theme_constant_override("separation", 18)
 	center.add_child(root)
 
-	var header := HBoxContainer.new()
-	header.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	header.add_theme_constant_override("separation", 8)
-	root.add_child(header)
+	header_bar = HBoxContainer.new()
+	header_bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	header_bar.add_theme_constant_override("separation", 8)
+	root.add_child(header_bar)
 
 	var undo_row := HBoxContainer.new()
 	undo_row.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	undo_row.add_theme_constant_override("separation", 6)
-	header.add_child(undo_row)
+	header_bar.add_child(undo_row)
 
 	reset_settings_button = Button.new()
 	reset_settings_button.text = "Resetuj"
@@ -239,7 +248,7 @@ func _build_ui() -> void:
 	var title := _make_label("Kalendarz Kierowcy", 30, COLOR_TEXT)
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	header.add_child(title)
+	header_bar.add_child(title)
 
 	save_close_button = Button.new()
 	save_close_button.text = "Zapisz i zamknij"
@@ -247,7 +256,7 @@ func _build_ui() -> void:
 	_prepare_control(save_close_button, 14, 54)
 	save_close_button.custom_minimum_size.x = PROFILE_BUTTON_WIDTH
 	save_close_button.size_flags_horizontal = Control.SIZE_SHRINK_END
-	header.add_child(save_close_button)
+	header_bar.add_child(save_close_button)
 
 	settings_header_button = Button.new()
 	settings_header_button.text = "Ustawienia"
@@ -256,9 +265,9 @@ func _build_ui() -> void:
 	settings_header_button.custom_minimum_size.x = PROFILE_BUTTON_WIDTH
 	settings_header_button.size_flags_horizontal = Control.SIZE_SHRINK_END
 	settings_header_button.visible = false
-	header.add_child(settings_header_button)
+	header_bar.add_child(settings_header_button)
 
-	var return_today_spacer := Control.new()
+	return_today_spacer = Control.new()
 	return_today_spacer.custom_minimum_size = Vector2(0, RETURN_TODAY_BUTTON_HEIGHT)
 	root.add_child(return_today_spacer)
 
@@ -291,6 +300,13 @@ func _build_ui() -> void:
 	root.add_child(settings_panel)
 	day_tools_panel = _build_day_tools_panel()
 	root.add_child(day_tools_panel)
+
+	calendar_only_toggle_button = Button.new()
+	calendar_only_toggle_button.text = "Pokaż tylko kalendarz"
+	_connect_tap(calendar_only_toggle_button, Callable(self, "_enter_calendar_only_mode"))
+	_prepare_control(calendar_only_toggle_button, 22, 62)
+	calendar_only_toggle_button.visible = false
+	root.add_child(calendar_only_toggle_button)
 	_set_settings_visible(true)
 
 	_build_day_action_dialog()
@@ -611,6 +627,29 @@ func _add_profile_overlay() -> void:
 	_set_profile_panel_visible(false)
 
 
+func _add_calendar_only_return_overlay() -> void:
+	var overlay := MarginContainer.new()
+	overlay.anchor_left = 1.0
+	overlay.anchor_right = 1.0
+	overlay.anchor_top = 0.0
+	overlay.anchor_bottom = 0.0
+	overlay.offset_left = -CALENDAR_ONLY_RETURN_WIDTH - 18.0
+	overlay.offset_right = -18.0
+	overlay.offset_top = CALENDAR_ONLY_RETURN_TOP
+	overlay.offset_bottom = CALENDAR_ONLY_RETURN_TOP + CALENDAR_ONLY_RETURN_HEIGHT
+	overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	overlay.z_index = 40
+	add_child(overlay)
+
+	calendar_only_return_button = Button.new()
+	calendar_only_return_button.text = "Pokaż opcje"
+	_connect_tap(calendar_only_return_button, Callable(self, "_exit_calendar_only_mode"))
+	_prepare_control(calendar_only_return_button, 14, CALENDAR_ONLY_RETURN_HEIGHT)
+	calendar_only_return_button.custom_minimum_size.x = CALENDAR_ONLY_RETURN_WIDTH
+	calendar_only_return_button.visible = false
+	overlay.add_child(calendar_only_return_button)
+
+
 func _build_profile_panel() -> PanelContainer:
 	var panel := _panel()
 	panel.custom_minimum_size.x = PROFILE_PANEL_WIDTH
@@ -824,15 +863,35 @@ func _save_and_close_main_view() -> void:
 
 	_store_undo_snapshot(undo_before)
 	main_view_saved = true
+	calendar_only_mode = false
 	_save_settings_to_disk()
 	_apply_main_view_mode(true)
 
 
 func _open_calendar_settings() -> void:
 	_capture_undo_state()
+	calendar_only_mode = false
 	main_view_saved = false
 	_apply_main_view_mode(false)
 	_set_settings_visible(true)
+	_save_settings_to_disk()
+
+
+func _enter_calendar_only_mode() -> void:
+	_capture_undo_state()
+	main_view_saved = true
+	calendar_only_mode = true
+	_rebuild_calendar()
+	_apply_main_view_mode(true)
+	_save_settings_to_disk()
+
+
+func _exit_calendar_only_mode() -> void:
+	_capture_undo_state()
+	calendar_only_mode = false
+	main_view_saved = true
+	_rebuild_calendar()
+	_apply_main_view_mode(true)
 	_save_settings_to_disk()
 
 
@@ -914,14 +973,14 @@ func _apply_quick_navigation_body_visibility() -> void:
 
 
 func _toggle_settings_panel() -> void:
-	if main_view_saved:
+	if main_view_saved or calendar_only_mode:
 		return
 
 	_set_settings_visible(settings_panel == null or not settings_panel.visible)
 
 
 func _set_settings_visible(visible: bool) -> void:
-	if main_view_saved:
+	if main_view_saved or calendar_only_mode:
 		visible = false
 
 	if settings_panel != null:
@@ -938,29 +997,45 @@ func _set_settings_visible(visible: bool) -> void:
 
 func _apply_main_view_mode(saved: bool) -> void:
 	main_view_saved = saved
+	if not saved:
+		calendar_only_mode = false
 
 	if navigation_panel != null:
-		navigation_panel.visible = not saved
+		navigation_panel.visible = not saved and not calendar_only_mode
 	if quick_navigation_panel != null:
-		quick_navigation_panel.visible = saved
-		if not saved:
+		quick_navigation_panel.visible = saved and not calendar_only_mode
+		if not saved or calendar_only_mode:
 			_set_month_picker_visible(false)
 	if summary_label != null:
-		summary_label.visible = not saved
+		summary_label.visible = not saved and not calendar_only_mode
 	if legend_bar != null:
-		legend_bar.visible = not saved
+		legend_bar.visible = not saved and not calendar_only_mode
 	if settings_toggle_button != null:
-		settings_toggle_button.visible = not saved
-	if settings_panel != null and saved:
+		settings_toggle_button.visible = not saved and not calendar_only_mode
+	if settings_panel != null and (saved or calendar_only_mode):
 		settings_panel.visible = false
+	if header_bar != null:
+		header_bar.visible = not calendar_only_mode
+	if return_today_spacer != null:
+		return_today_spacer.visible = not calendar_only_mode
+	if return_today_button != null:
+		return_today_button.visible = not calendar_only_mode
+	if profile_overlay != null:
+		profile_overlay.visible = not calendar_only_mode
 	if reset_settings_button != null:
-		reset_settings_button.visible = true
+		reset_settings_button.visible = not calendar_only_mode
 	if save_close_button != null:
-		save_close_button.visible = not saved
+		save_close_button.visible = not saved and not calendar_only_mode
 	if settings_header_button != null:
-		settings_header_button.visible = saved
+		settings_header_button.visible = saved and not calendar_only_mode
 	if day_tools_panel != null:
-		day_tools_panel.visible = true
+		day_tools_panel.visible = not calendar_only_mode
+	if calendar_only_toggle_button != null:
+		calendar_only_toggle_button.visible = saved and not calendar_only_mode
+	if calendar_only_return_button != null:
+		calendar_only_return_button.visible = calendar_only_mode
+	if calendar_only_mode:
+		_set_profile_panel_visible(false)
 	_apply_day_tools_visibility()
 	_update_undo_buttons()
 
@@ -971,7 +1046,7 @@ func _update_undo_buttons() -> void:
 	if undo_button != null:
 		undo_button.disabled = not undo_available
 	if reset_undo_button != null:
-		reset_undo_button.visible = reset_undo_available
+		reset_undo_button.visible = reset_undo_available and not calendar_only_mode
 
 
 func _on_reset_pressed() -> void:
@@ -992,6 +1067,7 @@ func _save_settings_to_disk() -> void:
 
 	var config := ConfigFile.new()
 	config.set_value("ui", "main_view_saved", main_view_saved)
+	config.set_value("ui", "calendar_only_mode", calendar_only_mode)
 	config.set_value("ui", "cycle_pending_apply", cycle_pending_apply)
 	config.set_value("ui", "day_tools_visible", day_tools_visible)
 	config.set_value("ui", "quick_navigation_body_visible", quick_navigation_body_visible)
@@ -1031,6 +1107,9 @@ func _load_settings_from_disk() -> void:
 		return
 
 	main_view_saved = bool(config.get_value("ui", "main_view_saved", false))
+	calendar_only_mode = bool(config.get_value("ui", "calendar_only_mode", false))
+	if calendar_only_mode:
+		main_view_saved = true
 	cycle_pending_apply = bool(config.get_value("ui", "cycle_pending_apply", false))
 	day_tools_visible = bool(config.get_value("ui", "day_tools_visible", true))
 	quick_navigation_body_visible = bool(config.get_value("ui", "quick_navigation_body_visible", true))
@@ -1371,6 +1450,7 @@ func _on_add_profile_pressed() -> void:
 func _calendar_state_snapshot() -> Dictionary:
 	return {
 		"main_view_saved": main_view_saved,
+		"calendar_only_mode": calendar_only_mode,
 		"cycle_pending_apply": cycle_pending_apply,
 		"day_tools_visible": day_tools_visible,
 		"quick_navigation_body_visible": quick_navigation_body_visible,
@@ -1397,6 +1477,9 @@ func _calendar_state_snapshot() -> Dictionary:
 
 func _restore_calendar_state(snapshot: Dictionary) -> void:
 	main_view_saved = bool(snapshot.get("main_view_saved", false))
+	calendar_only_mode = bool(snapshot.get("calendar_only_mode", false))
+	if calendar_only_mode:
+		main_view_saved = true
 	cycle_pending_apply = bool(snapshot.get("cycle_pending_apply", false))
 	day_tools_visible = bool(snapshot.get("day_tools_visible", true))
 	quick_navigation_body_visible = bool(snapshot.get("quick_navigation_body_visible", true))
@@ -1531,6 +1614,7 @@ func _reset_calendar_settings() -> void:
 	undo_available = false
 	undo_snapshot.clear()
 	main_view_saved = false
+	calendar_only_mode = false
 	cycle_pending_apply = false
 	day_tools_visible = true
 	quick_navigation_body_visible = true
@@ -1664,7 +1748,7 @@ func _make_month_section(year: int, month: int) -> VBoxContainer:
 	section.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	section.add_theme_constant_override("separation", 16)
 
-	if year == current_year and month == current_month:
+	if year == current_year and month == current_month and not calendar_only_mode:
 		section.add_child(_make_month_title_row(year, month))
 	else:
 		var title := _make_label("%s %d" % [MONTH_NAMES[month - 1], year], 33 if _range_months() == 1 else 28, COLOR_TEXT)
