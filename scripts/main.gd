@@ -1070,6 +1070,11 @@ func _make_month_section(year: int, month: int) -> VBoxContainer:
 		hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		section.add_child(hint)
 
+		var cycle_hint := _make_label("Zacznij od pierwszego dnia cyklu swojej pracy i wypisz cały cykl wraz z dniami wolnymi. Wtedy kliknij Zastosuj.", 22, COLOR_TODAY)
+		cycle_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		cycle_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		section.add_child(cycle_hint)
+
 	var grid := GridContainer.new()
 	grid.columns = TILE_COLUMNS
 	grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
