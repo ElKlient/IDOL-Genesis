@@ -799,27 +799,31 @@ func _build_day_action_dialog() -> void:
 	box.add_theme_constant_override("separation", 10)
 	margin.add_child(box)
 
-	var set_work := _action_button("Ten dzień = praca", COLOR_WORK)
+	var set_work := _action_button("Praca", COLOR_WORK)
 	_connect_tap(set_work, Callable(self, "_set_selected_day_state").bind(ScheduleCalculator.DayState.WORK))
 	box.add_child(set_work)
 
-	var set_rest := _action_button("Ten dzień = pauza 24h", COLOR_REST)
+	var set_rest := _action_button("Pauza 24h", COLOR_REST)
 	_connect_tap(set_rest, Callable(self, "_set_selected_day_state").bind(ScheduleCalculator.DayState.REST))
 	box.add_child(set_rest)
 
-	var set_home := _action_button("Ten dzień = dom", COLOR_HOME)
+	var set_home := _action_button("Dom", COLOR_HOME)
 	_connect_tap(set_home, Callable(self, "_set_selected_day_state").bind(ScheduleCalculator.DayState.HOME))
 	box.add_child(set_home)
 
-	var set_vacation := _action_button("Ten dzień = urlop", COLOR_VACATION)
+	var set_vacation := _action_button("Urlop", COLOR_VACATION)
 	_connect_tap(set_vacation, Callable(self, "_set_selected_day_state").bind(ScheduleCalculator.DayState.VACATION))
 	box.add_child(set_vacation)
 
-	var clear_day := _action_button("Wyczyść ten dzień", Color(0.52, 0.55, 0.54, 0.86))
+	var clear_day := _action_button("Wyczyść", Color(0.52, 0.55, 0.54, 0.86))
 	_connect_tap(clear_day, Callable(self, "_set_selected_day_state").bind(ScheduleCalculator.DayState.NONE))
 	box.add_child(clear_day)
 
-	var note_button := _action_button("Dodaj notatkę", COLOR_NOTE)
+	var restore_day := _action_button("Cofnij zmianę", Color(0.40, 0.43, 0.42, 0.86))
+	_connect_tap(restore_day, Callable(self, "_clear_selected_day_override"))
+	box.add_child(restore_day)
+
+	var note_button := _action_button("Notatka", COLOR_NOTE)
 	_connect_tap(note_button, Callable(self, "_open_note_from_action_dialog"))
 	box.add_child(note_button)
 
@@ -1981,7 +1985,9 @@ func _open_day_actions(year: int, month: int, day: int) -> void:
 
 func _set_selected_day_state(state: int) -> void:
 	_capture_undo_state()
-	if _manual_cycle_setup_active():
+	if _single_day_edit_active():
+		_set_selected_day_override(state)
+	elif _manual_cycle_setup_active():
 		_stage_selected_day_state(state)
 	elif state == ScheduleCalculator.DayState.VACATION:
 		manual_overrides[selected_day_key] = state
@@ -2007,6 +2013,23 @@ func _set_selected_day_state(state: int) -> void:
 		cycle_pending_apply = true
 		_rebuild_calendar()
 
+	day_action_dialog.hide()
+	_save_settings_to_disk()
+
+
+func _single_day_edit_active() -> bool:
+	return main_view_saved or calendar_only_mode
+
+
+func _set_selected_day_override(state: int) -> void:
+	manual_overrides[selected_day_key] = state
+	_rebuild_calendar()
+
+
+func _clear_selected_day_override() -> void:
+	_capture_undo_state()
+	manual_overrides.erase(selected_day_key)
+	_rebuild_calendar()
 	day_action_dialog.hide()
 	_save_settings_to_disk()
 
