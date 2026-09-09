@@ -94,6 +94,8 @@ var fixed_start_previous_pressed := false
 var main_view_saved := false
 var cycle_pending_apply := false
 var day_tools_visible := true
+var reset_undo_available := false
+var reset_undo_snapshot: Dictionary = {}
 var touch_start_position := Vector2.ZERO
 var touch_tracking_active := false
 var touch_drag_cancelled := false
@@ -170,7 +172,7 @@ func _build_ui() -> void:
 
 	reset_settings_button = Button.new()
 	reset_settings_button.text = "Resetuj"
-	_connect_tap(reset_settings_button, Callable(self, "_reset_calendar_settings"))
+	_connect_tap(reset_settings_button, Callable(self, "_on_reset_or_undo_pressed"))
 	_prepare_control(reset_settings_button, 15, 54)
 	reset_settings_button.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	header.add_child(reset_settings_button)
@@ -616,6 +618,19 @@ func _apply_main_view_mode(saved: bool) -> void:
 	if day_tools_panel != null:
 		day_tools_panel.visible = true
 	_apply_day_tools_visibility()
+	_update_reset_button_text()
+
+
+func _update_reset_button_text() -> void:
+	if reset_settings_button != null:
+		reset_settings_button.text = "Cofnij" if reset_undo_available else "Resetuj"
+
+
+func _on_reset_or_undo_pressed() -> void:
+	if reset_undo_available:
+		_undo_calendar_reset()
+	else:
+		_reset_calendar_settings()
 
 
 func _save_settings_to_disk() -> void:
@@ -626,6 +641,8 @@ func _save_settings_to_disk() -> void:
 	config.set_value("ui", "main_view_saved", main_view_saved)
 	config.set_value("ui", "cycle_pending_apply", cycle_pending_apply)
 	config.set_value("ui", "day_tools_visible", day_tools_visible)
+	config.set_value("undo_reset", "available", reset_undo_available)
+	config.set_value("undo_reset", "snapshot", reset_undo_snapshot.duplicate(true))
 	config.set_value("calendar", "current_year", current_year)
 	config.set_value("calendar", "current_month", current_month)
 	config.set_value("calendar", "schedule_selected", schedule_option.selected)
@@ -657,6 +674,8 @@ func _load_settings_from_disk() -> void:
 	main_view_saved = bool(config.get_value("ui", "main_view_saved", false))
 	cycle_pending_apply = bool(config.get_value("ui", "cycle_pending_apply", false))
 	day_tools_visible = bool(config.get_value("ui", "day_tools_visible", true))
+	reset_undo_available = bool(config.get_value("undo_reset", "available", false))
+	_load_reset_undo_snapshot(config.get_value("undo_reset", "snapshot", {}))
 	current_year = int(config.get_value("calendar", "current_year", current_year))
 	current_month = clampi(int(config.get_value("calendar", "current_month", current_month)), 1, 12)
 
@@ -719,6 +738,78 @@ func _load_dictionary_as_strings(target: Dictionary, value: Variant) -> void:
 
 	for key in value.keys():
 		target[String(key)] = String(value[key])
+
+
+func _load_reset_undo_snapshot(value: Variant) -> void:
+	reset_undo_snapshot.clear()
+	if value is Dictionary:
+		reset_undo_snapshot = value.duplicate(true)
+	if reset_undo_snapshot.is_empty():
+		reset_undo_available = false
+
+
+func _calendar_state_snapshot() -> Dictionary:
+	return {
+		"main_view_saved": main_view_saved,
+		"cycle_pending_apply": cycle_pending_apply,
+		"day_tools_visible": day_tools_visible,
+		"settings_visible": settings_panel != null and settings_panel.visible,
+		"current_year": current_year,
+		"current_month": current_month,
+		"schedule_selected": schedule_option.selected,
+		"range_selected": range_option.selected,
+		"start_date": start_input.text,
+		"work_days": int(system_work_spin.value),
+		"home_days": int(system_home_spin.value),
+		"weekly_rest": weekly_rest_toggle.button_pressed,
+		"fixed_start_enabled": fixed_start_toggle.button_pressed,
+		"fixed_start_selected": fixed_start_option.selected,
+		"custom_length": int(custom_length_spin.value),
+		"custom_pattern": custom_pattern.duplicate(),
+		"manual_overrides": manual_overrides.duplicate(true),
+		"notes": notes.duplicate(true),
+		"work_start_unix": work_start_unix,
+		"work_end_unix": work_end_unix,
+		"pause_selected": pause_option.selected,
+	}
+
+
+func _restore_calendar_state(snapshot: Dictionary) -> void:
+	main_view_saved = bool(snapshot.get("main_view_saved", false))
+	cycle_pending_apply = bool(snapshot.get("cycle_pending_apply", false))
+	day_tools_visible = bool(snapshot.get("day_tools_visible", true))
+	current_year = int(snapshot.get("current_year", current_year))
+	current_month = clampi(int(snapshot.get("current_month", current_month)), 1, 12)
+
+	_set_option_selected(schedule_option, _valid_option_index(schedule_option, int(snapshot.get("schedule_selected", 0))))
+	_set_option_selected(range_option, _valid_option_index(range_option, int(snapshot.get("range_selected", 0))))
+	_set_option_selected(pause_option, _valid_option_index(pause_option, int(snapshot.get("pause_selected", 0))))
+	_set_spin_value(system_work_spin, int(snapshot.get("work_days", int(system_work_spin.value))))
+	_set_spin_value(system_home_spin, int(snapshot.get("home_days", int(system_home_spin.value))))
+	_set_spin_value(custom_length_spin, int(snapshot.get("custom_length", int(custom_length_spin.value))))
+
+	start_input.text = String(snapshot.get("start_date", ""))
+	weekly_rest_toggle.set_pressed_no_signal(bool(snapshot.get("weekly_rest", true)))
+	weekly_rest_previous_pressed = weekly_rest_toggle.button_pressed
+	fixed_start_toggle.set_pressed_no_signal(bool(snapshot.get("fixed_start_enabled", false)))
+	fixed_start_previous_pressed = fixed_start_toggle.button_pressed
+	_set_option_selected(fixed_start_option, _valid_option_index(fixed_start_option, int(snapshot.get("fixed_start_selected", 0))))
+	fixed_start_option.visible = fixed_start_toggle.button_pressed
+	custom_panel.visible = _is_custom_schedule()
+
+	_load_custom_pattern(snapshot.get("custom_pattern", []))
+	_load_dictionary_as_ints(manual_overrides, snapshot.get("manual_overrides", {}))
+	_load_dictionary_as_strings(notes, snapshot.get("notes", {}))
+
+	work_start_unix = int(snapshot.get("work_start_unix", 0))
+	work_end_unix = int(snapshot.get("work_end_unix", 0))
+	_restore_work_panel_text()
+	if not _apply_settings(false, false):
+		_rebuild_calendar()
+	_apply_main_view_mode(main_view_saved)
+	if not main_view_saved:
+		_set_settings_visible(bool(snapshot.get("settings_visible", true)))
+	_apply_day_tools_visibility()
 
 
 func _restore_work_panel_text() -> void:
@@ -793,7 +884,24 @@ func _manual_override_day_indices() -> Array[int]:
 	return day_indices
 
 
+func _undo_calendar_reset() -> void:
+	if reset_undo_snapshot.is_empty():
+		reset_undo_available = false
+		_update_reset_button_text()
+		_save_settings_to_disk()
+		return
+
+	var snapshot := reset_undo_snapshot.duplicate(true)
+	reset_undo_available = false
+	reset_undo_snapshot.clear()
+	_restore_calendar_state(snapshot)
+	_update_reset_button_text()
+	_save_settings_to_disk()
+
+
 func _reset_calendar_settings() -> void:
+	reset_undo_snapshot = _calendar_state_snapshot()
+	reset_undo_available = true
 	main_view_saved = false
 	cycle_pending_apply = false
 	day_tools_visible = true
@@ -828,6 +936,7 @@ func _reset_calendar_settings() -> void:
 	_apply_main_view_mode(false)
 	_apply_day_tools_visibility()
 	_set_settings_visible(true)
+	_update_reset_button_text()
 	_save_settings_to_disk()
 
 
