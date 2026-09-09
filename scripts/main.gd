@@ -36,8 +36,10 @@ const COLOR_VACATION := Color(0.40, 0.48, 0.58, 0.86)
 const PORTRAIT_WIDTH := 640
 const TILE_COLUMNS := 7
 const APP_VERSION_LABEL := "wersja: kafelki 7.1"
+const SETTINGS_PATH := "user://driver_calendar.cfg"
 const TAP_CANCEL_DISTANCE := 18.0
 const TAP_BLOCK_AFTER_DRAG_MS := 180
+const SWIPE_MIN_DISTANCE := 96.0
 
 var calculator := ScheduleCalculator.new()
 var current_year: int
@@ -45,10 +47,15 @@ var current_month: int
 var today_day_index: int
 
 var months_box: VBoxContainer
+var subtitle_label: Label
 var summary_label: Label
 var reset_settings_button: Button
+var save_close_button: Button
+var navigation_panel: PanelContainer
 var settings_toggle_button: Button
 var settings_panel: PanelContainer
+var legend_bar: HBoxContainer
+var day_tools_panel: PanelContainer
 var start_input: LineEdit
 var schedule_option: OptionButton
 var range_option: OptionButton
@@ -81,10 +88,13 @@ var work_end_unix: int = 0
 var scroll_safe_buttons: Array[BaseButton] = []
 var weekly_rest_previous_pressed := true
 var fixed_start_previous_pressed := false
+var main_view_saved := false
 var touch_start_position := Vector2.ZERO
 var touch_tracking_active := false
 var touch_drag_cancelled := false
 var last_drag_release_msec := -10000
+var swipe_start_position := Vector2.ZERO
+var swipe_tracking_active := false
 
 
 func _ready() -> void:
@@ -97,11 +107,14 @@ func _ready() -> void:
 
 	_reset_custom_pattern(21)
 	_build_ui()
+	_load_settings_from_disk()
 	_apply_settings()
+	_apply_main_view_mode(main_view_saved)
 
 
 func _input(event: InputEvent) -> void:
 	_track_scroll_touch(event)
+	_track_month_swipe(event)
 
 
 func _force_portrait() -> void:
@@ -150,23 +163,31 @@ func _build_ui() -> void:
 	header.add_theme_constant_override("separation", 8)
 	root.add_child(header)
 
+	reset_settings_button = Button.new()
+	reset_settings_button.text = "Resetuj"
+	_connect_tap(reset_settings_button, Callable(self, "_reset_calendar_settings"))
+	_prepare_control(reset_settings_button, 15, 54)
+	reset_settings_button.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	header.add_child(reset_settings_button)
+
 	var title := _make_label("Kalendarz Kierowcy", 30, COLOR_TEXT)
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	header.add_child(title)
 
-	reset_settings_button = Button.new()
-	reset_settings_button.text = "Resetuj ustawienia"
-	_connect_tap(reset_settings_button, Callable(self, "_reset_calendar_settings"))
-	_prepare_control(reset_settings_button, 15, 46)
-	reset_settings_button.size_flags_horizontal = Control.SIZE_SHRINK_END
-	header.add_child(reset_settings_button)
+	save_close_button = Button.new()
+	save_close_button.text = "Zapisz i zamknij"
+	_connect_tap(save_close_button, Callable(self, "_save_and_close_main_view"))
+	_prepare_control(save_close_button, 14, 54)
+	save_close_button.size_flags_horizontal = Control.SIZE_SHRINK_END
+	header.add_child(save_close_button)
 
-	var subtitle := _make_label("Pusty grafik. %s" % APP_VERSION_LABEL, 20, COLOR_TEXT_MUTED)
-	subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	root.add_child(subtitle)
+	subtitle_label = _make_label("Pusty grafik. %s" % APP_VERSION_LABEL, 20, COLOR_TEXT_MUTED)
+	subtitle_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	root.add_child(subtitle_label)
 
-	root.add_child(_build_navigation_panel())
+	navigation_panel = _build_navigation_panel()
+	root.add_child(navigation_panel)
 
 	summary_label = _make_label("", 21, COLOR_TEXT)
 	summary_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -178,7 +199,8 @@ func _build_ui() -> void:
 	months_box.add_theme_constant_override("separation", 26)
 	root.add_child(months_box)
 
-	root.add_child(_build_legend())
+	legend_bar = _build_legend()
+	root.add_child(legend_bar)
 
 	settings_toggle_button = Button.new()
 	settings_toggle_button.text = "Zamknij ustawienia"
@@ -188,7 +210,8 @@ func _build_ui() -> void:
 
 	settings_panel = _build_settings_panel()
 	root.add_child(settings_panel)
-	root.add_child(_build_day_tools_panel())
+	day_tools_panel = _build_day_tools_panel()
+	root.add_child(day_tools_panel)
 	_set_settings_visible(true)
 
 	_build_day_action_dialog()
@@ -469,23 +492,187 @@ func _build_note_dialog() -> void:
 
 
 func _save_settings_and_close() -> void:
-	_apply_settings(true)
+	if _apply_settings(true):
+		_save_settings_to_disk()
+
+
+func _save_and_close_main_view() -> void:
+	if not _apply_settings(false):
+		return
+
+	main_view_saved = true
+	_save_settings_to_disk()
+	_apply_main_view_mode(true)
 
 
 func _toggle_settings_panel() -> void:
+	if main_view_saved:
+		return
+
 	_set_settings_visible(settings_panel == null or not settings_panel.visible)
 
 
 func _set_settings_visible(visible: bool) -> void:
+	if main_view_saved:
+		visible = false
+
 	if settings_panel != null:
 		settings_panel.visible = visible
 	if settings_toggle_button != null:
 		settings_toggle_button.text = "Zamknij ustawienia" if visible else "Ustaw kalendarz"
 	if reset_settings_button != null:
-		reset_settings_button.visible = visible
+		reset_settings_button.visible = true
+	if save_close_button != null:
+		save_close_button.visible = not main_view_saved
+
+
+func _apply_main_view_mode(saved: bool) -> void:
+	main_view_saved = saved
+
+	if subtitle_label != null:
+		subtitle_label.visible = not saved
+	if navigation_panel != null:
+		navigation_panel.visible = not saved
+	if summary_label != null:
+		summary_label.visible = not saved
+	if legend_bar != null:
+		legend_bar.visible = not saved
+	if settings_toggle_button != null:
+		settings_toggle_button.visible = not saved
+	if settings_panel != null and saved:
+		settings_panel.visible = false
+	if reset_settings_button != null:
+		reset_settings_button.visible = true
+	if save_close_button != null:
+		save_close_button.visible = not saved
+	if day_tools_panel != null:
+		day_tools_panel.visible = true
+
+
+func _save_settings_to_disk() -> void:
+	if schedule_option == null:
+		return
+
+	var config := ConfigFile.new()
+	config.set_value("ui", "main_view_saved", main_view_saved)
+	config.set_value("calendar", "current_year", current_year)
+	config.set_value("calendar", "current_month", current_month)
+	config.set_value("calendar", "schedule_selected", schedule_option.selected)
+	config.set_value("calendar", "range_selected", range_option.selected)
+	config.set_value("calendar", "start_date", start_input.text)
+	config.set_value("calendar", "work_days", int(system_work_spin.value))
+	config.set_value("calendar", "home_days", int(system_home_spin.value))
+	config.set_value("calendar", "weekly_rest", weekly_rest_toggle.button_pressed)
+	config.set_value("calendar", "fixed_start_enabled", fixed_start_toggle.button_pressed)
+	config.set_value("calendar", "fixed_start_selected", fixed_start_option.selected)
+	config.set_value("calendar", "custom_length", int(custom_length_spin.value))
+	config.set_value("calendar", "custom_pattern", custom_pattern.duplicate())
+	config.set_value("calendar", "manual_overrides", manual_overrides.duplicate(true))
+	config.set_value("calendar", "notes", notes.duplicate(true))
+	config.set_value("work", "start_unix", work_start_unix)
+	config.set_value("work", "end_unix", work_end_unix)
+	config.set_value("work", "pause_selected", pause_option.selected)
+
+	var error := config.save(SETTINGS_PATH)
+	if error != OK:
+		push_warning("Nie udało się zapisać ustawień kalendarza: %d" % error)
+
+
+func _load_settings_from_disk() -> void:
+	var config := ConfigFile.new()
+	if config.load(SETTINGS_PATH) != OK:
+		return
+
+	main_view_saved = bool(config.get_value("ui", "main_view_saved", false))
+	current_year = int(config.get_value("calendar", "current_year", current_year))
+	current_month = clampi(int(config.get_value("calendar", "current_month", current_month)), 1, 12)
+
+	_set_option_selected(schedule_option, _valid_option_index(schedule_option, int(config.get_value("calendar", "schedule_selected", 0))))
+	_set_option_selected(range_option, _valid_option_index(range_option, int(config.get_value("calendar", "range_selected", 0))))
+	_set_option_selected(pause_option, _valid_option_index(pause_option, int(config.get_value("work", "pause_selected", 0))))
+	_set_spin_value(system_work_spin, int(config.get_value("calendar", "work_days", int(system_work_spin.value))))
+	_set_spin_value(system_home_spin, int(config.get_value("calendar", "home_days", int(system_home_spin.value))))
+	_set_spin_value(custom_length_spin, int(config.get_value("calendar", "custom_length", int(custom_length_spin.value))))
+
+	start_input.text = String(config.get_value("calendar", "start_date", ""))
+
+	weekly_rest_toggle.set_pressed_no_signal(bool(config.get_value("calendar", "weekly_rest", weekly_rest_toggle.button_pressed)))
+	weekly_rest_previous_pressed = weekly_rest_toggle.button_pressed
+	fixed_start_toggle.set_pressed_no_signal(bool(config.get_value("calendar", "fixed_start_enabled", fixed_start_toggle.button_pressed)))
+	fixed_start_previous_pressed = fixed_start_toggle.button_pressed
+	_set_option_selected(fixed_start_option, _valid_option_index(fixed_start_option, int(config.get_value("calendar", "fixed_start_selected", 0))))
+	fixed_start_option.visible = fixed_start_toggle.button_pressed
+	custom_panel.visible = _is_custom_schedule()
+
+	_load_custom_pattern(config.get_value("calendar", "custom_pattern", []))
+	_load_dictionary_as_ints(manual_overrides, config.get_value("calendar", "manual_overrides", {}))
+	_load_dictionary_as_strings(notes, config.get_value("calendar", "notes", {}))
+
+	work_start_unix = int(config.get_value("work", "start_unix", 0))
+	work_end_unix = int(config.get_value("work", "end_unix", 0))
+	_restore_work_panel_text()
+
+
+func _valid_option_index(option: OptionButton, index: int) -> int:
+	if option == null or option.get_item_count() <= 0:
+		return 0
+	return clampi(index, 0, option.get_item_count() - 1)
+
+
+func _load_custom_pattern(value: Variant) -> void:
+	custom_pattern.clear()
+	if value is Array:
+		for state in value:
+			custom_pattern.append(int(state))
+
+	if custom_pattern.is_empty():
+		_reset_custom_pattern(int(custom_length_spin.value))
+
+
+func _load_dictionary_as_ints(target: Dictionary, value: Variant) -> void:
+	target.clear()
+	if not (value is Dictionary):
+		return
+
+	for key in value.keys():
+		target[String(key)] = int(value[key])
+
+
+func _load_dictionary_as_strings(target: Dictionary, value: Variant) -> void:
+	target.clear()
+	if not (value is Dictionary):
+		return
+
+	for key in value.keys():
+		target[String(key)] = String(value[key])
+
+
+func _restore_work_panel_text() -> void:
+	if work_status_label == null:
+		return
+
+	if work_start_unix <= 0:
+		work_status_label.text = "Tu później aplikacja policzy czas pracy."
+		if pause_result_label != null:
+			pause_result_label.text = ""
+		return
+
+	if work_end_unix <= 0:
+		work_status_label.text = "Start pracy: %s" % _format_unix_time(work_start_unix)
+		if pause_result_label != null:
+			pause_result_label.text = ""
+		return
+
+	var worked_seconds: int = maxi(0, work_end_unix - work_start_unix)
+	work_status_label.text = "Praca trwała: %s. Koniec: %s" % [
+		_format_duration(worked_seconds),
+		_format_unix_time(work_end_unix),
+	]
+	_update_pause_result()
 
 
 func _reset_calendar_settings() -> void:
+	main_view_saved = false
 	_set_option_selected(schedule_option, 0)
 	_set_option_selected(range_option, 0)
 	_set_option_selected(pause_option, 0)
@@ -514,9 +701,12 @@ func _reset_calendar_settings() -> void:
 	error_label.visible = false
 	error_label.text = ""
 	_rebuild_calendar()
+	_apply_main_view_mode(false)
+	_set_settings_visible(true)
+	_save_settings_to_disk()
 
 
-func _apply_settings(close_settings_after_save: bool = false) -> void:
+func _apply_settings(close_settings_after_save: bool = false) -> bool:
 	var ok := true
 	var fixed_start_weekday := _selected_fixed_start_weekday()
 
@@ -544,6 +734,8 @@ func _apply_settings(close_settings_after_save: bool = false) -> void:
 		_rebuild_calendar()
 		if close_settings_after_save:
 			_set_settings_visible(false)
+
+	return ok
 
 
 func _rebuild_calendar() -> void:
@@ -725,6 +917,7 @@ func _set_selected_day_state(state: int) -> void:
 		_apply_settings()
 
 	day_action_dialog.hide()
+	_save_settings_to_disk()
 
 
 func _ensure_custom_mode_for_selected_day() -> void:
@@ -760,6 +953,7 @@ func _save_note() -> void:
 	else:
 		notes[selected_note_key] = text
 	_rebuild_calendar()
+	_save_settings_to_disk()
 
 
 func _on_schedule_selected(index: int) -> void:
@@ -780,6 +974,7 @@ func _on_range_selected(index: int) -> void:
 		return
 
 	_rebuild_calendar()
+	_save_settings_to_disk()
 
 
 func _on_pause_selected(index: int) -> void:
@@ -787,6 +982,7 @@ func _on_pause_selected(index: int) -> void:
 		return
 
 	_update_pause_result()
+	_save_settings_to_disk()
 
 
 func _on_weekly_rest_toggled(enabled: bool) -> void:
@@ -1204,6 +1400,48 @@ func _track_scroll_touch(event: InputEvent) -> void:
 			_update_touch_tracking(mouse_motion.position)
 
 
+func _track_month_swipe(event: InputEvent) -> void:
+	if not main_view_saved:
+		return
+
+	if event is InputEventScreenTouch:
+		var touch := event as InputEventScreenTouch
+		if touch.pressed:
+			_begin_month_swipe(touch.position)
+		elif swipe_tracking_active:
+			_finish_month_swipe(touch.position)
+	elif event is InputEventMouseButton:
+		var mouse_button := event as InputEventMouseButton
+		if mouse_button.button_index == MOUSE_BUTTON_LEFT:
+			if mouse_button.pressed:
+				_begin_month_swipe(mouse_button.position)
+			elif swipe_tracking_active:
+				_finish_month_swipe(mouse_button.position)
+
+
+func _begin_month_swipe(position: Vector2) -> void:
+	swipe_start_position = position
+	swipe_tracking_active = true
+
+
+func _finish_month_swipe(position: Vector2) -> void:
+	var delta := position - swipe_start_position
+	swipe_tracking_active = false
+	if delta.length() < SWIPE_MIN_DISTANCE:
+		return
+
+	if absf(delta.x) >= absf(delta.y):
+		if delta.x < 0.0:
+			_on_next_month()
+		else:
+			_on_previous_month()
+	else:
+		if delta.y < 0.0:
+			_on_next_month()
+		else:
+			_on_previous_month()
+
+
 func _begin_touch_tracking(position: Vector2) -> void:
 	touch_tracking_active = true
 	touch_start_position = position
@@ -1434,6 +1672,7 @@ func _on_start_work_pressed() -> void:
 	work_end_unix = 0
 	work_status_label.text = "Start pracy: %s" % _format_unix_time(work_start_unix)
 	pause_result_label.text = ""
+	_save_settings_to_disk()
 
 
 func _on_end_work_pressed() -> void:
@@ -1448,6 +1687,7 @@ func _on_end_work_pressed() -> void:
 		_format_unix_time(work_end_unix),
 	]
 	_update_pause_result()
+	_save_settings_to_disk()
 
 
 func _update_pause_result() -> void:
@@ -1470,11 +1710,13 @@ func _on_previous_month() -> void:
 	current_year = int(previous["year"])
 	current_month = int(previous["month"])
 	_rebuild_calendar()
+	_save_settings_to_disk()
 
 
 func _on_previous_year() -> void:
 	current_year -= 1
 	_rebuild_calendar()
+	_save_settings_to_disk()
 
 
 func _on_next_month() -> void:
@@ -1482,11 +1724,13 @@ func _on_next_month() -> void:
 	current_year = int(next["year"])
 	current_month = int(next["month"])
 	_rebuild_calendar()
+	_save_settings_to_disk()
 
 
 func _on_next_year() -> void:
 	current_year += 1
 	_rebuild_calendar()
+	_save_settings_to_disk()
 
 
 func _previous_month(year: int, month: int) -> Dictionary:
