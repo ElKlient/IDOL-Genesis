@@ -45,9 +45,9 @@ var error_label: Label
 
 func _ready() -> void:
 	var now := Time.get_datetime_dict_from_system()
-	current_year = now["year"]
-	current_month = now["month"]
-	today_day_index = ScheduleCalculator.day_index_from_date(now["year"], now["month"], now["day"])
+	current_year = int(now["year"])
+	current_month = int(now["month"])
+	today_day_index = ScheduleCalculator.day_index_from_date(int(now["year"]), int(now["month"]), int(now["day"]))
 
 	_build_ui()
 	_apply_settings()
@@ -229,10 +229,10 @@ func _rebuild_calendar() -> void:
 
 	for cell_index in range(42):
 		var date := _date_for_month_cell(cell_index, first_offset, days_current)
-		var day_index := ScheduleCalculator.day_index_from_date(date["year"], date["month"], date["day"])
-		var state := calculator.get_state_for_day(day_index)
-		var in_month := date["month"] == current_month
-		calendar_grid.add_child(_make_day_cell(date["day"], in_month, state, day_index == today_day_index))
+		var day_index: int = ScheduleCalculator.day_index_from_date(int(date["year"]), int(date["month"]), int(date["day"]))
+		var state: int = calculator.get_state_for_day(day_index)
+		var in_month: bool = int(date["month"]) == current_month
+		calendar_grid.add_child(_make_day_cell(int(date["day"]), in_month, state, day_index == today_day_index))
 
 	var counts := calculator.count_month(current_year, current_month)
 	var current_state := calculator.get_state_for_day(today_day_index)
@@ -255,13 +255,13 @@ func _date_for_month_cell(cell_index: int, first_offset: int, days_current: int)
 
 	if day_number < 1:
 		var previous := _previous_month(year, month)
-		year = previous["year"]
-		month = previous["month"]
+		year = int(previous["year"])
+		month = int(previous["month"])
 		day = ScheduleCalculator.days_in_month(year, month) + day_number
 	elif day_number > days_current:
 		var next := _next_month(year, month)
-		year = next["year"]
-		month = next["month"]
+		year = int(next["year"])
+		month = int(next["month"])
 		day = day_number - days_current
 
 	return {
@@ -323,8 +323,8 @@ func _style(color: Color, radius: int) -> StyleBoxFlat:
 
 func _on_previous_month() -> void:
 	var previous := _previous_month(current_year, current_month)
-	current_year = previous["year"]
-	current_month = previous["month"]
+	current_year = int(previous["year"])
+	current_month = int(previous["month"])
 	_rebuild_calendar()
 
 
@@ -335,8 +335,8 @@ func _on_previous_year() -> void:
 
 func _on_next_month() -> void:
 	var next := _next_month(current_year, current_month)
-	current_year = next["year"]
-	current_month = next["month"]
+	current_year = int(next["year"])
+	current_month = int(next["month"])
 	_rebuild_calendar()
 
 
@@ -362,4 +362,4 @@ func _next_month(year: int, month: int) -> Dictionary:
 
 
 func now_day() -> int:
-	return Time.get_datetime_dict_from_system()["day"]
+	return int(Time.get_datetime_dict_from_system()["day"])
