@@ -7,13 +7,20 @@ Prosty kalendarz dla kierowcow jezdzacych w systemach pracy typu 2/1, 2/2, 3/1 a
 - miesieczny kalendarz z kolorami:
   - czerwony: praca,
   - zielony: dom,
+  - zolty: dojazd albo zjazd,
+  - zloty: pauza 24h,
   - zolty obrys: dzisiaj,
+- pionowy, przewijany uklad pod telefon,
 - data startu w formacie `RRRR-MM-DD`,
-- system liczony w tygodniach albo dniach,
-- mozliwosc ustawienia, czy data startu oznacza prace czy dom,
+- gotowe systemy: 2/1, 2/2, 3/1, 3/2, 4/1 oraz 6 dni + 24h + 6 dni,
+- wlasny cykl klikany dzien po dniu,
+- dojazd przed praca i zjazd po pracy,
+- pauza 24h co 6 dni pracy,
 - przewijanie miesiecy do przodu i do tylu,
 - szybki przeskok o rok,
-- licznik dni pracy i domu w aktualnym miesiacu.
+- widok miesiaca, kwartalu, 4 miesiecy albo calego roku,
+- notatki po kliknieciu dnia,
+- prosty licznik rozpoczecia i zakonczenia pracy z pauza 9h, 11h albo 24h.
 
 ## Android / Termux workflow
 
