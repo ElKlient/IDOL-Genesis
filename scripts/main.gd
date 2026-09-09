@@ -576,7 +576,7 @@ func _build_legend() -> HBoxContainer:
 	legend.alignment = BoxContainer.ALIGNMENT_CENTER
 	legend.add_child(_legend_item(COLOR_WORK, "Praca"))
 	legend.add_child(_legend_item(COLOR_HOME, "Dom"))
-	legend.add_child(_legend_item(COLOR_REST, "24h"))
+	legend.add_child(_legend_item(COLOR_REST, "24/45h"))
 	legend.add_child(_legend_item(COLOR_VACATION, "Urlop"))
 	return legend
 
@@ -1269,7 +1269,7 @@ func _rebuild_calendar() -> void:
 			int(counts["home"]),
 			int(counts["rest"]),
 			int(counts["vacation"]),
-			_state_name(today_state),
+			_state_name_for_day(today_day_index, today_state),
 			change_days,
 			calculator.cycle_label(),
 		]
@@ -1376,7 +1376,7 @@ func _fill_day_tile(button: Button, day: int, day_index: int, state: int, has_no
 	var weekday_label := _tile_label(_weekday_short_for_day_index(day_index), _tile_weekday_font_size(), COLOR_TEXT_MUTED)
 	box.add_child(weekday_label)
 
-	var state_name := _state_short_name(state)
+	var state_name := _state_short_name_for_day(day_index, state)
 	if not state_name.is_empty():
 		box.add_child(_tile_label(state_name, _tile_badge_font_size(), COLOR_TEXT))
 	elif has_note:
@@ -1772,6 +1772,12 @@ func _state_name(state: int) -> String:
 	return "pusty dzień"
 
 
+func _state_name_for_day(day_index: int, state: int) -> String:
+	if state == ScheduleCalculator.DayState.REST and _rest_connects_to_neighbor(day_index):
+		return "pauza 45h"
+	return _state_name(state)
+
+
 func _state_short_name(state: int) -> String:
 	match state:
 		ScheduleCalculator.DayState.WORK:
@@ -1783,6 +1789,19 @@ func _state_short_name(state: int) -> String:
 		ScheduleCalculator.DayState.VACATION:
 			return "Urlop"
 	return ""
+
+
+func _state_short_name_for_day(day_index: int, state: int) -> String:
+	if state == ScheduleCalculator.DayState.REST and _rest_connects_to_neighbor(day_index):
+		return "45h"
+	return _state_short_name(state)
+
+
+func _rest_connects_to_neighbor(day_index: int) -> bool:
+	return (
+		_visual_state_for_day(day_index - 1, _date_key_from_day_index(day_index - 1)) == ScheduleCalculator.DayState.REST
+		or _visual_state_for_day(day_index + 1, _date_key_from_day_index(day_index + 1)) == ScheduleCalculator.DayState.REST
+	)
 
 
 func _state_color(state: int, in_month: bool = true) -> Color:
