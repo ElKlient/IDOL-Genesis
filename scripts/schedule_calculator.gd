@@ -1,6 +1,6 @@
 extends RefCounted
 
-enum DayState { WORK, HOME, TRAVEL, REST }
+enum DayState { NONE, WORK, HOME, TRAVEL, REST }
 
 var mode: String = "preset"
 var start_day_index: int = 0
@@ -11,6 +11,12 @@ var commute_after_days: int = 1
 var rest_every_work_days: int = 6
 var custom_pattern: Array[int] = []
 var last_error: String = ""
+
+
+func configure_empty() -> bool:
+	mode = "none"
+	last_error = ""
+	return true
 
 
 func configure_preset(
@@ -51,7 +57,7 @@ func configure_custom(start_date_text: String, pattern: Array[int]) -> bool:
 
 	custom_pattern.clear()
 	for state in pattern:
-		var clean_state := clampi(int(state), DayState.WORK, DayState.REST)
+		var clean_state := clampi(int(state), DayState.NONE, DayState.REST)
 		custom_pattern.append(clean_state)
 
 	mode = "custom"
@@ -61,6 +67,9 @@ func configure_custom(start_date_text: String, pattern: Array[int]) -> bool:
 
 
 func get_state_for_day(day_index: int) -> int:
+	if mode == "none":
+		return DayState.NONE
+
 	if mode == "custom":
 		var custom_cycle_days := max(1, custom_pattern.size())
 		var custom_offset := positive_mod(day_index - start_day_index, custom_cycle_days)
@@ -97,6 +106,7 @@ func count_months(start_year: int, start_month: int, month_count: int) -> Dictio
 
 	for _i in range(month_count):
 		var month_counts := count_month(year, month)
+		result["none"] += int(month_counts["none"])
 		result["work"] += int(month_counts["work"])
 		result["home"] += int(month_counts["home"])
 		result["travel"] += int(month_counts["travel"])
@@ -128,6 +138,8 @@ func get_cycle_days() -> int:
 
 
 func cycle_label() -> String:
+	if mode == "none":
+		return "brak ustawionego systemu"
 	if mode == "custom":
 		return "własny cykl: %d dni" % get_cycle_days()
 	return "%d dni wyjazdu / %d dni domu" % [work_days, home_days]
@@ -145,6 +157,7 @@ func _is_rest_day_in_work_block(work_offset: int) -> bool:
 
 func _empty_counts() -> Dictionary:
 	return {
+		"none": 0,
 		"work": 0,
 		"home": 0,
 		"travel": 0,
@@ -154,6 +167,8 @@ func _empty_counts() -> Dictionary:
 
 func _add_state_to_counts(counts: Dictionary, state: int) -> void:
 	match state:
+		DayState.NONE:
+			counts["none"] += 1
 		DayState.WORK:
 			counts["work"] += 1
 		DayState.TRAVEL:
