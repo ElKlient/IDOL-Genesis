@@ -96,7 +96,8 @@ static func parse_date(text: String) -> Dictionary:
 static func day_index_from_date(year: int, month: int, day: int) -> int:
 	var unix_time := Time.get_unix_time_from_datetime_dict({
 		"year": year,
-		"month": month,		"day": day,
+		"month": month,
+		"day": day,
 		"hour": 0,
 		"minute": 0,
 		"second": 0,
