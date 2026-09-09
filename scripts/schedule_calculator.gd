@@ -1,14 +1,12 @@
 extends RefCounted
 
-enum DayState { NONE, WORK, HOME, TRAVEL, REST, VACATION }
+enum DayState { NONE, WORK, HOME, REST, VACATION }
 const WEEKDAY_NAMES := ["poniedziałek", "wtorek", "środa", "czwartek", "piątek", "sobota", "niedziela"]
 
 var mode: String = "preset"
 var start_day_index: int = 0
 var work_days: int = 14
 var home_days: int = 7
-var commute_before_days: int = 1
-var commute_after_days: int = 1
 var rest_every_work_days: int = 6
 var fixed_start_weekday: int = -1
 var custom_pattern: Array[int] = []
@@ -27,8 +25,6 @@ func configure_preset(
 	work_units: int,
 	home_units: int,
 	unit: String,
-	commute_before: int,
-	commute_after: int,
 	use_weekly_rest: bool,
 	fixed_weekday: int = -1
 ) -> bool:
@@ -41,8 +37,6 @@ func configure_preset(
 	mode = "preset"
 	work_days = maxi(1, work_units * multiplier)
 	home_days = maxi(1, home_units * multiplier)
-	commute_before_days = maxi(0, commute_before)
-	commute_after_days = maxi(0, commute_after)
 	rest_every_work_days = 6 if use_weekly_rest else 0
 	fixed_start_weekday = _clean_fixed_weekday(fixed_weekday)
 	custom_pattern.clear()
@@ -95,11 +89,6 @@ func get_state_for_day(day_index: int) -> int:
 	if offset < work_days:
 		return DayState.REST if _is_rest_day_in_work_block(offset) else DayState.WORK
 
-	var home_offset := offset - work_days
-	if home_offset < commute_after_days:
-		return DayState.TRAVEL
-	if home_offset >= home_days - commute_before_days:
-		return DayState.TRAVEL
 	return DayState.HOME
 
 
@@ -123,7 +112,6 @@ func count_months(start_year: int, start_month: int, month_count: int) -> Dictio
 		result["none"] += int(month_counts["none"])
 		result["work"] += int(month_counts["work"])
 		result["home"] += int(month_counts["home"])
-		result["travel"] += int(month_counts["travel"])
 		result["rest"] += int(month_counts["rest"])
 		result["vacation"] += int(month_counts["vacation"])
 
@@ -157,7 +145,7 @@ func cycle_label() -> String:
 		return "brak ustawionego systemu"
 	if mode == "custom":
 		return "własny cykl: %d dni%s" % [get_cycle_days(), _fixed_start_label()]
-	return "%d dni wyjazdu / %d dni domu%s" % [work_days, home_days, _fixed_start_label()]
+	return "%d dni pracy / %d dni domu%s" % [work_days, home_days, _fixed_start_label()]
 
 
 func _clean_fixed_weekday(weekday: int) -> int:
@@ -203,7 +191,6 @@ func _empty_counts() -> Dictionary:
 		"none": 0,
 		"work": 0,
 		"home": 0,
-		"travel": 0,
 		"rest": 0,
 		"vacation": 0,
 	}
@@ -215,8 +202,6 @@ func _add_state_to_counts(counts: Dictionary, state: int) -> void:
 			counts["none"] += 1
 		DayState.WORK:
 			counts["work"] += 1
-		DayState.TRAVEL:
-			counts["travel"] += 1
 		DayState.REST:
 			counts["rest"] += 1
 		DayState.VACATION:
