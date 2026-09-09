@@ -61,3 +61,12 @@ func _draw() -> void:
 	draw_rect(Rect2(Vector2(0, 0), Vector2(w, h * 0.18)), Color(0.0, 0.0, 0.0, 0.16))
 	draw_rect(Rect2(Vector2(0, h * 0.82), Vector2(w, h * 0.18)), Color(0.0, 0.0, 0.0, 0.20))
 	draw_rect(Rect2(Vector2.ZERO, size), Color(0.0, 0.0, 0.0, 0.22))
+
+	var font := get_theme_default_font()
+	if font != null:
+		var sign_width := trailer.size.x * 0.68
+		var sign_x := trailer.position.x + trailer.size.x * 0.15
+		var sign_y := trailer.position.y + trailer.size.y * 0.48
+		var sign_color := Color(1.0, 1.0, 1.0, 0.52)
+		draw_string(font, Vector2(sign_x, sign_y), "Dasko", HORIZONTAL_ALIGNMENT_CENTER, sign_width, max(12, int(w * 0.026)), sign_color)
+		draw_string(font, Vector2(sign_x, sign_y + h * 0.025), "Always too late", HORIZONTAL_ALIGNMENT_CENTER, sign_width, max(8, int(w * 0.014)), sign_color)
