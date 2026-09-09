@@ -5,7 +5,9 @@ Prosty kalendarz dla kierowcow jezdzacych w systemach pracy typu 2/1, 2/2, 3/1 a
 ## MVP
 
 - pionowy, kafelkowy kalendarz pod telefon:
-  - kazdy dzien jest osobnym kafelkiem z numerem i dniem tygodnia,
+  - siedem kafelkow w rzedzie, jak tydzien w kalendarzu,
+  - kazdy dzien jest osobnym zaokraglonym kafelkiem z numerem i dniem tygodnia,
+  - puste miejsca przed pierwszym dniem miesiaca sa niewidoczne,
   - start jest pusty, bez domyslnie wpisanego systemu,
   - tlo ma ciemny motyw drogi i ciezarowki,
 - miesieczny kalendarz z lagodnymi kolorami:
