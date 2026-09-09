@@ -19,6 +19,25 @@ After the `Living World` patch lands, verify people against the new world and hu
 
 Report whether the new obstacles/palisade/hide yard cause pathing or animation issues.
 
+## Round 0.8.25 urgent instruction from Container A
+
+The user says the people are central to the game and still look stupid/wooden when the whole scene is judged on Android. Base is now `0.8.25 Grounded Settlement Pass`.
+
+Your job now:
+
+1. Pull latest `main` and verify the current people in AUTO with the new terrain, shadows and clothing layers.
+2. Check whether the walk reads as a human shifting weight, or still as a rigid mannequin sliding around.
+3. If code changes are needed, touch only people/pose code: `apply_living_pose()`, `apply_bone_pose()`, `pose_walk_arm()`, `pose_walk_leg()`, spacing and turn smoothing if directly related.
+4. Do not touch terrain, UI, assets, resource balance, or Android workflow.
+5. Report with a clear yes/no: is the walk acceptable for the current model, or does Container A need a deeper animation pass next?
+
+Specific things to watch:
+
+- feet contact and bobbing rhythm after shadows were added,
+- arm swing still moving front/back, not around its own axis,
+- root rotation when settlers turn near hearth/stockpile/bridges,
+- whether root gear hides the silhouette or creates new visual junk.
+
 Read first:
 
 1. `WORKFLOW_FIRST.md`

@@ -22,7 +22,7 @@ const PROP_PADDLE=preload("res://assets/environment/kenney_nature/canoe_paddle.g
 const PROP_LOG_STACK=preload("res://assets/environment/kenney_nature/log_stack.glb")
 const PROP_ROCK_LARGE=preload("res://assets/environment/kenney_nature/rock_largeA.glb")
 const RETARGETER=preload("res://scripts/retargeter.gd")
-const VERSION_TITLE="IDOL — GENESIS 0.8.24 ORGANIC WORLD PASS"
+const VERSION_TITLE="IDOL — GENESIS 0.8.25 GROUNDED SETTLEMENT PASS"
 const CAMERA_MIN_DISTANCE=5.5
 const CAMERA_MAX_DISTANCE=88.0
 const CAMERA_HEIGHT_RATIO=0.61
@@ -118,10 +118,10 @@ var notice=""
 var notice_timer=0.0
 var cam:Camera3D
 var cam_focus=Vector3.ZERO
-var cam_distance=28.0
-var cam_height=17.0
+var cam_distance=33.0
+var cam_height=20.0
 var cam_yaw=0.70
-var cam_pitch=0.58
+var cam_pitch=0.64
 var touches={}
 var touch_start={}
 var touch_gesture_had_multi=false
@@ -268,6 +268,53 @@ func sphere(p,r,c):
 func sphere_in(parent,p,r,c):
 	var n=MeshInstance3D.new(); var m=SphereMesh.new(); m.radial_segments=12; m.rings=6; m.radius=r; m.height=r*2.0; n.mesh=m; n.position=p; n.material_override=mat(c); parent.add_child(n); return n
 
+func terrain_height_at(x,z):
+	var edge_weight=clamp((Vector2(x,z).length()-12.0)/32.0,0.0,1.0)
+	var river_weight=clamp((abs(x-river_x_at_z(z))-5.0)/12.0,0.0,1.0)
+	var waves=sin(x*.17+z*.08)*.18+sin(x*.07-z*.19)*.13+sin((x+z)*.045)*.09
+	return -.16+waves*edge_weight*river_weight
+
+func make_base_terrain():
+	var verts=PackedVector3Array()
+	var normals=PackedVector3Array()
+	var uvs=PackedVector2Array()
+	var indices=PackedInt32Array()
+	var steps=48
+	var size=104.0
+	for zi in range(steps+1):
+		for xi in range(steps+1):
+			var x=-size*.5+float(xi)*(size/float(steps))
+			var z=-size*.5+float(zi)*(size/float(steps))
+			verts.append(Vector3(x,terrain_height_at(x,z),z))
+			normals.append(Vector3.UP)
+			uvs.append(Vector2(float(xi)/float(steps)*8.0,float(zi)/float(steps)*8.0))
+	for zi in range(steps):
+		for xi in range(steps):
+			var a=zi*(steps+1)+xi
+			var b=a+1
+			var c=a+(steps+1)
+			var d=c+1
+			indices.append(a)
+			indices.append(c)
+			indices.append(b)
+			indices.append(b)
+			indices.append(c)
+			indices.append(d)
+	var arrays=[]
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX]=verts
+	arrays[Mesh.ARRAY_NORMAL]=normals
+	arrays[Mesh.ARRAY_TEX_UV]=uvs
+	arrays[Mesh.ARRAY_INDEX]=indices
+	var mesh=ArrayMesh.new()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES,arrays)
+	var ground=MeshInstance3D.new()
+	ground.name="Organiczny teren osady"
+	ground.mesh=mesh
+	ground.material_override=mat_flat(Color("#2f472f"))
+	add_child(ground)
+	return ground
+
 func prop_scene(parent,scene,p,rot_y=0.0,scale_value=1.0):
 	var n=scene.instantiate()
 	n.position=p
@@ -304,7 +351,7 @@ func _ready():
 	world_env.environment=e; add_child(world_env)
 	sun=DirectionalLight3D.new(); sun.rotation_degrees=Vector3(-55,-35,0); sun.light_color=Color("#f0c48b"); sun.light_energy=1.28; sun.shadow_enabled=(not is_mobile_runtime()) or MOBILE_SHADOWS; add_child(sun)
 
-	var ground=MeshInstance3D.new(); var pm=PlaneMesh.new(); pm.size=Vector2(96,96); ground.mesh=pm; ground.material_override=mat(Color("#344c31")); add_child(ground)
+	make_base_terrain()
 	make_terrain_layers()
 	make_river()
 	for i in range(world_count(58)):
@@ -349,7 +396,7 @@ func _ready():
 		for v in people:
 			attach_person_animation(v)
 
-	cam=Camera3D.new(); cam.fov=52; add_child(cam); cam.current=true
+	cam=Camera3D.new(); cam.fov=48; add_child(cam); cam.current=true
 	update_camera()
 	make_ui()
 
@@ -449,7 +496,7 @@ func make_river():
 
 func make_tree(p,scale):
 	add_obstacle(p,.82*scale)
-	make_surface_stain(p,Vector2(2.25*scale,1.75*scale),Color("#202a1e"),rng.randf_range(0,180))
+	make_surface_stain(p,Vector2(2.25*scale,1.75*scale),Color(.03,.04,.025,.24),rng.randf_range(0,180))
 	var trunk=cyl(p+Vector3(0,1.35*scale,0),.18*scale,2.7*scale,Color("#4d3425"))
 	trunk.rotation_degrees=Vector3(rng.randf_range(-3,3),rng.randf_range(0,180),rng.randf_range(-4,4))
 	var crown=sphere(p+Vector3(0,3.0*scale,0),.88*scale,Color("#1e3f25"))
@@ -480,6 +527,12 @@ func make_surface_stain(p,size,c,rot=0.0):
 	stain.scale=Vector3(size.x,1.0,size.y)
 	stain.rotation_degrees.y=rot
 	return stain
+
+func make_entity_shadow(parent,rx,rz,alpha=.22):
+	var sh=cyl_in(parent,Vector3(0,.025,0),.5,.012,Color(0.0,0.0,0.0,alpha))
+	sh.name="Cien postaci"
+	sh.scale=Vector3(rx,1.0,rz)
+	return sh
 
 func make_terrain_layers():
 	var cols=[Color("#415734"),Color("#344b30"),Color("#4b5d39"),Color("#514e35"),Color("#3b5434")]
@@ -611,6 +664,39 @@ func make_outer_forest_ring():
 			continue
 		make_bush_cluster(p,rng.randf_range(.62,1.05))
 
+func make_background_landforms():
+	var hill_cols=[Color("#263b2a"),Color("#2b442e"),Color("#374a32"),Color("#31422f")]
+	var hill_points=[
+		Vector3(-43,0,31),Vector3(-35,0,40),Vector3(-20,0,43),Vector3(7,0,44),
+		Vector3(28,0,39),Vector3(42,0,27),Vector3(-45,0,-10),Vector3(43,0,-16),
+		Vector3(-32,0,-42),Vector3(19,0,-44)
+	]
+	for i in range(hill_points.size()):
+		var p=hill_points[i]
+		if abs(p.x-river_x_at_z(p.z))<5.4:
+			continue
+		var hill=sphere(p+Vector3(0,.38,0),1.0,hill_cols[i%hill_cols.size()])
+		hill.name="Niski grzbiet terenu"
+		hill.scale=Vector3(rng.randf_range(4.4,7.8),rng.randf_range(.28,.52),rng.randf_range(2.0,4.4))
+		hill.rotation_degrees.y=rng.randf_range(0,180)
+	for i in range(world_count(28)):
+		var side=rng.randi_range(0,3)
+		var p=Vector3.ZERO
+		if side==0:
+			p=Vector3(rng.randf_range(-47,47),0,rng.randf_range(34,48))
+		elif side==1:
+			p=Vector3(rng.randf_range(-47,47),0,rng.randf_range(-48,-34))
+		elif side==2:
+			p=Vector3(rng.randf_range(-48,-34),0,rng.randf_range(-47,47))
+		else:
+			p=Vector3(rng.randf_range(34,48),0,rng.randf_range(-47,47))
+		if abs(p.x-river_x_at_z(p.z))<5.2:
+			continue
+		if rng.randf()<.58:
+			make_bush_cluster(p,rng.randf_range(.82,1.18))
+		else:
+			make_rock(p+Vector3(0,.08,0),rng.randf_range(.62,1.08))
+
 func make_realistic_visual_pass(home_a,home_b):
 	make_ground_patch(Vector3(-.8,0,1.2),Vector2(13.8,9.2),Color("#544930"),-4)
 	make_ground_patch(Vector3(4.5,0,5.2),Vector2(9.4,4.6),Color("#5d5136"),18)
@@ -641,6 +727,7 @@ func make_realistic_visual_pass(home_a,home_b):
 	make_warm_pool(home_a+Vector3(0,1.45,-2.9),3.4,.18)
 	make_warm_pool(home_b+Vector3(0,1.45,-2.9),3.4,.18)
 	make_outer_forest_ring()
+	make_background_landforms()
 
 func make_path(a,b,width):
 	var d=b-a
@@ -1663,6 +1750,12 @@ func make_settler_gear(parent,i):
 	box_in(gear,Vector3(.17,.95,-.17),Vector3(.15,.34,.052),fur)
 	box_in(gear,Vector3(0,.52,-.15),Vector3(.34,.35,.045),col)
 	box_in(gear,Vector3(0,.38,-.13),Vector3(.28,.28,.05),col.darkened(.12))
+	box_in(gear,Vector3(0,.92,.14),Vector3(.38,.5,.055),fur.darkened(.16))
+	box_in(gear,Vector3(0,.55,.12),Vector3(.32,.34,.05),col.darkened(.22))
+	for sx in [-1.0,1.0]:
+		var side_hide=box_in(gear,Vector3(.23*sx,.78,-.02),Vector3(.06,.44,.28),fur.darkened(.12))
+		side_hide.rotation_degrees.z=7*sx
+		side_hide.rotation_degrees.y=4*sx
 	var pouch=box_in(gear,Vector3(.17,.58,-.18),Vector3(.095,.12,.05),Color("#4e3523"))
 	pouch.rotation_degrees.z=-8
 	for x in [-.32,.32]:
@@ -1738,6 +1831,7 @@ func make_person(i):
 	var base_scale=Vector3(scale_value,scale_value,scale_value)
 	n.scale=base_scale
 	var a=TAU*i/10.0; n.position=Vector3(cos(a)*rng.randf_range(5,10),0,sin(a)*rng.randf_range(5,10)); add_child(n)
+	make_entity_shadow(n,.62,.42,.22)
 	var body_parts={}
 	if USE_PROXY_SETTLER_BODY:
 		hide_imported_visuals(n)
@@ -1805,6 +1899,7 @@ func spawn_child(parent_a_idx,parent_b_idx):
 	var center=(parent_a.node.position+parent_b.node.position)*.5
 	n.position=center+Vector3(rng.randf_range(-.75,.75),0,rng.randf_range(-.75,.75))
 	add_child(n)
+	make_entity_shadow(n,.46,.32,.20)
 	var body_parts={}
 	if USE_PROXY_SETTLER_BODY:
 		hide_imported_visuals(n)
@@ -1860,7 +1955,7 @@ func layout_camera_sticks():
 	rotate_stick_center=rotate_stick_panel.position+rotate_stick_panel.size*.5
 	move_stick_center=move_stick_panel.position+move_stick_panel.size*.5
 
-func make_glass_panel(layer,pos,size,alpha=.72,border_alpha=.24):
+func make_glass_panel(layer,pos,size,alpha=.58,border_alpha=.2):
 	var p=Panel.new()
 	p.position=pos
 	p.size=size
@@ -1876,8 +1971,8 @@ func make_glass_panel(layer,pos,size,alpha=.72,border_alpha=.24):
 	st.corner_radius_top_right=6
 	st.corner_radius_bottom_left=6
 	st.corner_radius_bottom_right=6
-	st.shadow_color=Color(0,0,0,.38)
-	st.shadow_size=7
+	st.shadow_color=Color(0,0,0,.30)
+	st.shadow_size=5
 	p.add_theme_stylebox_override("panel",st)
 	layer.add_child(p)
 	return p
@@ -1899,10 +1994,10 @@ func make_button_style(fill,border):
 	return st
 
 func apply_command_button_style(b):
-	var normal=make_button_style(Color(.075,.08,.068,.74),Color(.78,.72,.58,.18))
-	var hover=make_button_style(Color(.12,.12,.085,.82),Color(.9,.8,.58,.3))
-	var pressed=make_button_style(Color(.18,.14,.08,.9),Color(.94,.74,.38,.4))
-	var focus=make_button_style(Color(.075,.08,.068,.74),Color(.86,.78,.58,.22))
+	var normal=make_button_style(Color(.075,.08,.068,.58),Color(.78,.72,.58,.16))
+	var hover=make_button_style(Color(.12,.12,.085,.72),Color(.9,.8,.58,.28))
+	var pressed=make_button_style(Color(.18,.14,.08,.82),Color(.94,.74,.38,.36))
+	var focus=make_button_style(Color(.075,.08,.068,.58),Color(.86,.78,.58,.20))
 	b.add_theme_stylebox_override("normal",normal)
 	b.add_theme_stylebox_override("hover",hover)
 	b.add_theme_stylebox_override("pressed",pressed)
@@ -1915,7 +2010,7 @@ func apply_command_button_style(b):
 func make_ui():
 	layout_camera_sticks()
 	var layer=CanvasLayer.new(); add_child(layer)
-	make_glass_panel(layer,Vector2(14,14),Vector2(620,148),.66,.2)
+	make_glass_panel(layer,Vector2(14,14),Vector2(620,148),.54,.18)
 	hud=Label.new(); hud.position=Vector2(27,25); hud.add_theme_font_size_override("font_size",12); hud.add_theme_color_override("font_color",Color("#f7f0dc")); hud.add_theme_constant_override("outline_size",1); hud.add_theme_color_override("font_outline_color",Color(0,0,0,.9)); layer.add_child(hud)
 	var vp=get_viewport().get_visible_rect().size
 	var menu_w=356.0
@@ -1930,9 +2025,9 @@ func make_ui():
 	for s in ["KAMERA OS.","PRZYWOŁAJ","BŁOGOSŁAW","WIĘŹ +","KRĄG ŻYCIA"]:
 		var action=s
 		var b=Button.new(); b.text=action; b.custom_minimum_size=Vector2(172,25); apply_command_button_style(b); b.pressed.connect(func(): handle_idol_action(action)); grid.add_child(b)
-	make_glass_panel(layer,Vector2(14,172),Vector2(430,192),.58,.16)
+	make_glass_panel(layer,Vector2(14,172),Vector2(430,192),.48,.14)
 	info=Label.new(); info.position=Vector2(28,182); info.add_theme_font_size_override("font_size",11); info.add_theme_color_override("font_color",Color("#efe8d4")); info.add_theme_constant_override("outline_size",1); info.add_theme_color_override("font_outline_color",Color(0,0,0,.88)); layer.add_child(info)
-	var chat_bg=make_glass_panel(layer,Vector2(float(vp.x)*.282,float(vp.y)-156.0),Vector2(float(vp.x)*.436,130),.64,.2)
+	var chat_bg=make_glass_panel(layer,Vector2(float(vp.x)*.282,float(vp.y)-156.0),Vector2(float(vp.x)*.436,130),.52,.18)
 	chat_feed=Label.new(); chat_feed.position=chat_bg.position+Vector2(12,7); chat_feed.size=chat_bg.size-Vector2(22,12); chat_feed.add_theme_font_size_override("font_size",13); chat_feed.add_theme_color_override("font_color",Color("#f7fff6")); chat_feed.add_theme_constant_override("outline_size",1); chat_feed.add_theme_color_override("font_outline_color",Color(0,0,0,.96)); chat_feed.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART; chat_feed.clip_text=true; chat_feed.text="ROZMOWY OSADY\n..."; layer.add_child(chat_feed)
 	make_camera_sticks(layer)
 
@@ -1961,8 +2056,8 @@ func make_touch_panel(pos,size):
 	p.size=size
 	p.mouse_filter=Control.MOUSE_FILTER_IGNORE
 	var st=StyleBoxFlat.new()
-	st.bg_color=Color(.018,.02,.017,.26)
-	st.border_color=Color(.82,.76,.62,.24)
+	st.bg_color=Color(.018,.02,.017,.18)
+	st.border_color=Color(.82,.76,.62,.18)
 	st.border_width_left=2
 	st.border_width_top=2
 	st.border_width_right=2
@@ -1971,8 +2066,8 @@ func make_touch_panel(pos,size):
 	st.corner_radius_top_right=10
 	st.corner_radius_bottom_left=10
 	st.corner_radius_bottom_right=10
-	st.shadow_color=Color(0,0,0,.34)
-	st.shadow_size=6
+	st.shadow_color=Color(0,0,0,.24)
+	st.shadow_size=4
 	p.add_theme_stylebox_override("panel",st)
 	return p
 

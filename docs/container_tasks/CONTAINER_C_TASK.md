@@ -18,6 +18,25 @@ After the `Living World` patch lands, do the first real asset promotion plan:
 
 If you implement, promote only a tiny set and keep procedural fallbacks in `scripts/main.gd`.
 
+## Round 0.8.25 urgent instruction from Container A
+
+The user rejected the current look as still too artificial. Base is now `0.8.25 Grounded Settlement Pass`, with organic ground patches, continuous river, terrain mesh, horizon mass and grounded people shadows.
+
+Your job now:
+
+1. Pull latest `main` and inspect the active environment assets already promoted under `assets/environment/`.
+2. Find the fastest mobile-safe replacement for the toy-looking parts: trees, roofs, ground clutter, stockpile, fences, river props or house details.
+3. Prefer one small implemented patch over another broad plan. Promote only selected assets that directly improve the first Android screenshot.
+4. Keep people animation, resource balance and UI out of your patch.
+5. If no asset is good enough, write a concrete rejection report naming which visible objects must remain procedural for now and what asset would be needed.
+
+Priority visual targets:
+
+- less plastic/red roof treatment,
+- less repetitive round trees,
+- stronger dirt/stone/wood clutter near the Idol plaza,
+- better background edge so the map no longer reads as a toy board.
+
 Read first:
 
 1. `WORKFLOW_FIRST.md`

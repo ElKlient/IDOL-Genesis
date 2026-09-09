@@ -37,3 +37,16 @@ After every analysis pass or code pass, each helper writes a log:
 - E: `docs/container_logs/CONTAINER_E_LOG.md`
 
 Every report must include: scope checked, important files/functions, changed files or no-code status, commit SHA if pushed, risks/tests, and what Container A should integrate/reject/wait on.
+
+## Urgent visual sprint - 0.8.25
+
+Container A updated the project to `0.8.25 Grounded Settlement Pass` after the user reported that the game still looks too artificial on Android screenshots.
+
+All helper containers must pull latest `main` and treat `0.8.25` as the new base:
+
+- B: verify whether people still look wooden after grounded shadows/clothing; improve walk only inside the people/pose lane.
+- C: push the world toward real settlement assets and better environment mass; avoid broad pack imports.
+- D: validate Android/Godot import/runtime/performance after the added terrain mesh and visual density.
+- E: reduce the debug feel of HUD/game presentation without breaking the current touch controls.
+
+Do not keep working from the old `0.8.20` assignment without first reading your own updated task file.

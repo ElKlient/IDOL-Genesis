@@ -309,3 +309,45 @@ Validation completed:
 Known limitation:
 
 - local screenshot capture in this container is not reliable because Godot `--headless --write-movie` crashes inside the dummy renderer. Android screenshot/video remains the useful visual QA path for now.
+
+## Container A Patch - 0.8.25 Grounded Settlement Pass - 2026-09-09
+
+Goal: answer the user's direct feedback that the game still looked too artificial/flat on Android, and push helper containers B/C/D/E onto the current visual sprint instead of their older 0.8.20 tasks.
+
+Implemented in `scripts/main.gd`:
+
+- bumped version title to `IDOL -- GENESIS 0.8.25 GROUNDED SETTLEMENT PASS`,
+- replaced the flat base `PlaneMesh` with a lightweight custom `ArrayMesh` terrain using subtle edge/river-aware height variation,
+- expanded the viewed world with low background landforms, extra edge bushes and rocks so the camera sees a heavier horizon instead of an empty board edge,
+- added soft alpha shadows under adults and children to visually attach settlers to the ground,
+- added fuller leather/fur/cloth layers around settler torsos and sides without replacing the existing human model,
+- moved the start camera slightly higher/wider and reduced FOV so the first Android frame reads more like a whole settlement,
+- reduced HUD/panel/button/joystick opacity so the UI does not crush the world view as hard.
+
+Documentation and coordination:
+
+- updated `README.txt`, `WORKFLOW_FIRST.md`, `docs/CONTAINER_HANDOFF_PROMPT.md` and `project.godot` for 0.8.25,
+- updated `docs/container_tasks/README.md`,
+- added urgent 0.8.25 task sections for B/C/D/E:
+  - B: verify people/walk with grounded shadows and clothing,
+  - C: stop broad planning and target visible toy-looking environment pieces,
+  - D: validate Android/Godot runtime/import/performance after terrain mesh and density changes,
+  - E: reduce debug feel of HUD/presentation while preserving controls.
+
+Preserved:
+
+- current people model and skeleton,
+- procedural walk and retargeter flag,
+- AI/resource/build/hunt gameplay,
+- active lightweight GLB prop set.
+
+Validation completed:
+
+- `git diff --check`: clean
+- Godot headless editor import: clean
+- Godot headless runtime startup: clean
+- 8 second headless startup: clean until expected timeout
+
+Known limitation:
+
+- this container still relies on Android screenshots/video for final visual judgment; local headless Godot validates runtime but does not provide a trustworthy rendered phone screenshot.

@@ -17,6 +17,25 @@ After the `Living World` patch lands, review the hunt/hides loop:
 
 Report one recommended next gameplay vertical for Container A to approve.
 
+## Round 0.8.25 urgent instruction from Container A
+
+Base is now `0.8.25 Grounded Settlement Pass`. The user's current complaint is mainly visual/presentation: the game still reads too much like a debug prototype instead of a living settlement.
+
+Your job now:
+
+1. Pull latest `main` and inspect `make_ui()`, HUD/status text and settlement command flow.
+2. Design one small UI/game-presentation improvement that makes the Android screen less debug-heavy while preserving all current controls.
+3. Preferred patch: a settlement presentation/readability cleanup, not a new big panel or feature system.
+4. Keep terrain, asset imports, people animation and Android workflow out of your patch.
+5. Report whether Container A should next approve a simplified HUD mode, contextual command grouping, or a stronger settlement objective presentation.
+
+Watch especially:
+
+- top-left HUD density,
+- selected-person panel dominance,
+- bottom chat panel position over the world,
+- command grid readability with lighter panel opacity from 0.8.25.
+
 Read first:
 
 1. `WORKFLOW_FIRST.md`

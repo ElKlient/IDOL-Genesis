@@ -19,6 +19,20 @@ After the `Living World` patch lands, validate it before bigger art/gameplay wor
 
 If anything fails, write the exact command/output in `docs/container_logs/CONTAINER_D_LOG.md` and mark integration blocked.
 
+## Round 0.8.25 urgent instruction from Container A
+
+Base is now `0.8.25 Grounded Settlement Pass`. Container A added a custom terrain mesh, more edge mass, people shadows and lighter UI opacity. The user also complained earlier that opening the project on Android/Godot can require waiting for files to load.
+
+Your job now:
+
+1. Pull latest `main` and validate `0.8.25` with the required Godot commands below.
+2. Check whether the custom `ArrayMesh` terrain and extra visual density create import/runtime errors or obvious startup slowdown.
+3. Inspect repo status after Godot import for accidental cache/UID/import churn and document anything generated.
+4. Re-check the Termux update command stays simple and does not force `.godot` deletion.
+5. Try to find a reliable local screenshot/movie workflow only if it does not require destabilizing the project. If `--headless --write-movie` still crashes, document that exact limitation.
+
+Do not touch people animation, terrain art direction, gameplay balance, or HUD design unless fixing a direct runtime break.
+
 Read first:
 
 1. `WORKFLOW_FIRST.md`

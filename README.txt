@@ -1,6 +1,6 @@
 START DLA KONTENEROW: najpierw przeczytaj WORKFLOW_FIRST.md.
 
-IDOL Genesis 0.8.24 - ORGANIC WORLD PASS
+IDOL Genesis 0.8.25 - GROUNDED SETTLEMENT PASS
 
 Prompt roboczy tej łatki:
 Zbuduj pierwszy grywalny rdzeń osady epoki kamienia. Gracz jest Idolem: wolą osady, nie dowódcą armii. Ludzie mają samodzielnie dzielić robotę, nosić surowce, budować podstawowe budynki, odpoczywać, tworzyć pierwsze więzi i odkrywać proste technologie przez zadania.
@@ -10,6 +10,14 @@ Kierunek gry:
 - ludzie nie są wojskiem do szkolenia, tylko pierwszą społecznością
 - później mają tworzyć pary, rozmnażać się, budować relacje, dzielić się na grupy i wchodzić w konflikty
 - rozwój technologii wynika z prostych zadań, które Idol zleca mieszkańcom
+
+Zmiany 0.8.25:
+- przebudowano bazowy teren z płaskiego `PlaneMesh` na lekką siatkę `ArrayMesh`, dzięki czemu świat ma subtelne pofałdowanie i mniej wygląda jak płaska plansza
+- powiększono wizualny horyzont osady: dodano niskie grzbiety ziemi, więcej masy na obrzeżach i dodatkowe skupiska krzaków/kamieni przy krawędziach widoku
+- ludzie dostali miękkie cienie pod stopami oraz pełniejsze skórzano-materiałowe warstwy odzieży na tułowiu i bokach sylwetki
+- startowa kamera jest trochę wyżej i szerzej, żeby pierwszy kadr czytał się jako cała osada, a nie pojedynczy kawałek makiety pod dużym UI
+- przygaszono wagę UI: panele, przyciski i joysticki są bardziej przezroczyste, żeby świat był widoczny pod interfejsem
+- zaktualizowano zadania B/C/D/E pod obecny sprint graficzny, bo stare pliki prowadziły helpery do zadań z okolic 0.8.20
 
 Zmiany 0.8.24:
 - przebudowano wizualny fundament sceny po screenach z Androida: mniej makiety z prostokątów, więcej organicznego, ziemistego obrazu
