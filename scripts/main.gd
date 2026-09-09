@@ -21,7 +21,7 @@ const WEEKDAY_SHORT_TILE := ["pon", "wt", "śr", "czw", "pt", "sob", "nd"]
 
 const COLOR_PANEL := Color(0.075, 0.090, 0.092, 0.76)
 const COLOR_PANEL_SOFT := Color(0.110, 0.125, 0.122, 0.72)
-const COLOR_TILE_EMPTY := Color(0.90, 0.93, 0.88, 0.18)
+const COLOR_TILE_EMPTY := Color(0.90, 0.93, 0.88, 0.24)
 const COLOR_TILE_EMPTY_OUTSIDE := Color(0.90, 0.93, 0.88, 0.08)
 const COLOR_TEXT := Color(0.94, 0.955, 0.925)
 const COLOR_TEXT_MUTED := Color(0.76, 0.80, 0.77)
@@ -32,6 +32,7 @@ const COLOR_TRAVEL := Color(0.73, 0.58, 0.30, 0.84)
 const COLOR_REST := Color(0.62, 0.50, 0.27, 0.84)
 const COLOR_TODAY := Color(0.92, 0.72, 0.38)
 const PORTRAIT_WIDTH := 640
+const TILE_COLUMNS := 7
 
 var calculator := ScheduleCalculator.new()
 var current_year: int
@@ -462,65 +463,101 @@ func _rebuild_calendar() -> void:
 func _make_month_section(year: int, month: int) -> VBoxContainer:
 	var section := VBoxContainer.new()
 	section.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	section.add_theme_constant_override("separation", 14)
+	section.add_theme_constant_override("separation", 16)
 
-	var title := _make_label("%s %d" % [MONTH_NAMES[month - 1], year], 31 if _range_months() == 1 else 27, COLOR_TEXT)
+	var title := _make_label("%s %d" % [MONTH_NAMES[month - 1], year], 33 if _range_months() == 1 else 28, COLOR_TEXT)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	section.add_child(title)
 
 	var grid := GridContainer.new()
-	grid.columns = 7
+	grid.columns = TILE_COLUMNS
 	grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	grid.add_theme_constant_override("h_separation", 8)
 	grid.add_theme_constant_override("v_separation", 10)
 	section.add_child(grid)
 
 	var first_offset := ScheduleCalculator.month_start_weekday_monday(year, month)
-	var days_current := ScheduleCalculator.days_in_month(year, month)
+	for _offset in range(first_offset):
+		grid.add_child(_make_day_spacer())
 
-	for cell_index in range(42):
-		var date := _date_for_month_cell(year, month, cell_index, first_offset, days_current)
-		var date_year := int(date["year"])
-		var date_month := int(date["month"])
-		var date_day := int(date["day"])
-		var day_index := ScheduleCalculator.day_index_from_date(date_year, date_month, date_day)
-		var key := _date_key(date_year, date_month, date_day)
+	var days_current := ScheduleCalculator.days_in_month(year, month)
+	for day in range(1, days_current + 1):
+		var day_index := ScheduleCalculator.day_index_from_date(year, month, day)
+		var key := _date_key(year, month, day)
 		var state := _visual_state_for_day(day_index, key)
-		var in_month := date_month == month
-		grid.add_child(_make_day_cell(date_year, date_month, date_day, day_index, in_month, state, day_index == today_day_index))
+		grid.add_child(_make_day_cell(year, month, day, day_index, state, day_index == today_day_index))
 
 	return section
 
 
-func _make_day_cell(year: int, month: int, day: int, day_index: int, in_month: bool, state: int, is_today: bool) -> Button:
+func _make_day_cell(year: int, month: int, day: int, day_index: int, state: int, is_today: bool) -> Button:
 	var key := _date_key(year, month, day)
 	var button := Button.new()
-	button.text = _day_cell_text(day, day_index, state, notes.has(key))
+	button.text = ""
 	button.custom_minimum_size = Vector2(0, _day_cell_height())
 	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	button.clip_text = true
 	button.alignment = HORIZONTAL_ALIGNMENT_CENTER
-	button.add_theme_font_size_override("font_size", _day_cell_font_size())
-	button.add_theme_color_override("font_color", COLOR_TEXT if in_month else COLOR_TEXT_DIM)
+	button.add_theme_color_override("font_color", COLOR_TEXT)
 	button.add_theme_color_override("font_hover_color", COLOR_TEXT)
 	button.add_theme_color_override("font_pressed_color", COLOR_TEXT)
-	button.add_theme_stylebox_override("normal", _tile_style(_state_color(state, in_month), is_today))
-	button.add_theme_stylebox_override("hover", _tile_style(_state_color(state, in_month).lightened(0.08), is_today))
-	button.add_theme_stylebox_override("pressed", _tile_style(_state_color(state, in_month).darkened(0.09), is_today))
-	button.add_theme_stylebox_override("focus", _tile_style(_state_color(state, in_month), true))
+	button.add_theme_stylebox_override("normal", _tile_style(_state_color(state), is_today))
+	button.add_theme_stylebox_override("hover", _tile_style(_state_color(state).lightened(0.08), is_today))
+	button.add_theme_stylebox_override("pressed", _tile_style(_state_color(state).darkened(0.09), is_today))
+	button.add_theme_stylebox_override("focus", _tile_style(_state_color(state), true))
+	_fill_day_tile(button, day, day_index, state, notes.has(key))
 	button.pressed.connect(_open_day_actions.bind(year, month, day))
 	return button
 
 
-func _day_cell_text(day: int, day_index: int, state: int, has_note: bool) -> String:
-	var weekday := _weekday_short_for_day_index(day_index)
+func _make_day_spacer() -> Control:
+	var spacer := Control.new()
+	spacer.custom_minimum_size = Vector2(0, _day_cell_height())
+	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	return spacer
+
+
+func _fill_day_tile(button: Button, day: int, day_index: int, state: int, has_note: bool) -> void:
+	var margin := MarginContainer.new()
+	margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	margin.set_anchors_preset(Control.PRESET_FULL_RECT)
+	margin.add_theme_constant_override("margin_left", 4)
+	margin.add_theme_constant_override("margin_right", 4)
+	margin.add_theme_constant_override("margin_top", 4)
+	margin.add_theme_constant_override("margin_bottom", 4)
+	button.add_child(margin)
+
+	var box := VBoxContainer.new()
+	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	box.alignment = BoxContainer.ALIGNMENT_CENTER
+	box.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	box.add_theme_constant_override("separation", 0)
+	margin.add_child(box)
+
+	var day_label := _tile_label(str(day), _tile_day_font_size(), COLOR_TEXT)
+	box.add_child(day_label)
+
+	var weekday_label := _tile_label(_weekday_short_for_day_index(day_index), _tile_weekday_font_size(), COLOR_TEXT_MUTED)
+	box.add_child(weekday_label)
+
 	var state_name := _state_short_name(state)
-	var text := "%d\n%s" % [day, weekday]
 	if not state_name.is_empty():
-		text += "\n%s" % state_name
-	if has_note:
-		text += "\nnot."
-	return text
+		box.add_child(_tile_label(state_name, _tile_badge_font_size(), COLOR_TEXT))
+	elif has_note:
+		box.add_child(_tile_label("not.", _tile_badge_font_size(), COLOR_TEXT_MUTED))
+
+
+func _tile_label(text: String, font_size: int, color: Color) -> Label:
+	var label := Label.new()
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	label.text = text
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	label.clip_text = true
+	label.add_theme_font_size_override("font_size", font_size)
+	label.add_theme_color_override("font_color", color)
+	return label
 
 
 func _open_day_actions(year: int, month: int, day: int) -> void:
@@ -708,19 +745,37 @@ func _range_months() -> int:
 func _day_cell_height() -> int:
 	match _range_months():
 		12:
-			return 58
+			return 56
 		3, 4:
-			return 68
-	return 82
+			return 70
+	return 84
 
 
-func _day_cell_font_size() -> int:
+func _tile_day_font_size() -> int:
 	match _range_months():
 		12:
-			return 15
-		3, 4:
 			return 17
-	return 20
+		3, 4:
+			return 22
+	return 26
+
+
+func _tile_weekday_font_size() -> int:
+	match _range_months():
+		12:
+			return 9
+		3, 4:
+			return 12
+	return 14
+
+
+func _tile_badge_font_size() -> int:
+	match _range_months():
+		12:
+			return 8
+		3, 4:
+			return 10
+	return 11
 
 
 func _selected_pause_hours() -> int:
@@ -884,16 +939,16 @@ func _panel_box(panel: PanelContainer, margin_size: int = 14) -> VBoxContainer:
 func _tile_style(color: Color, is_today: bool) -> StyleBoxFlat:
 	var style := StyleBoxFlat.new()
 	style.bg_color = color
-	style.set_corner_radius_all(8)
+	style.set_corner_radius_all(18)
 	style.set_border_width_all(2 if is_today else 1)
-	style.border_color = COLOR_TODAY if is_today else Color(1.0, 1.0, 1.0, 0.13)
-	style.shadow_color = Color(0.0, 0.0, 0.0, 0.28)
-	style.shadow_size = 7
-	style.shadow_offset = Vector2(0, 3)
-	style.content_margin_left = 5
-	style.content_margin_right = 5
-	style.content_margin_top = 5
-	style.content_margin_bottom = 5
+	style.border_color = COLOR_TODAY if is_today else Color(1.0, 1.0, 1.0, 0.20)
+	style.shadow_color = Color(0.0, 0.0, 0.0, 0.34)
+	style.shadow_size = 11
+	style.shadow_offset = Vector2(0, 5)
+	style.content_margin_left = 8
+	style.content_margin_right = 8
+	style.content_margin_top = 10
+	style.content_margin_bottom = 8
 	return style
 
 
