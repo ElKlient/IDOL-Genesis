@@ -46,6 +46,8 @@ const RETURN_TODAY_BUTTON_WIDTH := 300
 const RESET_UNDO_BUTTON_TOP := 84
 const RESET_UNDO_BUTTON_HEIGHT := 44
 const RESET_UNDO_BUTTON_WIDTH := 166
+const SCROLLBAR_TOUCH_WIDTH := 28
+const SCROLLBAR_SWIPE_GUARD_WIDTH := 52.0
 const PROFILE_BUTTON_TOP := 84
 const PROFILE_BUTTON_HEIGHT := 44
 const PROFILE_BUTTON_WIDTH := 142
@@ -189,6 +191,7 @@ func _build_ui() -> void:
 	main_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	main_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	safe_margin.add_child(main_scroll)
+	_style_main_scrollbar()
 
 	var center := CenterContainer.new()
 	center.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -1572,7 +1575,8 @@ func _rebuild_calendar() -> void:
 		child.queue_free()
 
 	var month_count := _range_months()
-	var counts := _count_visible_months(current_year, current_month, month_count)
+	var count_start_month := 1 if month_count == 12 else current_month
+	var counts := _count_visible_months(current_year, count_start_month, month_count)
 
 	if calculator.mode == "none":
 		summary_label.text = "Uzupełnij swoje pierwsze dwa cykle pracy."
@@ -1588,6 +1592,10 @@ func _rebuild_calendar() -> void:
 			change_days,
 			calculator.cycle_label(),
 		]
+
+	if month_count == 12:
+		months_box.add_child(_make_year_overview_section(current_year))
+		return
 
 	var year := current_year
 	var month := current_month
@@ -1638,6 +1646,78 @@ func _make_month_section(year: int, month: int) -> VBoxContainer:
 		grid.add_child(_make_day_cell(year, month, day, day_index, state, day_index == today_day_index))
 
 	return section
+
+
+func _make_year_overview_section(year: int) -> VBoxContainer:
+	var section := VBoxContainer.new()
+	section.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	section.add_theme_constant_override("separation", 16)
+
+	var title := _make_label("Rok %d" % year, 33, COLOR_TEXT)
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	section.add_child(title)
+
+	var grid := GridContainer.new()
+	grid.columns = 3
+	grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	grid.add_theme_constant_override("h_separation", 8)
+	grid.add_theme_constant_override("v_separation", 10)
+	section.add_child(grid)
+
+	var now := Time.get_datetime_dict_from_system()
+	var today_year := int(now["year"])
+	var today_month := int(now["month"])
+
+	for month in range(1, 13):
+		grid.add_child(_make_year_month_cell(year, month, year == today_year and month == today_month))
+
+	return section
+
+
+func _make_year_month_cell(year: int, month: int, is_current_month: bool) -> Button:
+	var counts := _count_visible_months(year, month, 1)
+	var button := Button.new()
+	button.text = ""
+	button.custom_minimum_size = Vector2(0, 86)
+	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	button.clip_text = true
+	button.add_theme_stylebox_override("normal", _month_overview_style(_month_overview_color(counts), is_current_month))
+	button.add_theme_stylebox_override("hover", _month_overview_style(_month_overview_color(counts).lightened(0.06), is_current_month))
+	button.add_theme_stylebox_override("pressed", _month_overview_style(_month_overview_color(counts).darkened(0.06), is_current_month))
+	button.add_theme_stylebox_override("focus", _month_overview_style(_month_overview_color(counts), true))
+	_fill_year_month_tile(button, month, counts, is_current_month)
+	_connect_tap(button, Callable(self, "_on_month_picker_pressed").bind(month))
+	return button
+
+
+func _fill_year_month_tile(button: Button, month: int, counts: Dictionary, is_current_month: bool) -> void:
+	var margin := MarginContainer.new()
+	margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	margin.set_anchors_preset(Control.PRESET_FULL_RECT)
+	margin.add_theme_constant_override("margin_left", 6)
+	margin.add_theme_constant_override("margin_right", 6)
+	margin.add_theme_constant_override("margin_top", 6)
+	margin.add_theme_constant_override("margin_bottom", 6)
+	button.add_child(margin)
+
+	var box := VBoxContainer.new()
+	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	box.alignment = BoxContainer.ALIGNMENT_CENTER
+	box.add_theme_constant_override("separation", 1)
+	margin.add_child(box)
+
+	var month_label := _tile_label(MONTH_NAMES[month - 1], 18, COLOR_TEXT)
+	box.add_child(month_label)
+
+	var stats := _tile_label("P %d  D %d  24 %d" % [
+		int(counts["work"]),
+		int(counts["home"]),
+		int(counts["rest"]),
+	], 11, COLOR_TEXT_MUTED)
+	box.add_child(stats)
+
+	if is_current_month:
+		box.add_child(_tile_label("aktualny", 10, COLOR_TODAY))
 
 
 func _make_day_cell(year: int, month: int, day: int, day_index: int, state: int, is_today: bool) -> Button:
@@ -2197,6 +2277,25 @@ func _state_color(state: int, in_month: bool = true) -> Color:
 	return COLOR_TILE_EMPTY
 
 
+func _month_overview_color(counts: Dictionary) -> Color:
+	var best_state := ScheduleCalculator.DayState.NONE
+	var best_count := int(counts.get("none", 0))
+	var candidates := [
+		{"state": ScheduleCalculator.DayState.WORK, "count": int(counts.get("work", 0))},
+		{"state": ScheduleCalculator.DayState.HOME, "count": int(counts.get("home", 0))},
+		{"state": ScheduleCalculator.DayState.REST, "count": int(counts.get("rest", 0))},
+		{"state": ScheduleCalculator.DayState.VACATION, "count": int(counts.get("vacation", 0))},
+	]
+
+	for candidate in candidates:
+		var candidate_count := int(candidate["count"])
+		if candidate_count > best_count:
+			best_count = candidate_count
+			best_state = int(candidate["state"])
+
+	return _state_color(best_state)
+
+
 func _weekday_short_for_day_index(day_index: int) -> String:
 	return WEEKDAY_SHORT_TILE[ScheduleCalculator.weekday_monday_first(day_index)]
 
@@ -2383,7 +2482,8 @@ func _track_scroll_touch(event: InputEvent) -> void:
 
 
 func _track_month_swipe(event: InputEvent) -> void:
-	if not main_view_saved:
+	if not main_view_saved or _range_months() != 1:
+		swipe_tracking_active = false
 		return
 
 	if event is InputEventScreenTouch:
@@ -2402,6 +2502,10 @@ func _track_month_swipe(event: InputEvent) -> void:
 
 
 func _begin_month_swipe(position: Vector2) -> void:
+	if position.x >= get_viewport_rect().size.x - SCROLLBAR_SWIPE_GUARD_WIDTH:
+		swipe_tracking_active = false
+		return
+
 	swipe_start_position = position
 	swipe_tracking_active = true
 
@@ -2527,6 +2631,22 @@ func _tile_style(color: Color, is_today: bool, is_vacation: bool = false) -> Sty
 	return style
 
 
+func _month_overview_style(color: Color, is_current_month: bool) -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = color
+	style.set_corner_radius_all(14)
+	style.set_border_width_all(2 if is_current_month else 1)
+	style.border_color = COLOR_TODAY if is_current_month else Color(1.0, 1.0, 1.0, 0.16)
+	style.shadow_color = Color(0.0, 0.0, 0.0, 0.24)
+	style.shadow_size = 6
+	style.shadow_offset = Vector2(0, 3)
+	style.content_margin_left = 8
+	style.content_margin_right = 8
+	style.content_margin_top = 8
+	style.content_margin_bottom = 8
+	return style
+
+
 func _style(color: Color, radius: int) -> StyleBoxFlat:
 	var style := StyleBoxFlat.new()
 	style.bg_color = color
@@ -2557,6 +2677,40 @@ func _control_style(color: Color, focused: bool = false) -> StyleBoxFlat:
 	style.content_margin_top = 8
 	style.content_margin_bottom = 8
 	return style
+
+
+func _scrollbar_track_style() -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.85, 0.90, 0.86, 0.08)
+	style.set_corner_radius_all(14)
+	style.content_margin_left = 7
+	style.content_margin_right = 7
+	return style
+
+
+func _scrollbar_grabber_style(alpha: float) -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.86, 0.90, 0.86, alpha)
+	style.set_corner_radius_all(14)
+	style.content_margin_left = 8
+	style.content_margin_right = 8
+	style.content_margin_top = 8
+	style.content_margin_bottom = 8
+	return style
+
+
+func _style_main_scrollbar() -> void:
+	if main_scroll == null:
+		return
+
+	var scroll_bar := main_scroll.get_v_scroll_bar()
+	scroll_bar.custom_minimum_size.x = SCROLLBAR_TOUCH_WIDTH
+	scroll_bar.mouse_filter = Control.MOUSE_FILTER_STOP
+	scroll_bar.add_theme_stylebox_override("scroll", _scrollbar_track_style())
+	scroll_bar.add_theme_stylebox_override("scroll_focus", _scrollbar_track_style())
+	scroll_bar.add_theme_stylebox_override("grabber", _scrollbar_grabber_style(0.48))
+	scroll_bar.add_theme_stylebox_override("grabber_highlight", _scrollbar_grabber_style(0.68))
+	scroll_bar.add_theme_stylebox_override("grabber_pressed", _scrollbar_grabber_style(0.82))
 
 
 func _accent_style(color: Color) -> StyleBoxFlat:
