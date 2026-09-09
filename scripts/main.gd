@@ -18,6 +18,7 @@ const MONTH_NAMES := [
 	"Grudzień",
 ]
 const WEEKDAY_SHORT_TILE := ["pon", "wt", "śr", "czw", "pt", "sob", "nd"]
+const WEEKDAY_NAMES := ["Poniedziałek", "Wtorek", "Środa", "Czwartek", "Piątek", "Sobota", "Niedziela"]
 
 const COLOR_PANEL := Color(0.070, 0.085, 0.087, 0.82)
 const COLOR_PANEL_SOFT := Color(0.105, 0.120, 0.116, 0.76)
@@ -56,6 +57,8 @@ var system_home_spin: SpinBox
 var commute_before_spin: SpinBox
 var commute_after_spin: SpinBox
 var weekly_rest_toggle: CheckButton
+var fixed_start_toggle: CheckButton
+var fixed_start_option: OptionButton
 var custom_panel: PanelContainer
 var custom_length_spin: SpinBox
 var error_label: Label
@@ -79,6 +82,7 @@ var work_start_unix: int = 0
 var work_end_unix: int = 0
 var scroll_safe_buttons: Array[BaseButton] = []
 var weekly_rest_previous_pressed := true
+var fixed_start_previous_pressed := false
 var touch_start_position := Vector2.ZERO
 var touch_tracking_active := false
 var touch_drag_cancelled := false
@@ -231,6 +235,24 @@ func _build_settings_panel() -> PanelContainer:
 
 	commute_after_spin = _make_spin(0, 7, 1)
 	travel_grid.add_child(_field_stack("Zjazd po", commute_after_spin))
+
+	fixed_start_toggle = CheckButton.new()
+	fixed_start_toggle.text = "Zawsze zaczynam pracę w ten sam dzień"
+	fixed_start_toggle.button_pressed = false
+	fixed_start_previous_pressed = fixed_start_toggle.button_pressed
+	fixed_start_toggle.toggled.connect(_on_fixed_start_toggled)
+	_prepare_control(fixed_start_toggle, 20, 56)
+	box.add_child(fixed_start_toggle)
+
+	fixed_start_option = OptionButton.new()
+	fixed_start_option.add_item("Wybierz dzień rozpoczęcia pracy")
+	for weekday_name in WEEKDAY_NAMES:
+		fixed_start_option.add_item(weekday_name)
+	_set_option_selected(fixed_start_option, 0)
+	fixed_start_option.item_selected.connect(_on_fixed_start_day_selected)
+	_prepare_control(fixed_start_option, 20, 58)
+	fixed_start_option.visible = false
+	box.add_child(fixed_start_option)
 
 	weekly_rest_toggle = CheckButton.new()
 	weekly_rest_toggle.text = "Pauza 24h co 6 dni pracy"
@@ -469,11 +491,15 @@ func _set_settings_visible(visible: bool) -> void:
 
 func _apply_settings(close_settings_after_save: bool = false) -> void:
 	var ok := true
+	var fixed_start_weekday := _selected_fixed_start_weekday()
 
 	if schedule_option.selected == 0:
 		ok = calculator.configure_empty()
+	elif fixed_start_weekday == -2:
+		ok = false
+		calculator.last_error = "Wybierz dzień stałego rozpoczęcia pracy."
 	elif _is_custom_schedule():
-		ok = calculator.configure_custom(start_input.text, custom_pattern)
+		ok = calculator.configure_custom(start_input.text, custom_pattern, fixed_start_weekday)
 	else:
 		ok = calculator.configure_preset(
 			start_input.text,
@@ -482,7 +508,8 @@ func _apply_settings(close_settings_after_save: bool = false) -> void:
 			"days",
 			int(commute_before_spin.value),
 			int(commute_after_spin.value),
-			weekly_rest_toggle.button_pressed
+			weekly_rest_toggle.button_pressed,
+			fixed_start_weekday
 		)
 
 	error_label.visible = not ok
@@ -684,7 +711,10 @@ func _ensure_custom_mode_for_selected_day() -> void:
 	if start_input.text.strip_edges().is_empty() or ScheduleCalculator.parse_date(start_input.text).is_empty():
 		start_input.text = selected_day_key
 
-	calculator.configure_custom(start_input.text, custom_pattern)
+	var fixed_start_weekday := _selected_fixed_start_weekday()
+	if fixed_start_weekday == -2:
+		fixed_start_weekday = -1
+	calculator.configure_custom(start_input.text, custom_pattern, fixed_start_weekday)
 
 
 func _open_note_from_action_dialog() -> void:
@@ -741,6 +771,26 @@ func _on_weekly_rest_toggled(enabled: bool) -> void:
 		return
 
 	weekly_rest_previous_pressed = enabled
+	_apply_settings()
+
+
+func _on_fixed_start_toggled(enabled: bool) -> void:
+	if _tap_is_blocked():
+		fixed_start_toggle.set_pressed_no_signal(fixed_start_previous_pressed)
+		if fixed_start_option != null:
+			fixed_start_option.visible = fixed_start_previous_pressed
+		return
+
+	fixed_start_previous_pressed = enabled
+	if fixed_start_option != null:
+		fixed_start_option.visible = enabled
+	_apply_settings()
+
+
+func _on_fixed_start_day_selected(index: int) -> void:
+	if _option_change_was_scroll(fixed_start_option, index):
+		return
+
 	_apply_settings()
 
 
@@ -855,6 +905,14 @@ func _is_preset_schedule() -> bool:
 
 func _is_custom_schedule() -> bool:
 	return schedule_option != null and schedule_option.selected == schedule_option.get_item_count() - 1
+
+
+func _selected_fixed_start_weekday() -> int:
+	if fixed_start_toggle == null or not fixed_start_toggle.button_pressed:
+		return -1
+	if fixed_start_option == null or fixed_start_option.selected <= 0:
+		return -2
+	return fixed_start_option.selected - 1
 
 
 func _range_months() -> int:
