@@ -110,7 +110,7 @@ func _ready() -> void:
 	var now := Time.get_datetime_dict_from_system()
 	current_year = int(now["year"])
 	current_month = int(now["month"])
-	today_day_index = ScheduleCalculator.day_index_from_date(int(now["year"]), int(now["month"]), int(now["day"]))
+	_refresh_today_day_index()
 
 	_reset_custom_pattern(21)
 	_build_ui()
@@ -994,6 +994,8 @@ func _rebuild_calendar() -> void:
 	if months_box == null:
 		return
 
+	_refresh_today_day_index()
+
 	for child in months_box.get_children():
 		child.queue_free()
 
@@ -1077,7 +1079,7 @@ func _make_day_cell(year: int, month: int, day: int, day_index: int, state: int,
 	button.add_theme_stylebox_override("hover", _tile_style(_state_color(state).lightened(0.08), is_today, is_vacation))
 	button.add_theme_stylebox_override("pressed", _tile_style(_state_color(state).darkened(0.09), is_today, is_vacation))
 	button.add_theme_stylebox_override("focus", _tile_style(_state_color(state), true, is_vacation))
-	_fill_day_tile(button, day, day_index, state, notes.has(key))
+	_fill_day_tile(button, day, day_index, state, notes.has(key), is_today)
 	_connect_tap(button, Callable(self, "_open_day_actions").bind(year, month, day))
 	return button
 
@@ -1089,7 +1091,7 @@ func _make_day_spacer() -> Control:
 	return spacer
 
 
-func _fill_day_tile(button: Button, day: int, day_index: int, state: int, has_note: bool) -> void:
+func _fill_day_tile(button: Button, day: int, day_index: int, state: int, has_note: bool, is_today: bool) -> void:
 	var margin := MarginContainer.new()
 	margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	margin.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -1128,6 +1130,13 @@ func _fill_day_tile(button: Button, day: int, day_index: int, state: int, has_no
 	accent.offset_bottom = -3.0
 	accent.add_theme_stylebox_override("panel", _accent_style(_tile_accent_color(state, has_note)))
 	button.add_child(accent)
+
+	if is_today:
+		var today_ring := Panel.new()
+		today_ring.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		today_ring.set_anchors_preset(Control.PRESET_FULL_RECT)
+		today_ring.add_theme_stylebox_override("panel", _today_ring_style())
+		button.add_child(today_ring)
 
 
 func _tile_label(text: String, font_size: int, color: Color) -> Label:
@@ -1892,6 +1901,18 @@ func _accent_style(color: Color) -> StyleBoxFlat:
 	return style
 
 
+func _today_ring_style() -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.0, 0.0, 0.0, 0.0)
+	style.set_corner_radius_all(18)
+	style.set_border_width_all(3)
+	style.border_color = COLOR_TODAY
+	style.shadow_color = Color(0.92, 0.72, 0.38, 0.32)
+	style.shadow_size = 8
+	style.shadow_offset = Vector2.ZERO
+	return style
+
+
 func _dialog_style() -> StyleBoxFlat:
 	var style := _style(Color(0.18, 0.19, 0.18, 0.96), 10)
 	style.border_color = Color(1.0, 1.0, 1.0, 0.18)
@@ -1947,6 +1968,11 @@ func _date_key(year: int, month: int, day: int) -> String:
 func _date_key_from_day_index(day_index: int) -> String:
 	var date := Time.get_datetime_dict_from_unix_time(day_index * 86400)
 	return _date_key(int(date["year"]), int(date["month"]), int(date["day"]))
+
+
+func _refresh_today_day_index() -> void:
+	var now := Time.get_datetime_dict_from_system()
+	today_day_index = ScheduleCalculator.day_index_from_date(int(now["year"]), int(now["month"]), int(now["day"]))
 
 
 func _date_for_month_cell(year: int, month: int, cell_index: int, first_offset: int, days_current: int) -> Dictionary:
