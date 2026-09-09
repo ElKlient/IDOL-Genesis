@@ -35,10 +35,10 @@ func configure_preset(
 
 	var multiplier := 7 if unit == "weeks" else 1
 	mode = "preset"
-	work_days = max(1, work_units * multiplier)
-	home_days = max(1, home_units * multiplier)
-	commute_before_days = max(0, commute_before)
-	commute_after_days = max(0, commute_after)
+	work_days = maxi(1, work_units * multiplier)
+	home_days = maxi(1, home_units * multiplier)
+	commute_before_days = maxi(0, commute_before)
+	commute_after_days = maxi(0, commute_after)
 	rest_every_work_days = 6 if use_weekly_rest else 0
 	custom_pattern.clear()
 	start_day_index = day_index_from_date(int(parsed["year"]), int(parsed["month"]), int(parsed["day"]))
@@ -57,7 +57,7 @@ func configure_custom(start_date_text: String, pattern: Array[int]) -> bool:
 
 	custom_pattern.clear()
 	for state in pattern:
-		var clean_state := clampi(int(state), DayState.NONE, DayState.REST)
+		var clean_state: int = clampi(int(state), DayState.NONE, DayState.REST)
 		custom_pattern.append(clean_state)
 
 	mode = "custom"
@@ -71,11 +71,11 @@ func get_state_for_day(day_index: int) -> int:
 		return DayState.NONE
 
 	if mode == "custom":
-		var custom_cycle_days := max(1, custom_pattern.size())
+		var custom_cycle_days: int = maxi(1, custom_pattern.size())
 		var custom_offset := positive_mod(day_index - start_day_index, custom_cycle_days)
 		return int(custom_pattern[custom_offset])
 
-	var cycle_days := max(1, work_days + home_days)
+	var cycle_days: int = maxi(1, work_days + home_days)
 	var offset := positive_mod(day_index - start_day_index, cycle_days)
 
 	if offset < work_days:
@@ -122,7 +122,7 @@ func count_months(start_year: int, start_month: int, month_count: int) -> Dictio
 
 func days_until_next_change(day_index: int) -> int:
 	var state := get_state_for_day(day_index)
-	var cycle_days := max(1, get_cycle_days())
+	var cycle_days: int = maxi(1, get_cycle_days())
 
 	for offset in range(1, cycle_days + 1):
 		if get_state_for_day(day_index + offset) != state:
@@ -133,8 +133,8 @@ func days_until_next_change(day_index: int) -> int:
 
 func get_cycle_days() -> int:
 	if mode == "custom":
-		return max(1, custom_pattern.size())
-	return max(1, work_days + home_days)
+		return maxi(1, custom_pattern.size())
+	return maxi(1, work_days + home_days)
 
 
 func cycle_label() -> String:
@@ -206,14 +206,14 @@ static func parse_date(text: String) -> Dictionary:
 
 
 static func day_index_from_date(year: int, month: int, day: int) -> int:
-	var unix_time := Time.get_unix_time_from_datetime_dict({
+	var unix_time: int = int(Time.get_unix_time_from_datetime_dict({
 		"year": year,
 		"month": month,
 		"day": day,
 		"hour": 0,
 		"minute": 0,
 		"second": 0,
-	})
+	}))
 	return int(floor(float(unix_time) / 86400.0))
 
 
