@@ -1,6 +1,6 @@
 extends RefCounted
 
-enum DayState { NONE, WORK, HOME, TRAVEL, REST }
+enum DayState { NONE, WORK, HOME, TRAVEL, REST, VACATION }
 
 var mode: String = "preset"
 var start_day_index: int = 0
@@ -57,7 +57,7 @@ func configure_custom(start_date_text: String, pattern: Array[int]) -> bool:
 
 	custom_pattern.clear()
 	for state in pattern:
-		var clean_state: int = clampi(int(state), DayState.NONE, DayState.REST)
+		var clean_state: int = clampi(int(state), DayState.NONE, DayState.VACATION)
 		custom_pattern.append(clean_state)
 
 	mode = "custom"
@@ -111,6 +111,7 @@ func count_months(start_year: int, start_month: int, month_count: int) -> Dictio
 		result["home"] += int(month_counts["home"])
 		result["travel"] += int(month_counts["travel"])
 		result["rest"] += int(month_counts["rest"])
+		result["vacation"] += int(month_counts["vacation"])
 
 		month += 1
 		if month > 12:
@@ -162,6 +163,7 @@ func _empty_counts() -> Dictionary:
 		"home": 0,
 		"travel": 0,
 		"rest": 0,
+		"vacation": 0,
 	}
 
 
@@ -175,6 +177,8 @@ func _add_state_to_counts(counts: Dictionary, state: int) -> void:
 			counts["travel"] += 1
 		DayState.REST:
 			counts["rest"] += 1
+		DayState.VACATION:
+			counts["vacation"] += 1
 		_:
 			counts["home"] += 1
 
