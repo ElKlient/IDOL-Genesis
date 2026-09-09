@@ -639,14 +639,14 @@ func _on_custom_length_changed(value: float) -> void:
 
 func _reset_custom_pattern(days: int) -> void:
 	custom_pattern.clear()
-	for _index in range(max(1, days)):
+	for _index in range(maxi(1, days)):
 		custom_pattern.append(ScheduleCalculator.DayState.NONE)
 
 
 func _resize_custom_pattern(days: int) -> void:
 	var old_pattern := custom_pattern.duplicate()
 	_reset_custom_pattern(days)
-	for index in range(min(old_pattern.size(), custom_pattern.size())):
+	for index in range(mini(old_pattern.size(), custom_pattern.size())):
 		custom_pattern[index] = int(old_pattern[index])
 
 
@@ -1042,7 +1042,7 @@ func _on_end_work_pressed() -> void:
 		return
 
 	work_end_unix = int(Time.get_unix_time_from_system())
-	var worked_seconds := max(0, work_end_unix - work_start_unix)
+	var worked_seconds: int = maxi(0, work_end_unix - work_start_unix)
 	work_status_label.text = "Praca trwała: %s. Koniec: %s" % [
 		_format_duration(worked_seconds),
 		_format_unix_time(work_end_unix),
