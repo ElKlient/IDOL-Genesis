@@ -41,7 +41,10 @@ const TAP_BLOCK_AFTER_DRAG_MS := 180
 const SWIPE_MIN_DISTANCE := 96.0
 const RETURN_TODAY_BUTTON_TOP := 84
 const RETURN_TODAY_BUTTON_HEIGHT := 44
-const RETURN_TODAY_BUTTON_WIDTH := 310
+const RETURN_TODAY_BUTTON_WIDTH := 300
+const RESET_UNDO_BUTTON_TOP := 84
+const RESET_UNDO_BUTTON_HEIGHT := 44
+const RESET_UNDO_BUTTON_WIDTH := 166
 const PROFILE_BUTTON_TOP := 84
 const PROFILE_BUTTON_HEIGHT := 44
 const PROFILE_BUTTON_WIDTH := 142
@@ -186,6 +189,7 @@ func _build_ui() -> void:
 	main_scroll.add_child(center)
 
 	_add_return_today_overlay()
+	_add_reset_undo_overlay()
 	_add_profile_overlay()
 
 	var root := VBoxContainer.new()
@@ -199,14 +203,10 @@ func _build_ui() -> void:
 	header.add_theme_constant_override("separation", 8)
 	root.add_child(header)
 
-	var left_actions := VBoxContainer.new()
-	left_actions.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
-	left_actions.add_theme_constant_override("separation", 6)
-	header.add_child(left_actions)
-
 	var undo_row := HBoxContainer.new()
+	undo_row.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	undo_row.add_theme_constant_override("separation", 6)
-	left_actions.add_child(undo_row)
+	header.add_child(undo_row)
 
 	reset_settings_button = Button.new()
 	reset_settings_button.text = "Resetuj"
@@ -224,14 +224,6 @@ func _build_ui() -> void:
 	undo_button.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	undo_row.add_child(undo_button)
 
-	reset_undo_button = Button.new()
-	reset_undo_button.text = "Cofnij reset"
-	_connect_tap(reset_undo_button, Callable(self, "_on_reset_undo_pressed"))
-	_prepare_control(reset_undo_button, 14, 46)
-	reset_undo_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	reset_undo_button.visible = false
-	left_actions.add_child(reset_undo_button)
-
 	var title := _make_label("Kalendarz Kierowcy", 30, COLOR_TEXT)
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -241,6 +233,7 @@ func _build_ui() -> void:
 	save_close_button.text = "Zapisz i zamknij"
 	_connect_tap(save_close_button, Callable(self, "_save_and_close_main_view"))
 	_prepare_control(save_close_button, 14, 54)
+	save_close_button.custom_minimum_size.x = PROFILE_BUTTON_WIDTH
 	save_close_button.size_flags_horizontal = Control.SIZE_SHRINK_END
 	header.add_child(save_close_button)
 
@@ -248,6 +241,7 @@ func _build_ui() -> void:
 	settings_header_button.text = "Ustawienia"
 	_connect_tap(settings_header_button, Callable(self, "_open_calendar_settings"))
 	_prepare_control(settings_header_button, 15, 54)
+	settings_header_button.custom_minimum_size.x = PROFILE_BUTTON_WIDTH
 	settings_header_button.size_flags_horizontal = Control.SIZE_SHRINK_END
 	settings_header_button.visible = false
 	header.add_child(settings_header_button)
@@ -452,6 +446,29 @@ func _add_return_today_overlay() -> void:
 	return_today_button.custom_minimum_size.x = RETURN_TODAY_BUTTON_WIDTH
 	return_today_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	holder.add_child(return_today_button)
+
+
+func _add_reset_undo_overlay() -> void:
+	var overlay := MarginContainer.new()
+	overlay.anchor_left = 0.0
+	overlay.anchor_right = 0.0
+	overlay.anchor_top = 0.0
+	overlay.anchor_bottom = 0.0
+	overlay.offset_left = 18.0
+	overlay.offset_right = 18.0 + RESET_UNDO_BUTTON_WIDTH
+	overlay.offset_top = RESET_UNDO_BUTTON_TOP
+	overlay.offset_bottom = RESET_UNDO_BUTTON_TOP + RESET_UNDO_BUTTON_HEIGHT
+	overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	overlay.z_index = 35
+	add_child(overlay)
+
+	reset_undo_button = Button.new()
+	reset_undo_button.text = "Cofnij reset"
+	_connect_tap(reset_undo_button, Callable(self, "_on_reset_undo_pressed"))
+	_prepare_control(reset_undo_button, 14, RESET_UNDO_BUTTON_HEIGHT)
+	reset_undo_button.custom_minimum_size.x = RESET_UNDO_BUTTON_WIDTH
+	reset_undo_button.visible = false
+	overlay.add_child(reset_undo_button)
 
 
 func _add_profile_overlay() -> void:
