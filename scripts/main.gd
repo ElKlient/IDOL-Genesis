@@ -67,6 +67,8 @@ var profile_delete_button: Button
 var profile_status_label: Label
 var summary_label: Label
 var reset_settings_button: Button
+var undo_button: Button
+var reset_undo_button: Button
 var save_close_button: Button
 var settings_header_button: Button
 var navigation_panel: PanelContainer
@@ -113,6 +115,9 @@ var cycle_pending_apply := false
 var day_tools_visible := true
 var reset_undo_available := false
 var reset_undo_snapshot: Dictionary = {}
+var undo_available := false
+var undo_snapshot: Dictionary = {}
+var restoring_undo_state := false
 var profile_count := DEFAULT_PROFILE_COUNT
 var selected_profile_index := 1
 var saved_profiles: Dictionary = {}
@@ -194,12 +199,38 @@ func _build_ui() -> void:
 	header.add_theme_constant_override("separation", 8)
 	root.add_child(header)
 
+	var left_actions := VBoxContainer.new()
+	left_actions.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	left_actions.add_theme_constant_override("separation", 6)
+	header.add_child(left_actions)
+
+	var undo_row := HBoxContainer.new()
+	undo_row.add_theme_constant_override("separation", 6)
+	left_actions.add_child(undo_row)
+
 	reset_settings_button = Button.new()
 	reset_settings_button.text = "Resetuj"
-	_connect_tap(reset_settings_button, Callable(self, "_on_reset_or_undo_pressed"))
-	_prepare_control(reset_settings_button, 15, 54)
+	_connect_tap(reset_settings_button, Callable(self, "_on_reset_pressed"))
+	_prepare_control(reset_settings_button, 14, 54)
+	reset_settings_button.custom_minimum_size.x = 82
 	reset_settings_button.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
-	header.add_child(reset_settings_button)
+	undo_row.add_child(reset_settings_button)
+
+	undo_button = Button.new()
+	undo_button.text = "Cofnij"
+	_connect_tap(undo_button, Callable(self, "_on_undo_pressed"))
+	_prepare_control(undo_button, 14, 54)
+	undo_button.custom_minimum_size.x = 78
+	undo_button.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	undo_row.add_child(undo_button)
+
+	reset_undo_button = Button.new()
+	reset_undo_button.text = "Cofnij reset"
+	_connect_tap(reset_undo_button, Callable(self, "_on_reset_undo_pressed"))
+	_prepare_control(reset_undo_button, 14, 46)
+	reset_undo_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	reset_undo_button.visible = false
+	left_actions.add_child(reset_undo_button)
 
 	var title := _make_label("Kalendarz Kierowcy", 30, COLOR_TEXT)
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -293,8 +324,9 @@ func _build_settings_panel() -> PanelContainer:
 
 	start_input = LineEdit.new()
 	start_input.placeholder_text = "Kliknij dzień w kalendarzu albo wpisz RRRR-MM-DD"
-	start_input.text_submitted.connect(func(_text: String) -> void: _mark_cycle_pending())
+	start_input.text_submitted.connect(_on_start_date_submitted)
 	_prepare_control(start_input, 21, 62)
+	start_input.set_meta("last_text", start_input.text)
 	box.add_child(start_input)
 
 	fixed_start_toggle = CheckButton.new()
@@ -651,20 +683,25 @@ func _build_note_dialog() -> void:
 
 
 func _save_settings_and_close() -> void:
+	var undo_before := _app_state_snapshot()
 	if _apply_settings(false, true):
+		_store_undo_snapshot(undo_before)
 		_save_settings_to_disk()
 
 
 func _save_and_close_main_view() -> void:
+	var undo_before := _app_state_snapshot()
 	if not _apply_settings(false, true):
 		return
 
+	_store_undo_snapshot(undo_before)
 	main_view_saved = true
 	_save_settings_to_disk()
 	_apply_main_view_mode(true)
 
 
 func _open_calendar_settings() -> void:
+	_capture_undo_state()
 	main_view_saved = false
 	_apply_main_view_mode(false)
 	_set_settings_visible(true)
@@ -680,10 +717,12 @@ func _on_settings_primary_pressed() -> void:
 	if settings_panel != null and settings_panel.visible:
 		_save_settings_and_close()
 	else:
+		_capture_undo_state()
 		_set_settings_visible(true)
 
 
 func _close_settings_panel() -> void:
+	_capture_undo_state()
 	_set_settings_visible(false)
 
 
@@ -692,6 +731,7 @@ func _on_day_tools_toggled(visible: bool) -> void:
 		day_tools_toggle.set_pressed_no_signal(day_tools_visible)
 		return
 
+	_capture_undo_state()
 	day_tools_visible = visible
 	_apply_day_tools_visibility()
 	_save_settings_to_disk()
@@ -759,19 +799,28 @@ func _apply_main_view_mode(saved: bool) -> void:
 	if day_tools_panel != null:
 		day_tools_panel.visible = true
 	_apply_day_tools_visibility()
-	_update_reset_button_text()
+	_update_undo_buttons()
 
 
-func _update_reset_button_text() -> void:
+func _update_undo_buttons() -> void:
 	if reset_settings_button != null:
-		reset_settings_button.text = "Cofnij" if reset_undo_available else "Resetuj"
+		reset_settings_button.text = "Resetuj"
+	if undo_button != null:
+		undo_button.disabled = not undo_available
+	if reset_undo_button != null:
+		reset_undo_button.visible = reset_undo_available
 
 
-func _on_reset_or_undo_pressed() -> void:
-	if reset_undo_available:
-		_undo_calendar_reset()
-	else:
-		_reset_calendar_settings()
+func _on_reset_pressed() -> void:
+	_reset_calendar_settings()
+
+
+func _on_undo_pressed() -> void:
+	_undo_last_action()
+
+
+func _on_reset_undo_pressed() -> void:
+	_undo_calendar_reset()
 
 
 func _save_settings_to_disk() -> void:
@@ -782,6 +831,8 @@ func _save_settings_to_disk() -> void:
 	config.set_value("ui", "main_view_saved", main_view_saved)
 	config.set_value("ui", "cycle_pending_apply", cycle_pending_apply)
 	config.set_value("ui", "day_tools_visible", day_tools_visible)
+	config.set_value("undo", "available", undo_available)
+	config.set_value("undo", "snapshot", undo_snapshot.duplicate(true))
 	config.set_value("undo_reset", "available", reset_undo_available)
 	config.set_value("undo_reset", "snapshot", reset_undo_snapshot.duplicate(true))
 	config.set_value("profiles", "count", profile_count)
@@ -818,6 +869,8 @@ func _load_settings_from_disk() -> void:
 	main_view_saved = bool(config.get_value("ui", "main_view_saved", false))
 	cycle_pending_apply = bool(config.get_value("ui", "cycle_pending_apply", false))
 	day_tools_visible = bool(config.get_value("ui", "day_tools_visible", true))
+	undo_available = bool(config.get_value("undo", "available", false))
+	_load_undo_snapshot(config.get_value("undo", "snapshot", {}))
 	reset_undo_available = bool(config.get_value("undo_reset", "available", false))
 	_load_reset_undo_snapshot(config.get_value("undo_reset", "snapshot", {}))
 	profile_count = maxi(DEFAULT_PROFILE_COUNT, int(config.get_value("profiles", "count", DEFAULT_PROFILE_COUNT)))
@@ -836,6 +889,7 @@ func _load_settings_from_disk() -> void:
 	_set_spin_value(custom_length_spin, int(config.get_value("calendar", "custom_length", int(custom_length_spin.value))))
 
 	start_input.text = String(config.get_value("calendar", "start_date", ""))
+	start_input.set_meta("last_text", start_input.text)
 
 	weekly_rest_toggle.set_pressed_no_signal(bool(config.get_value("calendar", "weekly_rest", weekly_rest_toggle.button_pressed)))
 	weekly_rest_previous_pressed = weekly_rest_toggle.button_pressed
@@ -897,6 +951,129 @@ func _load_reset_undo_snapshot(value: Variant) -> void:
 		reset_undo_available = false
 
 
+func _load_undo_snapshot(value: Variant) -> void:
+	undo_snapshot.clear()
+	if value is Dictionary and value.has("calendar"):
+		undo_snapshot = value.duplicate(true)
+	if undo_snapshot.is_empty():
+		undo_available = false
+
+
+func _app_state_snapshot() -> Dictionary:
+	return {
+		"calendar": _calendar_state_snapshot(),
+		"profile_count": profile_count,
+		"selected_profile_index": selected_profile_index,
+		"saved_profiles": saved_profiles.duplicate(true),
+		"profile_panel_visible": profile_panel_visible,
+		"reset_undo_available": reset_undo_available,
+		"reset_undo_snapshot": reset_undo_snapshot.duplicate(true),
+	}
+
+
+func _store_undo_snapshot(snapshot: Dictionary) -> void:
+	if restoring_undo_state or snapshot.is_empty():
+		return
+
+	undo_snapshot = snapshot.duplicate(true)
+	undo_available = true
+	_update_undo_buttons()
+
+
+func _capture_undo_state() -> void:
+	_store_undo_snapshot(_app_state_snapshot())
+
+
+func _capture_undo_state_for_option(option: OptionButton, previous_index: int) -> void:
+	if option == null or option.selected == previous_index:
+		return
+
+	var snapshot := _app_state_snapshot()
+	var calendar: Dictionary = snapshot["calendar"]
+	if option == schedule_option:
+		calendar["schedule_selected"] = previous_index
+	elif option == range_option:
+		calendar["range_selected"] = previous_index
+	elif option == pause_option:
+		calendar["pause_selected"] = previous_index
+	elif option == fixed_start_option:
+		calendar["fixed_start_selected"] = previous_index
+	elif option == profile_option:
+		snapshot["selected_profile_index"] = clampi(previous_index + 1, 1, profile_count)
+	_store_undo_snapshot(snapshot)
+
+
+func _capture_undo_state_for_spin(spin: SpinBox, previous_value: float) -> void:
+	if spin == null or int(spin.value) == int(previous_value):
+		return
+
+	var snapshot := _app_state_snapshot()
+	var calendar: Dictionary = snapshot["calendar"]
+	if spin == system_work_spin:
+		calendar["work_days"] = int(previous_value)
+	elif spin == system_home_spin:
+		calendar["home_days"] = int(previous_value)
+	elif spin == custom_length_spin:
+		calendar["custom_length"] = int(previous_value)
+	_store_undo_snapshot(snapshot)
+
+
+func _capture_undo_state_for_toggle(toggle: CheckButton, previous_pressed: bool) -> void:
+	if toggle == null or toggle.button_pressed == previous_pressed:
+		return
+
+	var snapshot := _app_state_snapshot()
+	var calendar: Dictionary = snapshot["calendar"]
+	if toggle == weekly_rest_toggle:
+		calendar["weekly_rest"] = previous_pressed
+	elif toggle == fixed_start_toggle:
+		calendar["fixed_start_enabled"] = previous_pressed
+	_store_undo_snapshot(snapshot)
+
+
+func _capture_undo_state_for_start_text(previous_text: String) -> void:
+	if start_input == null or start_input.text == previous_text:
+		return
+
+	var snapshot := _app_state_snapshot()
+	var calendar: Dictionary = snapshot["calendar"]
+	calendar["start_date"] = previous_text
+	_store_undo_snapshot(snapshot)
+
+
+func _restore_app_state_snapshot(snapshot: Dictionary) -> void:
+	if snapshot.is_empty() or not snapshot.has("calendar"):
+		return
+
+	restoring_undo_state = true
+	profile_count = maxi(DEFAULT_PROFILE_COUNT, int(snapshot.get("profile_count", DEFAULT_PROFILE_COUNT)))
+	selected_profile_index = int(snapshot.get("selected_profile_index", 1))
+	_load_saved_profiles(snapshot.get("saved_profiles", {}))
+	selected_profile_index = clampi(selected_profile_index, 1, profile_count)
+	reset_undo_available = bool(snapshot.get("reset_undo_available", false))
+	_load_reset_undo_snapshot(snapshot.get("reset_undo_snapshot", {}))
+	_restore_calendar_state(snapshot["calendar"])
+	_refresh_profile_options()
+	_set_profile_panel_visible(bool(snapshot.get("profile_panel_visible", false)))
+	restoring_undo_state = false
+	_update_undo_buttons()
+
+
+func _undo_last_action() -> void:
+	if undo_snapshot.is_empty():
+		undo_available = false
+		_update_undo_buttons()
+		_save_settings_to_disk()
+		return
+
+	var snapshot := undo_snapshot.duplicate(true)
+	undo_available = false
+	undo_snapshot.clear()
+	_restore_app_state_snapshot(snapshot)
+	_update_undo_buttons()
+	_save_settings_to_disk()
+
+
 func _load_saved_profiles(value: Variant) -> void:
 	saved_profiles.clear()
 	if not (value is Dictionary):
@@ -956,20 +1133,25 @@ func _update_profile_actions() -> void:
 
 
 func _on_profile_selected(index: int) -> void:
+	var previous_index := int(profile_option.get_meta("last_selected", profile_option.selected))
 	if _option_change_was_scroll(profile_option, index):
 		return
 
+	_capture_undo_state_for_option(profile_option, previous_index)
+	profile_option.set_meta("last_selected", index)
 	selected_profile_index = clampi(index + 1, 1, profile_count)
 	_update_profile_actions()
 	_save_settings_to_disk()
 
 
 func _on_save_profile_pressed() -> void:
+	var undo_before := _app_state_snapshot()
 	if not _apply_settings(false, true):
 		if profile_status_label != null:
 			profile_status_label.text = "Popraw ustawienia przed zapisem profilu."
 		return
 
+	_store_undo_snapshot(undo_before)
 	saved_profiles[_selected_profile_key()] = _calendar_state_snapshot()
 	_refresh_profile_options()
 	_set_profile_panel_visible(true)
@@ -984,6 +1166,7 @@ func _on_load_profile_pressed() -> void:
 			profile_status_label.text = "Ten profil jest pusty."
 		return
 
+	_capture_undo_state()
 	var snapshot: Dictionary = saved_profiles[_selected_profile_key()].duplicate(true)
 	reset_undo_available = false
 	reset_undo_snapshot.clear()
@@ -992,11 +1175,12 @@ func _on_load_profile_pressed() -> void:
 	_set_profile_panel_visible(true)
 	if profile_status_label != null:
 		profile_status_label.text = "Wczytano profil %d." % selected_profile_index
-	_update_reset_button_text()
+	_update_undo_buttons()
 	_save_settings_to_disk()
 
 
 func _on_delete_profile_pressed() -> void:
+	_capture_undo_state()
 	var deleted_index := selected_profile_index
 	saved_profiles.erase(_selected_profile_key())
 	_refresh_profile_options()
@@ -1007,6 +1191,7 @@ func _on_delete_profile_pressed() -> void:
 
 
 func _on_add_profile_pressed() -> void:
+	_capture_undo_state()
 	profile_count += 1
 	selected_profile_index = profile_count
 	_refresh_profile_options()
@@ -1057,6 +1242,7 @@ func _restore_calendar_state(snapshot: Dictionary) -> void:
 	_set_spin_value(custom_length_spin, int(snapshot.get("custom_length", int(custom_length_spin.value))))
 
 	start_input.text = String(snapshot.get("start_date", ""))
+	start_input.set_meta("last_text", start_input.text)
 	weekly_rest_toggle.set_pressed_no_signal(bool(snapshot.get("weekly_rest", true)))
 	weekly_rest_previous_pressed = weekly_rest_toggle.button_pressed
 	fixed_start_toggle.set_pressed_no_signal(bool(snapshot.get("fixed_start_enabled", false)))
@@ -1117,6 +1303,7 @@ func _adopt_manual_cycle_from_overrides() -> void:
 	_set_option_selected(schedule_option, schedule_option.get_item_count() - 1)
 	_set_spin_value(custom_length_spin, cycle_length)
 	start_input.text = _date_key_from_day_index(start_index)
+	start_input.set_meta("last_text", start_input.text)
 	custom_panel.visible = true
 	_reset_custom_pattern(cycle_length)
 
@@ -1155,7 +1342,7 @@ func _manual_override_day_indices() -> Array[int]:
 func _undo_calendar_reset() -> void:
 	if reset_undo_snapshot.is_empty():
 		reset_undo_available = false
-		_update_reset_button_text()
+		_update_undo_buttons()
 		_save_settings_to_disk()
 		return
 
@@ -1163,13 +1350,15 @@ func _undo_calendar_reset() -> void:
 	reset_undo_available = false
 	reset_undo_snapshot.clear()
 	_restore_calendar_state(snapshot)
-	_update_reset_button_text()
+	_update_undo_buttons()
 	_save_settings_to_disk()
 
 
 func _reset_calendar_settings() -> void:
 	reset_undo_snapshot = _calendar_state_snapshot()
 	reset_undo_available = true
+	undo_available = false
+	undo_snapshot.clear()
 	main_view_saved = false
 	cycle_pending_apply = false
 	day_tools_visible = true
@@ -1181,6 +1370,7 @@ func _reset_calendar_settings() -> void:
 	_set_spin_value(custom_length_spin, 21)
 
 	start_input.text = ""
+	start_input.set_meta("last_text", start_input.text)
 	manual_overrides.clear()
 	notes.clear()
 	work_start_unix = 0
@@ -1204,7 +1394,7 @@ func _reset_calendar_settings() -> void:
 	_apply_main_view_mode(false)
 	_apply_day_tools_visibility()
 	_set_settings_visible(true)
-	_update_reset_button_text()
+	_update_undo_buttons()
 	_save_settings_to_disk()
 
 
@@ -1425,6 +1615,7 @@ func _open_day_actions(year: int, month: int, day: int) -> void:
 
 
 func _set_selected_day_state(state: int) -> void:
+	_capture_undo_state()
 	if _manual_cycle_setup_active():
 		_stage_selected_day_state(state)
 	elif state == ScheduleCalculator.DayState.VACATION:
@@ -1433,6 +1624,7 @@ func _set_selected_day_state(state: int) -> void:
 	elif _is_preset_schedule():
 		if state == ScheduleCalculator.DayState.WORK:
 			start_input.text = selected_day_key
+			start_input.set_meta("last_text", start_input.text)
 			manual_overrides.clear()
 			manual_overrides[selected_day_key] = state
 			cycle_pending_apply = true
@@ -1469,6 +1661,7 @@ func _stage_selected_day_state(state: int) -> void:
 
 	if manual_overrides.is_empty() or start_input.text.strip_edges().is_empty():
 		start_input.text = selected_day_key
+		start_input.set_meta("last_text", start_input.text)
 
 	manual_overrides[selected_day_key] = state
 	cycle_pending_apply = true
@@ -1483,6 +1676,7 @@ func _ensure_custom_mode_for_selected_day() -> void:
 
 	if start_input.text.strip_edges().is_empty() or ScheduleCalculator.parse_date(start_input.text).is_empty():
 		start_input.text = selected_day_key
+		start_input.set_meta("last_text", start_input.text)
 
 	var fixed_start_weekday := _selected_fixed_start_weekday()
 	if fixed_start_weekday == -2:
@@ -1503,6 +1697,7 @@ func _open_note_editor(day_key: String) -> void:
 
 
 func _save_note() -> void:
+	_capture_undo_state()
 	var text := note_edit.text.strip_edges()
 	if text.is_empty():
 		notes.erase(selected_note_key)
@@ -1512,13 +1707,23 @@ func _save_note() -> void:
 	_save_settings_to_disk()
 
 
+func _on_start_date_submitted(text: String) -> void:
+	var previous_text := String(start_input.get_meta("last_text", ""))
+	_capture_undo_state_for_start_text(previous_text)
+	start_input.set_meta("last_text", text)
+	_mark_cycle_pending()
+
+
 func _on_schedule_selected(index: int) -> void:
+	var previous_index := int(schedule_option.get_meta("last_selected", schedule_option.selected))
 	if _option_change_was_scroll(schedule_option, index):
 		return
 
+	_capture_undo_state_for_option(schedule_option, previous_index)
 	custom_panel.visible = _is_custom_schedule()
 	if schedule_option.selected == 0:
 		start_input.text = ""
+		start_input.set_meta("last_text", start_input.text)
 		manual_overrides.clear()
 		cycle_pending_apply = false
 	elif not _is_custom_schedule():
@@ -1530,17 +1735,21 @@ func _on_schedule_selected(index: int) -> void:
 
 
 func _on_range_selected(index: int) -> void:
+	var previous_index := int(range_option.get_meta("last_selected", range_option.selected))
 	if _option_change_was_scroll(range_option, index):
 		return
 
+	_capture_undo_state_for_option(range_option, previous_index)
 	_rebuild_calendar()
 	_save_settings_to_disk()
 
 
 func _on_pause_selected(index: int) -> void:
+	var previous_index := int(pause_option.get_meta("last_selected", pause_option.selected))
 	if _option_change_was_scroll(pause_option, index):
 		return
 
+	_capture_undo_state_for_option(pause_option, previous_index)
 	_update_pause_result()
 	_save_settings_to_disk()
 
@@ -1550,6 +1759,7 @@ func _on_weekly_rest_toggled(enabled: bool) -> void:
 		weekly_rest_toggle.set_pressed_no_signal(weekly_rest_previous_pressed)
 		return
 
+	_capture_undo_state_for_toggle(weekly_rest_toggle, weekly_rest_previous_pressed)
 	weekly_rest_previous_pressed = enabled
 	cycle_pending_apply = true
 	_save_settings_to_disk()
@@ -1562,6 +1772,7 @@ func _on_fixed_start_toggled(enabled: bool) -> void:
 			fixed_start_option.visible = fixed_start_previous_pressed
 		return
 
+	_capture_undo_state_for_toggle(fixed_start_toggle, fixed_start_previous_pressed)
 	fixed_start_previous_pressed = enabled
 	if fixed_start_option != null:
 		fixed_start_option.visible = enabled
@@ -1570,17 +1781,21 @@ func _on_fixed_start_toggled(enabled: bool) -> void:
 
 
 func _on_fixed_start_day_selected(index: int) -> void:
+	var previous_index := int(fixed_start_option.get_meta("last_selected", fixed_start_option.selected))
 	if _option_change_was_scroll(fixed_start_option, index):
 		return
 
+	_capture_undo_state_for_option(fixed_start_option, previous_index)
 	cycle_pending_apply = true
 	_save_settings_to_disk()
 
 
 func _on_custom_length_spin_changed(value: float) -> void:
+	var previous_value := float(custom_length_spin.get_meta("last_value", custom_length_spin.value))
 	if _spin_change_was_scroll(custom_length_spin, value):
 		return
 
+	_capture_undo_state_for_spin(custom_length_spin, previous_value)
 	_on_custom_length_changed(value)
 
 
@@ -1833,8 +2048,10 @@ func _make_spin(min_value: int, max_value: int, value: int, auto_apply: bool = t
 	_remember_spin_value(spin)
 	if auto_apply:
 		spin.value_changed.connect(func(changed_value: float) -> void:
+			var previous_value := float(spin.get_meta("last_value", spin.value))
 			if _spin_change_was_scroll(spin, changed_value):
 				return
+			_capture_undo_state_for_spin(spin, previous_value)
 			_mark_cycle_pending()
 		)
 	_prepare_control(spin, 20, 56)
@@ -2281,6 +2498,7 @@ func _date_for_month_cell(year: int, month: int, cell_index: int, first_offset: 
 
 
 func _on_start_work_pressed() -> void:
+	_capture_undo_state()
 	work_start_unix = int(Time.get_unix_time_from_system())
 	work_end_unix = 0
 	work_status_label.text = "Start pracy: %s" % _format_unix_time(work_start_unix)
@@ -2293,6 +2511,7 @@ func _on_end_work_pressed() -> void:
 		work_status_label.text = "Najpierw kliknij rozpoczęcie pracy."
 		return
 
+	_capture_undo_state()
 	work_end_unix = int(Time.get_unix_time_from_system())
 	var worked_seconds: int = maxi(0, work_end_unix - work_start_unix)
 	work_status_label.text = "Praca trwała: %s. Koniec: %s" % [
@@ -2319,6 +2538,7 @@ func _update_pause_result() -> void:
 
 
 func _on_previous_month() -> void:
+	_capture_undo_state()
 	var previous := _previous_month(current_year, current_month)
 	current_year = int(previous["year"])
 	current_month = int(previous["month"])
@@ -2327,12 +2547,14 @@ func _on_previous_month() -> void:
 
 
 func _on_previous_year() -> void:
+	_capture_undo_state()
 	current_year -= 1
 	_rebuild_calendar()
 	_save_settings_to_disk()
 
 
 func _on_next_month() -> void:
+	_capture_undo_state()
 	var next := _next_month(current_year, current_month)
 	current_year = int(next["year"])
 	current_month = int(next["month"])
@@ -2341,12 +2563,14 @@ func _on_next_month() -> void:
 
 
 func _on_next_year() -> void:
+	_capture_undo_state()
 	current_year += 1
 	_rebuild_calendar()
 	_save_settings_to_disk()
 
 
 func _on_return_to_today_pressed() -> void:
+	_capture_undo_state()
 	var now := Time.get_datetime_dict_from_system()
 	current_year = int(now["year"])
 	current_month = int(now["month"])
