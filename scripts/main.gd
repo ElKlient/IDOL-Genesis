@@ -35,6 +35,8 @@ const COLOR_NOTE := Color(0.43, 0.55, 0.60, 0.86)
 const PORTRAIT_WIDTH := 640
 const TILE_COLUMNS := 7
 const APP_VERSION_LABEL := "wersja: kafelki 7.1"
+const TAP_CANCEL_DISTANCE := 18.0
+const TAP_BLOCK_AFTER_DRAG_MS := 180
 
 var calculator := ScheduleCalculator.new()
 var current_year: int
@@ -70,6 +72,12 @@ var selected_day_number: int = 0
 var selected_note_key: String = ""
 var work_start_unix: int = 0
 var work_end_unix: int = 0
+var scroll_safe_buttons: Array[BaseButton] = []
+var weekly_rest_previous_pressed := true
+var touch_start_position := Vector2.ZERO
+var touch_tracking_active := false
+var touch_drag_cancelled := false
+var last_drag_release_msec := -10000
 
 
 func _ready() -> void:
@@ -83,6 +91,10 @@ func _ready() -> void:
 	_reset_custom_pattern(21)
 	_build_ui()
 	_apply_settings()
+
+
+func _input(event: InputEvent) -> void:
+	_track_scroll_touch(event)
 
 
 func _force_portrait() -> void:
@@ -111,6 +123,7 @@ func _build_ui() -> void:
 
 	var scroll := ScrollContainer.new()
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.scroll_deadzone = 6
 	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	safe_margin.add_child(scroll)
@@ -168,7 +181,7 @@ func _build_settings_panel() -> PanelContainer:
 	schedule_option.add_item("4 na 1")
 	schedule_option.add_item("6 dni + 24h pauzy + 6 dni")
 	schedule_option.add_item("Inne - własny cykl")
-	schedule_option.selected = 0
+	_set_option_selected(schedule_option, 0)
 	schedule_option.item_selected.connect(_on_schedule_selected)
 	_prepare_control(schedule_option, 23, 64)
 	box.add_child(schedule_option)
@@ -196,7 +209,8 @@ func _build_settings_panel() -> PanelContainer:
 	weekly_rest_toggle = CheckButton.new()
 	weekly_rest_toggle.text = "Pauza 24h co 6 dni pracy"
 	weekly_rest_toggle.button_pressed = true
-	weekly_rest_toggle.toggled.connect(func(_enabled: bool) -> void: _apply_settings())
+	weekly_rest_previous_pressed = weekly_rest_toggle.button_pressed
+	weekly_rest_toggle.toggled.connect(_on_weekly_rest_toggled)
 	_prepare_control(weekly_rest_toggle, 20, 56)
 	box.add_child(weekly_rest_toggle)
 
@@ -206,7 +220,7 @@ func _build_settings_panel() -> PanelContainer:
 
 	var apply_button := Button.new()
 	apply_button.text = "Przelicz grafik"
-	apply_button.pressed.connect(_apply_settings)
+	_connect_tap(apply_button, Callable(self, "_apply_settings"))
 	_prepare_control(apply_button, 22, 62)
 	box.add_child(apply_button)
 
@@ -226,7 +240,7 @@ func _build_custom_cycle_panel() -> PanelContainer:
 	box.add_child(_make_label("Własny cykl: wybierz długość, potem klikaj dni w kalendarzu.", 18, COLOR_TEXT))
 
 	custom_length_spin = _make_spin(1, 56, 21)
-	custom_length_spin.value_changed.connect(_on_custom_length_changed)
+	custom_length_spin.value_changed.connect(_on_custom_length_spin_changed)
 	box.add_child(_field_stack("Długość powtarzalnego cyklu", custom_length_spin))
 
 	return panel
@@ -241,7 +255,7 @@ func _build_navigation_panel() -> PanelContainer:
 	box.add_child(nav)
 
 	var previous_button := _make_nav_button("<")
-	previous_button.pressed.connect(_on_previous_month)
+	_connect_tap(previous_button, Callable(self, "_on_previous_month"))
 	nav.add_child(previous_button)
 
 	range_option = OptionButton.new()
@@ -249,13 +263,13 @@ func _build_navigation_panel() -> PanelContainer:
 	range_option.add_item("Kwartał")
 	range_option.add_item("4 mies.")
 	range_option.add_item("Rok")
-	range_option.selected = 0
-	range_option.item_selected.connect(func(_index: int) -> void: _rebuild_calendar())
+	_set_option_selected(range_option, 0)
+	range_option.item_selected.connect(_on_range_selected)
 	_prepare_control(range_option, 22, 60)
 	nav.add_child(range_option)
 
 	var next_button := _make_nav_button(">")
-	next_button.pressed.connect(_on_next_month)
+	_connect_tap(next_button, Callable(self, "_on_next_month"))
 	nav.add_child(next_button)
 
 	var year_buttons := HBoxContainer.new()
@@ -263,11 +277,11 @@ func _build_navigation_panel() -> PanelContainer:
 	box.add_child(year_buttons)
 
 	var previous_year_button := _make_nav_button("<< rok")
-	previous_year_button.pressed.connect(_on_previous_year)
+	_connect_tap(previous_year_button, Callable(self, "_on_previous_year"))
 	year_buttons.add_child(previous_year_button)
 
 	var next_year_button := _make_nav_button("rok >>")
-	next_year_button.pressed.connect(_on_next_year)
+	_connect_tap(next_year_button, Callable(self, "_on_next_year"))
 	year_buttons.add_child(next_year_button)
 
 	return panel
@@ -285,13 +299,13 @@ func _build_day_tools_panel() -> PanelContainer:
 
 	var start_button := Button.new()
 	start_button.text = "Rozpocząłem pracę"
-	start_button.pressed.connect(_on_start_work_pressed)
+	_connect_tap(start_button, Callable(self, "_on_start_work_pressed"))
 	_prepare_control(start_button, 21, 58)
 	buttons.add_child(start_button)
 
 	var end_button := Button.new()
 	end_button.text = "Zakończyłem pracę"
-	end_button.pressed.connect(_on_end_work_pressed)
+	_connect_tap(end_button, Callable(self, "_on_end_work_pressed"))
 	_prepare_control(end_button, 21, 58)
 	buttons.add_child(end_button)
 
@@ -303,16 +317,16 @@ func _build_day_tools_panel() -> PanelContainer:
 	pause_option.add_item("9h")
 	pause_option.add_item("11h")
 	pause_option.add_item("24h")
-	pause_option.selected = 0
+	_set_option_selected(pause_option, 0)
 	pause_option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	pause_option.item_selected.connect(func(_index: int) -> void: _update_pause_result())
+	pause_option.item_selected.connect(_on_pause_selected)
 	_prepare_control(pause_option, 20, 56)
 	pause_row.add_child(pause_option)
 
 	var pause_button := Button.new()
 	pause_button.text = "Policz pauzę"
 	pause_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	pause_button.pressed.connect(_update_pause_result)
+	_connect_tap(pause_button, Callable(self, "_update_pause_result"))
 	_prepare_control(pause_button, 20, 56)
 	pause_row.add_child(pause_button)
 
@@ -358,27 +372,27 @@ func _build_day_action_dialog() -> void:
 	margin.add_child(box)
 
 	var set_travel := _action_button("Ten dzień = wyjazd / zjazd", COLOR_TRAVEL)
-	set_travel.pressed.connect(_set_selected_day_state.bind(ScheduleCalculator.DayState.TRAVEL))
+	_connect_tap(set_travel, Callable(self, "_set_selected_day_state").bind(ScheduleCalculator.DayState.TRAVEL))
 	box.add_child(set_travel)
 
 	var set_work := _action_button("Ten dzień = praca", COLOR_WORK)
-	set_work.pressed.connect(_set_selected_day_state.bind(ScheduleCalculator.DayState.WORK))
+	_connect_tap(set_work, Callable(self, "_set_selected_day_state").bind(ScheduleCalculator.DayState.WORK))
 	box.add_child(set_work)
 
 	var set_rest := _action_button("Ten dzień = pauza 24h", COLOR_REST)
-	set_rest.pressed.connect(_set_selected_day_state.bind(ScheduleCalculator.DayState.REST))
+	_connect_tap(set_rest, Callable(self, "_set_selected_day_state").bind(ScheduleCalculator.DayState.REST))
 	box.add_child(set_rest)
 
 	var set_home := _action_button("Ten dzień = dom", COLOR_HOME)
-	set_home.pressed.connect(_set_selected_day_state.bind(ScheduleCalculator.DayState.HOME))
+	_connect_tap(set_home, Callable(self, "_set_selected_day_state").bind(ScheduleCalculator.DayState.HOME))
 	box.add_child(set_home)
 
 	var clear_day := _action_button("Wyczyść ten dzień", Color(0.52, 0.55, 0.54, 0.86))
-	clear_day.pressed.connect(_set_selected_day_state.bind(ScheduleCalculator.DayState.NONE))
+	_connect_tap(clear_day, Callable(self, "_set_selected_day_state").bind(ScheduleCalculator.DayState.NONE))
 	box.add_child(clear_day)
 
 	var note_button := _action_button("Dodaj notatkę", COLOR_NOTE)
-	note_button.pressed.connect(_open_note_from_action_dialog)
+	_connect_tap(note_button, Callable(self, "_open_note_from_action_dialog"))
 	box.add_child(note_button)
 
 	var close_button := day_action_dialog.get_ok_button()
@@ -514,7 +528,7 @@ func _make_day_cell(year: int, month: int, day: int, day_index: int, state: int,
 	button.add_theme_stylebox_override("pressed", _tile_style(_state_color(state).darkened(0.09), is_today))
 	button.add_theme_stylebox_override("focus", _tile_style(_state_color(state), true))
 	_fill_day_tile(button, day, day_index, state, notes.has(key))
-	button.pressed.connect(_open_day_actions.bind(year, month, day))
+	_connect_tap(button, Callable(self, "_open_day_actions").bind(year, month, day))
 	return button
 
 
@@ -612,7 +626,7 @@ func _set_selected_day_state(state: int) -> void:
 
 func _ensure_custom_mode_for_selected_day() -> void:
 	if not _is_custom_schedule():
-		schedule_option.selected = schedule_option.get_item_count() - 1
+		_set_option_selected(schedule_option, schedule_option.get_item_count() - 1)
 		custom_panel.visible = true
 
 	if start_input.text.strip_edges().is_empty() or ScheduleCalculator.parse_date(start_input.text).is_empty():
@@ -642,12 +656,45 @@ func _save_note() -> void:
 	_rebuild_calendar()
 
 
-func _on_schedule_selected(_index: int) -> void:
+func _on_schedule_selected(index: int) -> void:
+	if _option_change_was_scroll(schedule_option, index):
+		return
+
 	custom_panel.visible = _is_custom_schedule()
 	if schedule_option.selected == 0:
 		start_input.text = ""
 		manual_overrides.clear()
 	_apply_settings()
+
+
+func _on_range_selected(index: int) -> void:
+	if _option_change_was_scroll(range_option, index):
+		return
+
+	_rebuild_calendar()
+
+
+func _on_pause_selected(index: int) -> void:
+	if _option_change_was_scroll(pause_option, index):
+		return
+
+	_update_pause_result()
+
+
+func _on_weekly_rest_toggled(enabled: bool) -> void:
+	if _tap_is_blocked():
+		weekly_rest_toggle.set_pressed_no_signal(weekly_rest_previous_pressed)
+		return
+
+	weekly_rest_previous_pressed = enabled
+	_apply_settings()
+
+
+func _on_custom_length_spin_changed(value: float) -> void:
+	if _spin_change_was_scroll(custom_length_spin, value):
+		return
+
+	_on_custom_length_changed(value)
 
 
 func _on_custom_length_changed(value: float) -> void:
@@ -858,7 +905,12 @@ func _make_spin(min_value: int, max_value: int, value: int) -> SpinBox:
 	spin.max_value = max_value
 	spin.step = 1
 	spin.value = value
-	spin.value_changed.connect(func(_value: float) -> void: _apply_settings())
+	_remember_spin_value(spin)
+	spin.value_changed.connect(func(changed_value: float) -> void:
+		if _spin_change_was_scroll(spin, changed_value):
+			return
+		_apply_settings()
+	)
 	_prepare_control(spin, 20, 56)
 	return spin
 
@@ -912,11 +964,132 @@ func _action_button(text: String, accent: Color = COLOR_TILE_EMPTY) -> Button:
 	return button
 
 
+func _set_option_selected(option: OptionButton, index: int) -> void:
+	option.selected = index
+	option.set_meta("last_selected", index)
+
+
+func _option_change_was_scroll(option: OptionButton, index: int) -> bool:
+	if not _tap_is_blocked():
+		option.set_meta("last_selected", index)
+		return false
+
+	var previous := int(option.get_meta("last_selected", index))
+	if previous < 0:
+		previous = 0
+	elif previous >= option.get_item_count():
+		previous = option.get_item_count() - 1
+
+	option.selected = previous
+	return true
+
+
+func _remember_spin_value(spin: SpinBox) -> void:
+	spin.set_meta("last_value", spin.value)
+
+
+func _spin_change_was_scroll(spin: SpinBox, value: float) -> bool:
+	if not _tap_is_blocked():
+		spin.set_meta("last_value", value)
+		return false
+
+	var previous := float(spin.get_meta("last_value", value))
+	spin.set_value_no_signal(previous)
+	return true
+
+
+func _connect_tap(button: BaseButton, action: Callable) -> void:
+	_register_scroll_safe_control(button)
+	button.pressed.connect(func() -> void:
+		if _tap_is_blocked():
+			return
+		action.call()
+	)
+
+
+func _register_scroll_safe_control(control: Control) -> void:
+	if control.has_meta("scroll_safe_registered"):
+		return
+
+	control.set_meta("scroll_safe_registered", true)
+	control.mouse_filter = Control.MOUSE_FILTER_PASS
+	control.gui_input.connect(_track_scroll_touch)
+
+	if control is BaseButton:
+		var button := control as BaseButton
+		scroll_safe_buttons.append(button)
+		button.focus_mode = Control.FOCUS_NONE
+		button.action_mode = BaseButton.ACTION_MODE_BUTTON_RELEASE
+
+
+func _tap_is_blocked() -> bool:
+	if touch_drag_cancelled:
+		return true
+
+	var elapsed_msec := int(Time.get_ticks_msec()) - last_drag_release_msec
+	return elapsed_msec >= 0 and elapsed_msec < TAP_BLOCK_AFTER_DRAG_MS
+
+
+func _track_scroll_touch(event: InputEvent) -> void:
+	if event is InputEventScreenTouch:
+		var touch := event as InputEventScreenTouch
+		if touch.pressed:
+			_begin_touch_tracking(touch.position)
+		else:
+			_end_touch_tracking()
+	elif event is InputEventScreenDrag:
+		var drag := event as InputEventScreenDrag
+		_update_touch_tracking(drag.position)
+	elif event is InputEventMouseButton:
+		var mouse_button := event as InputEventMouseButton
+		if mouse_button.button_index == MOUSE_BUTTON_LEFT:
+			if mouse_button.pressed:
+				_begin_touch_tracking(mouse_button.position)
+			else:
+				_end_touch_tracking()
+	elif event is InputEventMouseMotion:
+		var mouse_motion := event as InputEventMouseMotion
+		if mouse_motion.button_mask != 0:
+			_update_touch_tracking(mouse_motion.position)
+
+
+func _begin_touch_tracking(position: Vector2) -> void:
+	touch_tracking_active = true
+	touch_start_position = position
+	touch_drag_cancelled = false
+
+
+func _update_touch_tracking(position: Vector2) -> void:
+	if not touch_tracking_active:
+		return
+
+	if not touch_drag_cancelled and touch_start_position.distance_to(position) > TAP_CANCEL_DISTANCE:
+		touch_drag_cancelled = true
+		_release_scroll_buttons()
+
+
+func _end_touch_tracking() -> void:
+	if touch_drag_cancelled:
+		last_drag_release_msec = int(Time.get_ticks_msec())
+
+	touch_tracking_active = false
+
+
+func _release_scroll_buttons() -> void:
+	for index in range(scroll_safe_buttons.size() - 1, -1, -1):
+		var button := scroll_safe_buttons[index]
+		if not is_instance_valid(button):
+			scroll_safe_buttons.remove_at(index)
+		elif not button.toggle_mode:
+			button.set_pressed_no_signal(false)
+
+
 func _prepare_control(control: Control, font_size: int, min_height: int) -> void:
 	control.custom_minimum_size.y = min_height
 	control.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	control.add_theme_font_size_override("font_size", font_size)
 	if control is Button or control is OptionButton or control is LineEdit or control is SpinBox:
+		_register_scroll_safe_control(control)
 		control.add_theme_stylebox_override("normal", _control_style(Color(0.90, 0.94, 0.90, 0.13)))
 		control.add_theme_stylebox_override("hover", _control_style(Color(0.90, 0.94, 0.90, 0.18)))
 		control.add_theme_stylebox_override("pressed", _control_style(Color(0.90, 0.94, 0.90, 0.09)))
