@@ -42,6 +42,12 @@ const SWIPE_MIN_DISTANCE := 96.0
 const RETURN_TODAY_BUTTON_TOP := 84
 const RETURN_TODAY_BUTTON_HEIGHT := 44
 const RETURN_TODAY_BUTTON_WIDTH := 310
+const PROFILE_BUTTON_TOP := 84
+const PROFILE_BUTTON_HEIGHT := 44
+const PROFILE_BUTTON_WIDTH := 142
+const PROFILE_PANEL_WIDTH := 230
+const PROFILE_PANEL_HEIGHT := 350
+const DEFAULT_PROFILE_COUNT := 3
 
 var calculator := ScheduleCalculator.new()
 var current_year: int
@@ -51,6 +57,14 @@ var today_day_index: int
 var main_scroll: ScrollContainer
 var months_box: VBoxContainer
 var return_today_button: Button
+var profile_button: Button
+var profile_overlay: VBoxContainer
+var profile_panel: PanelContainer
+var profile_option: OptionButton
+var profile_save_button: Button
+var profile_load_button: Button
+var profile_delete_button: Button
+var profile_status_label: Label
 var summary_label: Label
 var reset_settings_button: Button
 var save_close_button: Button
@@ -99,6 +113,10 @@ var cycle_pending_apply := false
 var day_tools_visible := true
 var reset_undo_available := false
 var reset_undo_snapshot: Dictionary = {}
+var profile_count := DEFAULT_PROFILE_COUNT
+var selected_profile_index := 1
+var saved_profiles: Dictionary = {}
+var profile_panel_visible := false
 var touch_start_position := Vector2.ZERO
 var touch_tracking_active := false
 var touch_drag_cancelled := false
@@ -163,6 +181,7 @@ func _build_ui() -> void:
 	main_scroll.add_child(center)
 
 	_add_return_today_overlay()
+	_add_profile_overlay()
 
 	var root := VBoxContainer.new()
 	root.custom_minimum_size = Vector2(PORTRAIT_WIDTH, 0)
@@ -403,6 +422,79 @@ func _add_return_today_overlay() -> void:
 	holder.add_child(return_today_button)
 
 
+func _add_profile_overlay() -> void:
+	profile_overlay = VBoxContainer.new()
+	profile_overlay.anchor_left = 1.0
+	profile_overlay.anchor_right = 1.0
+	profile_overlay.anchor_top = 0.0
+	profile_overlay.anchor_bottom = 0.0
+	profile_overlay.offset_left = -PROFILE_PANEL_WIDTH - 18.0
+	profile_overlay.offset_right = -18.0
+	profile_overlay.offset_top = PROFILE_BUTTON_TOP
+	profile_overlay.offset_bottom = PROFILE_BUTTON_TOP + PROFILE_BUTTON_HEIGHT + PROFILE_PANEL_HEIGHT
+	profile_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	profile_overlay.z_index = 35
+	profile_overlay.add_theme_constant_override("separation", 7)
+	add_child(profile_overlay)
+
+	profile_button = Button.new()
+	profile_button.text = "Profile"
+	_connect_tap(profile_button, Callable(self, "_toggle_profile_panel"))
+	_prepare_control(profile_button, 16, PROFILE_BUTTON_HEIGHT)
+	profile_button.custom_minimum_size.x = PROFILE_BUTTON_WIDTH
+	profile_button.size_flags_horizontal = Control.SIZE_SHRINK_END
+	profile_overlay.add_child(profile_button)
+
+	profile_panel = _build_profile_panel()
+	profile_overlay.add_child(profile_panel)
+	_refresh_profile_options()
+	_set_profile_panel_visible(false)
+
+
+func _build_profile_panel() -> PanelContainer:
+	var panel := _panel()
+	panel.custom_minimum_size.x = PROFILE_PANEL_WIDTH
+	var box := _panel_box(panel, 8)
+
+	box.add_child(_make_label("Profile kalendarza", 17, COLOR_TEXT))
+
+	profile_option = OptionButton.new()
+	profile_option.item_selected.connect(_on_profile_selected)
+	_prepare_control(profile_option, 16, 48)
+	_prepare_large_dropdown(profile_option)
+	box.add_child(profile_option)
+
+	profile_save_button = Button.new()
+	profile_save_button.text = "Zapisz w profilu"
+	_connect_tap(profile_save_button, Callable(self, "_on_save_profile_pressed"))
+	_prepare_control(profile_save_button, 16, 46)
+	box.add_child(profile_save_button)
+
+	profile_load_button = Button.new()
+	profile_load_button.text = "Wczytaj"
+	_connect_tap(profile_load_button, Callable(self, "_on_load_profile_pressed"))
+	_prepare_control(profile_load_button, 16, 46)
+	box.add_child(profile_load_button)
+
+	profile_delete_button = Button.new()
+	profile_delete_button.text = "Usuń profil"
+	_connect_tap(profile_delete_button, Callable(self, "_on_delete_profile_pressed"))
+	_prepare_control(profile_delete_button, 16, 46)
+	box.add_child(profile_delete_button)
+
+	var add_button := Button.new()
+	add_button.text = "Dodaj profil"
+	_connect_tap(add_button, Callable(self, "_on_add_profile_pressed"))
+	_prepare_control(add_button, 16, 46)
+	box.add_child(add_button)
+
+	profile_status_label = _make_label("", 14, COLOR_TEXT_MUTED)
+	profile_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	box.add_child(profile_status_label)
+
+	return panel
+
+
 func _build_day_tools_panel() -> PanelContainer:
 	var panel := _panel()
 	var box := _panel_box(panel)
@@ -612,6 +704,16 @@ func _apply_day_tools_visibility() -> void:
 		day_tools_toggle.set_pressed_no_signal(day_tools_visible)
 
 
+func _toggle_profile_panel() -> void:
+	_set_profile_panel_visible(not profile_panel_visible)
+
+
+func _set_profile_panel_visible(visible: bool) -> void:
+	profile_panel_visible = visible
+	if profile_panel != null:
+		profile_panel.visible = visible
+
+
 func _toggle_settings_panel() -> void:
 	if main_view_saved:
 		return
@@ -682,6 +784,9 @@ func _save_settings_to_disk() -> void:
 	config.set_value("ui", "day_tools_visible", day_tools_visible)
 	config.set_value("undo_reset", "available", reset_undo_available)
 	config.set_value("undo_reset", "snapshot", reset_undo_snapshot.duplicate(true))
+	config.set_value("profiles", "count", profile_count)
+	config.set_value("profiles", "selected", selected_profile_index)
+	config.set_value("profiles", "items", saved_profiles.duplicate(true))
 	config.set_value("calendar", "current_year", current_year)
 	config.set_value("calendar", "current_month", current_month)
 	config.set_value("calendar", "schedule_selected", schedule_option.selected)
@@ -715,6 +820,11 @@ func _load_settings_from_disk() -> void:
 	day_tools_visible = bool(config.get_value("ui", "day_tools_visible", true))
 	reset_undo_available = bool(config.get_value("undo_reset", "available", false))
 	_load_reset_undo_snapshot(config.get_value("undo_reset", "snapshot", {}))
+	profile_count = maxi(DEFAULT_PROFILE_COUNT, int(config.get_value("profiles", "count", DEFAULT_PROFILE_COUNT)))
+	selected_profile_index = clampi(int(config.get_value("profiles", "selected", 1)), 1, profile_count)
+	_load_saved_profiles(config.get_value("profiles", "items", {}))
+	_refresh_profile_options()
+	_set_profile_panel_visible(false)
 	current_year = int(config.get_value("calendar", "current_year", current_year))
 	current_month = clampi(int(config.get_value("calendar", "current_month", current_month)), 1, 12)
 
@@ -785,6 +895,125 @@ func _load_reset_undo_snapshot(value: Variant) -> void:
 		reset_undo_snapshot = value.duplicate(true)
 	if reset_undo_snapshot.is_empty():
 		reset_undo_available = false
+
+
+func _load_saved_profiles(value: Variant) -> void:
+	saved_profiles.clear()
+	if not (value is Dictionary):
+		return
+
+	for key in value.keys():
+		var profile_key := String(key)
+		var profile_state: Variant = value[key]
+		if not (profile_state is Dictionary):
+			continue
+
+		saved_profiles[profile_key] = profile_state.duplicate(true)
+		if profile_key.is_valid_int():
+			profile_count = maxi(profile_count, int(profile_key))
+
+
+func _refresh_profile_options() -> void:
+	if profile_option == null:
+		return
+
+	profile_count = maxi(DEFAULT_PROFILE_COUNT, profile_count)
+	selected_profile_index = clampi(selected_profile_index, 1, profile_count)
+	profile_option.clear()
+
+	for index in range(1, profile_count + 1):
+		profile_option.add_item(_profile_label(index))
+
+	_set_option_selected(profile_option, selected_profile_index - 1)
+	_update_profile_actions()
+
+
+func _profile_label(index: int) -> String:
+	var state := "zapisany" if saved_profiles.has(_profile_key(index)) else "pusty"
+	return "Profil %d - %s" % [index, state]
+
+
+func _profile_key(index: int) -> String:
+	return str(index)
+
+
+func _selected_profile_key() -> String:
+	return _profile_key(selected_profile_index)
+
+
+func _selected_profile_saved() -> bool:
+	return saved_profiles.has(_selected_profile_key())
+
+
+func _update_profile_actions() -> void:
+	var has_saved_profile := _selected_profile_saved()
+	if profile_load_button != null:
+		profile_load_button.disabled = not has_saved_profile
+	if profile_delete_button != null:
+		profile_delete_button.visible = has_saved_profile
+	if profile_status_label != null:
+		profile_status_label.text = "Ten profil jest zapisany." if has_saved_profile else "Ten profil jest pusty."
+
+
+func _on_profile_selected(index: int) -> void:
+	if _option_change_was_scroll(profile_option, index):
+		return
+
+	selected_profile_index = clampi(index + 1, 1, profile_count)
+	_update_profile_actions()
+	_save_settings_to_disk()
+
+
+func _on_save_profile_pressed() -> void:
+	if not _apply_settings(false, true):
+		if profile_status_label != null:
+			profile_status_label.text = "Popraw ustawienia przed zapisem profilu."
+		return
+
+	saved_profiles[_selected_profile_key()] = _calendar_state_snapshot()
+	_refresh_profile_options()
+	_set_profile_panel_visible(true)
+	if profile_status_label != null:
+		profile_status_label.text = "Zapisano profil %d." % selected_profile_index
+	_save_settings_to_disk()
+
+
+func _on_load_profile_pressed() -> void:
+	if not _selected_profile_saved():
+		if profile_status_label != null:
+			profile_status_label.text = "Ten profil jest pusty."
+		return
+
+	var snapshot: Dictionary = saved_profiles[_selected_profile_key()].duplicate(true)
+	reset_undo_available = false
+	reset_undo_snapshot.clear()
+	_restore_calendar_state(snapshot)
+	_refresh_profile_options()
+	_set_profile_panel_visible(true)
+	if profile_status_label != null:
+		profile_status_label.text = "Wczytano profil %d." % selected_profile_index
+	_update_reset_button_text()
+	_save_settings_to_disk()
+
+
+func _on_delete_profile_pressed() -> void:
+	var deleted_index := selected_profile_index
+	saved_profiles.erase(_selected_profile_key())
+	_refresh_profile_options()
+	_set_profile_panel_visible(false)
+	if profile_status_label != null:
+		profile_status_label.text = "Usunięto profil %d." % deleted_index
+	_save_settings_to_disk()
+
+
+func _on_add_profile_pressed() -> void:
+	profile_count += 1
+	selected_profile_index = profile_count
+	_refresh_profile_options()
+	_set_profile_panel_visible(true)
+	if profile_status_label != null:
+		profile_status_label.text = "Dodano profil %d. Możesz go zapisać." % selected_profile_index
+	_save_settings_to_disk()
 
 
 func _calendar_state_snapshot() -> Dictionary:
