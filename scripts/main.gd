@@ -166,6 +166,8 @@ func _ready() -> void:
 
 func _input(event: InputEvent) -> void:
 	_track_scroll_touch(event)
+	if event is InputEventScreenDrag or event is InputEventMouseMotion:
+		_lock_horizontal_scroll_deferred()
 
 
 func _force_portrait() -> void:
@@ -198,6 +200,7 @@ func _build_ui() -> void:
 	main_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	main_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	safe_margin.add_child(main_scroll)
+	_lock_horizontal_scroll_deferred()
 	_style_main_scrollbar()
 
 	var center := CenterContainer.new()
@@ -1739,6 +1742,7 @@ func _rebuild_calendar() -> void:
 
 	if month_count == 12:
 		months_box.add_child(_make_year_overview_section(current_year))
+		_lock_horizontal_scroll_deferred()
 		return
 
 	var year := current_year
@@ -1749,6 +1753,7 @@ func _rebuild_calendar() -> void:
 		if month > 12:
 			month = 1
 			year += 1
+	_lock_horizontal_scroll_deferred()
 
 
 func _make_month_section(year: int, month: int) -> VBoxContainer:
@@ -2860,6 +2865,26 @@ func _style_main_scrollbar() -> void:
 	scroll_bar.add_theme_stylebox_override("grabber", _scrollbar_grabber_style(0.48))
 	scroll_bar.add_theme_stylebox_override("grabber_highlight", _scrollbar_grabber_style(0.68))
 	scroll_bar.add_theme_stylebox_override("grabber_pressed", _scrollbar_grabber_style(0.82))
+
+	var horizontal_bar := main_scroll.get_h_scroll_bar()
+	horizontal_bar.visible = false
+	horizontal_bar.custom_minimum_size.y = 0
+	horizontal_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	if not horizontal_bar.value_changed.is_connected(_on_horizontal_scroll_changed):
+		horizontal_bar.value_changed.connect(_on_horizontal_scroll_changed)
+
+
+func _on_horizontal_scroll_changed(value: float) -> void:
+	if value != 0.0:
+		_lock_horizontal_scroll_deferred()
+
+
+func _lock_horizontal_scroll_deferred() -> void:
+	if main_scroll == null:
+		return
+
+	main_scroll.set_deferred("scroll_horizontal", 0)
+	main_scroll.get_h_scroll_bar().set_deferred("value", 0)
 
 
 func _accent_style(color: Color) -> StyleBoxFlat:
