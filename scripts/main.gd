@@ -40,7 +40,6 @@ const SETTINGS_PATH := "user://driver_calendar.cfg"
 const TAP_CANCEL_DISTANCE := 18.0
 const TAP_BLOCK_AFTER_DRAG_MS := 180
 const TOUCH_SCROLL_DEADZONE_MENU := 4096
-const TOUCH_SCROLL_DEADZONE_CALENDAR_ONLY := 6
 const RETURN_TODAY_BUTTON_TOP := 84
 const RETURN_TODAY_BUTTON_HEIGHT := 44
 const RETURN_TODAY_BUTTON_WIDTH := 300
@@ -1046,7 +1045,7 @@ func _update_main_scroll_touch_mode() -> void:
 	if main_scroll == null:
 		return
 
-	main_scroll.scroll_deadzone = TOUCH_SCROLL_DEADZONE_CALENDAR_ONLY if calendar_only_mode else TOUCH_SCROLL_DEADZONE_MENU
+	main_scroll.scroll_deadzone = TOUCH_SCROLL_DEADZONE_MENU
 
 
 func _update_undo_buttons() -> void:
