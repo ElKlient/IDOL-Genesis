@@ -205,6 +205,13 @@ func _gui_input(event: InputEvent) -> void:
 		accept_event()
 
 
+func _unhandled_input(event: InputEvent) -> void:
+	_track_scroll_touch(event)
+	if _event_is_drag_motion(event):
+		_block_touch_drag_actions()
+		_lock_horizontal_scroll_deferred()
+
+
 func _on_main_scroll_gui_input(event: InputEvent) -> void:
 	_track_scroll_touch(event)
 	if event is InputEventScreenDrag or event is InputEventPanGesture:
@@ -2898,12 +2905,14 @@ func _handle_navigation_button_input(event: InputEvent, button: BaseButton, acti
 		else:
 			_finish_navigation_button_tap(button, action, mouse_button.position)
 	elif _event_is_drag_motion(event):
+		_block_touch_drag_actions()
 		_cancel_navigation_button_tap_if_moved(button, _event_pointer_position(event))
 
 
 func _begin_navigation_button_tap(button: BaseButton, position: Vector2) -> void:
+	var viewport_position := _control_event_to_viewport_position(button, position)
 	button.set_meta("nav_press_position", position)
-	button.set_meta("nav_press_global_position", button.get_global_mouse_position())
+	button.set_meta("nav_press_viewport_position", viewport_position)
 	button.set_meta("nav_press_generation", touch_drag_block_generation)
 	button.set_meta("nav_press_msec", int(Time.get_ticks_msec()))
 	button.set_meta("nav_press_scroll", _current_vertical_scroll())
@@ -2931,10 +2940,11 @@ func _cancel_navigation_button_tap_if_moved(button: BaseButton, position: Vector
 		return
 
 	var start_position: Vector2 = button.get_meta("nav_press_position", position)
-	var start_global_position: Vector2 = button.get_meta("nav_press_global_position", button.get_global_mouse_position())
+	var start_viewport_position: Vector2 = button.get_meta("nav_press_viewport_position", _control_event_to_viewport_position(button, position))
+	var viewport_position := _control_event_to_viewport_position(button, position)
 	var event_moved := start_position.distance_to(position) > NAVIGATION_TAP_MOVE_LIMIT
-	var global_moved := start_global_position.distance_to(button.get_global_mouse_position()) > NAVIGATION_TAP_MOVE_LIMIT
-	if not event_moved and not global_moved:
+	var viewport_moved := start_viewport_position.distance_to(viewport_position) > NAVIGATION_TAP_MOVE_LIMIT
+	if not event_moved and not viewport_moved:
 		return
 
 	_block_touch_drag_actions()
@@ -2965,11 +2975,16 @@ func _navigation_button_tap_is_clean(button: BaseButton, position: Vector2) -> b
 	if start_position.distance_to(position) > NAVIGATION_TAP_MOVE_LIMIT:
 		return false
 
-	var start_global_position: Vector2 = button.get_meta("nav_press_global_position", button.get_global_mouse_position())
-	if start_global_position.distance_to(button.get_global_mouse_position()) > NAVIGATION_TAP_MOVE_LIMIT:
+	var start_viewport_position: Vector2 = button.get_meta("nav_press_viewport_position", _control_event_to_viewport_position(button, position))
+	var viewport_position := _control_event_to_viewport_position(button, position)
+	if start_viewport_position.distance_to(viewport_position) > NAVIGATION_TAP_MOVE_LIMIT:
 		return false
 
 	return true
+
+
+func _control_event_to_viewport_position(control: Control, position: Vector2) -> Vector2:
+	return control.get_global_transform_with_canvas() * position
 
 
 func _event_pointer_position(event: InputEvent) -> Vector2:
@@ -3041,8 +3056,7 @@ func _track_scroll_touch(event: InputEvent) -> void:
 	elif event is InputEventScreenDrag:
 		var drag := event as InputEventScreenDrag
 		touch_drag_total += drag.relative
-		if touch_drag_total.length() > TOUCH_DRAG_CANCEL_DISTANCE:
-			_block_touch_drag_actions()
+		_block_touch_drag_actions()
 		_update_touch_tracking(drag.position)
 	elif event is InputEventPanGesture:
 		var pan := event as InputEventPanGesture
@@ -3060,8 +3074,7 @@ func _track_scroll_touch(event: InputEvent) -> void:
 		var mouse_motion := event as InputEventMouseMotion
 		if mouse_motion.button_mask != 0:
 			touch_drag_total += mouse_motion.relative
-			if touch_drag_total.length() > TOUCH_DRAG_CANCEL_DISTANCE:
-				_block_touch_drag_actions()
+			_block_touch_drag_actions()
 			_update_touch_tracking(mouse_motion.position)
 
 
@@ -3166,8 +3179,8 @@ func _clear_navigation_button_tap(button: BaseButton) -> void:
 
 	if button.has_meta("nav_press_position"):
 		button.remove_meta("nav_press_position")
-	if button.has_meta("nav_press_global_position"):
-		button.remove_meta("nav_press_global_position")
+	if button.has_meta("nav_press_viewport_position"):
+		button.remove_meta("nav_press_viewport_position")
 	if button.has_meta("nav_press_generation"):
 		button.remove_meta("nav_press_generation")
 	if button.has_meta("nav_press_msec"):
