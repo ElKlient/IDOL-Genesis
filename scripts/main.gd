@@ -19,7 +19,7 @@ const MONTH_NAMES := [
 ]
 const WEEKDAY_SHORT_TILE := ["pon", "wt", "śr", "czw", "pt", "sob", "nd"]
 const WEEKDAY_NAMES := ["Poniedziałek", "Wtorek", "Środa", "Czwartek", "Piątek", "Sobota", "Niedziela"]
-const RANGE_LABELS := ["Miesiąc", "Kwartał", "4 mies.", "Rok"]
+const RANGE_LABELS := ["Miesiąc"]
 
 const COLOR_PANEL := Color(0.070, 0.085, 0.087, 0.82)
 const COLOR_PANEL_SOFT := Color(0.105, 0.120, 0.116, 0.76)
@@ -2414,16 +2414,6 @@ func _selected_fixed_start_weekday() -> int:
 
 
 func _range_months() -> int:
-	if range_option == null:
-		return 1
-
-	match range_option.selected:
-		1:
-			return 3
-		2:
-			return 4
-		3:
-			return 12
 	return 1
 
 
