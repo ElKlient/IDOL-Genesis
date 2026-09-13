@@ -38,9 +38,9 @@ const PORTRAIT_WIDTH := 640
 const TILE_COLUMNS := 7
 const SETTINGS_PATH := "user://driver_calendar.cfg"
 const TOUCH_DRAG_CANCEL_DISTANCE := 8.0
-const TAP_BLOCK_AFTER_DRAG_MS := 180
+const TAP_BLOCK_AFTER_DRAG_MS := 450
 const NAVIGATION_TAP_MAX_MS := 420
-const NAVIGATION_BLOCK_AFTER_SCROLL_MS := 700
+const NAVIGATION_BLOCK_AFTER_SCROLL_MS := 1600
 const TOUCH_SCROLL_DEADZONE_MENU := 18
 const RETURN_TODAY_BUTTON_TOP := 84
 const RETURN_TODAY_BUTTON_HEIGHT := 44
@@ -159,6 +159,7 @@ var last_drag_release_msec := -10000
 var navigation_action_unlock_msec := -10000
 var navigation_blocked_until_msec := -10000
 var navigation_button_action_active := false
+var calendar_navigation_command_depth := 0
 var confirmed_calendar_year: int = 0
 var confirmed_calendar_month: int = 0
 var calendar_page_guard_ready := false
@@ -189,7 +190,7 @@ func _input(event: InputEvent) -> void:
 		return
 	if _block_calendar_touch_drag(event):
 		return
-	if event is InputEventScreenDrag or event is InputEventMouseMotion:
+	if _event_is_drag_motion(event):
 		_lock_horizontal_scroll_deferred()
 
 
@@ -204,7 +205,7 @@ func _gui_input(event: InputEvent) -> void:
 
 func _on_main_scroll_gui_input(event: InputEvent) -> void:
 	_track_scroll_touch(event)
-	if event is InputEventScreenDrag:
+	if event is InputEventScreenDrag or event is InputEventPanGesture:
 		_block_touch_drag_actions()
 		_lock_horizontal_scroll_deferred()
 	elif event is InputEventMouseMotion:
@@ -815,6 +816,12 @@ func _finish_calendar_shield_touch(position: Vector2) -> void:
 
 func _sync_calendar_touch_shield() -> void:
 	if calendar_touch_shield == null:
+		return
+	if calendar_only_mode:
+		var viewport_rect := get_viewport_rect()
+		calendar_touch_shield.position = viewport_rect.position
+		calendar_touch_shield.size = viewport_rect.size
+		calendar_touch_shield.visible = true
 		return
 	if months_box == null or not is_instance_valid(months_box):
 		calendar_touch_shield.visible = false
@@ -2864,18 +2871,13 @@ func _prepare_calendar_drag_blocker(control: Control) -> void:
 
 func _handle_calendar_area_input(event: InputEvent) -> void:
 	_track_scroll_touch(event)
-	if event is InputEventScreenDrag:
-		_block_touch_drag_actions()
-		_lock_horizontal_scroll_deferred()
-		accept_event()
-		get_viewport().set_input_as_handled()
-	elif event is InputEventMouseMotion:
-		var mouse_motion := event as InputEventMouseMotion
-		if (mouse_motion.button_mask & MOUSE_BUTTON_MASK_LEFT) != 0:
-			_block_touch_drag_actions()
-			_lock_horizontal_scroll_deferred()
-			accept_event()
-			get_viewport().set_input_as_handled()
+	if not _event_is_drag_motion(event):
+		return
+
+	_block_touch_drag_actions()
+	_lock_horizontal_scroll_deferred()
+	accept_event()
+	get_viewport().set_input_as_handled()
 
 
 func _handle_navigation_button_input(event: InputEvent, button: BaseButton, action: Callable) -> void:
@@ -2892,6 +2894,9 @@ func _handle_navigation_button_input(event: InputEvent, button: BaseButton, acti
 	elif event is InputEventScreenDrag:
 		var drag := event as InputEventScreenDrag
 		_mark_navigation_button_drag(button, drag.position)
+	elif event is InputEventPanGesture:
+		var pan := event as InputEventPanGesture
+		_mark_navigation_button_drag(button, pan.position)
 	elif event is InputEventMouseButton:
 		var mouse_button := event as InputEventMouseButton
 		if mouse_button.button_index != MOUSE_BUTTON_LEFT:
@@ -2945,9 +2950,15 @@ func _activate_navigation_button_if_clean_tap(button: BaseButton, action: Callab
 		return
 
 	get_viewport().set_input_as_handled()
+	_run_navigation_button_action(action)
+
+
+func _run_navigation_button_action(action: Callable) -> void:
 	_allow_navigation_action_once()
 	navigation_button_action_active = true
+	calendar_navigation_command_depth += 1
 	action.call()
+	calendar_navigation_command_depth = maxi(calendar_navigation_command_depth - 1, 0)
 	navigation_button_action_active = false
 
 
@@ -2992,6 +3003,10 @@ func _track_scroll_touch(event: InputEvent) -> void:
 		if touch_drag_total.length() > TOUCH_DRAG_CANCEL_DISTANCE:
 			_block_touch_drag_actions()
 		_update_touch_tracking(drag.position)
+	elif event is InputEventPanGesture:
+		var pan := event as InputEventPanGesture
+		_block_touch_drag_actions()
+		_update_touch_tracking(pan.position)
 	elif event is InputEventMouseButton:
 		var mouse_button := event as InputEventMouseButton
 		if mouse_button.button_index == MOUSE_BUTTON_LEFT:
@@ -3035,6 +3050,9 @@ func _block_calendar_touch_drag(event: InputEvent) -> bool:
 	if event is InputEventScreenDrag:
 		var drag := event as InputEventScreenDrag
 		position = drag.position
+	elif event is InputEventPanGesture:
+		var pan := event as InputEventPanGesture
+		position = pan.position
 	elif event is InputEventMouseMotion:
 		var mouse_motion := event as InputEventMouseMotion
 		if (mouse_motion.button_mask & MOUSE_BUTTON_MASK_LEFT) == 0:
@@ -3163,6 +3181,9 @@ func _navigation_button_action_allowed() -> bool:
 		return false
 
 	if not navigation_button_action_active:
+		navigation_action_unlock_msec = -10000
+		return false
+	if calendar_navigation_command_depth <= 0:
 		navigation_action_unlock_msec = -10000
 		return false
 
