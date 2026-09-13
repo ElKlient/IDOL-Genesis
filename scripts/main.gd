@@ -175,6 +175,16 @@ func _input(event: InputEvent) -> void:
 		_lock_horizontal_scroll_deferred()
 
 
+func _gui_input(event: InputEvent) -> void:
+	_track_scroll_touch(event)
+	if _block_horizontal_calendar_drag(event):
+		accept_event()
+
+
+func _process(_delta: float) -> void:
+	_lock_horizontal_scroll()
+
+
 func _force_portrait() -> void:
 	ProjectSettings.set_setting("display/window/handheld/orientation", DisplayServer.SCREEN_PORTRAIT)
 	DisplayServer.screen_set_orientation(DisplayServer.SCREEN_PORTRAIT)
@@ -428,7 +438,7 @@ func _build_navigation_panel() -> PanelContainer:
 	box.add_child(nav)
 
 	var previous_button := _make_nav_button("<")
-	_connect_tap(previous_button, Callable(self, "_on_previous_month"))
+	_connect_navigation_tap(previous_button, Callable(self, "_on_previous_month"))
 	nav.add_child(previous_button)
 
 	range_option = OptionButton.new()
@@ -441,7 +451,7 @@ func _build_navigation_panel() -> PanelContainer:
 	nav.add_child(range_option)
 
 	var next_button := _make_nav_button(">")
-	_connect_tap(next_button, Callable(self, "_on_next_month"))
+	_connect_navigation_tap(next_button, Callable(self, "_on_next_month"))
 	nav.add_child(next_button)
 
 	var year_buttons := HBoxContainer.new()
@@ -449,11 +459,11 @@ func _build_navigation_panel() -> PanelContainer:
 	box.add_child(year_buttons)
 
 	var previous_year_button := _make_nav_button("<< rok")
-	_connect_tap(previous_year_button, Callable(self, "_on_previous_year"))
+	_connect_navigation_tap(previous_year_button, Callable(self, "_on_previous_year"))
 	year_buttons.add_child(previous_year_button)
 
 	var next_year_button := _make_nav_button("rok >>")
-	_connect_tap(next_year_button, Callable(self, "_on_next_year"))
+	_connect_navigation_tap(next_year_button, Callable(self, "_on_next_year"))
 	year_buttons.add_child(next_year_button)
 
 	return panel
@@ -490,7 +500,7 @@ func _build_quick_navigation_panel() -> PanelContainer:
 	quick_navigation_body.add_child(nav)
 
 	var previous_button := _make_nav_button("<")
-	_connect_tap(previous_button, Callable(self, "_on_previous_month"))
+	_connect_navigation_tap(previous_button, Callable(self, "_on_previous_month"))
 	nav.add_child(previous_button)
 
 	quick_range_option = OptionButton.new()
@@ -503,7 +513,7 @@ func _build_quick_navigation_panel() -> PanelContainer:
 	nav.add_child(quick_range_option)
 
 	var next_button := _make_nav_button(">")
-	_connect_tap(next_button, Callable(self, "_on_next_month"))
+	_connect_navigation_tap(next_button, Callable(self, "_on_next_month"))
 	nav.add_child(next_button)
 
 	var year_buttons := HBoxContainer.new()
@@ -511,15 +521,15 @@ func _build_quick_navigation_panel() -> PanelContainer:
 	quick_navigation_body.add_child(year_buttons)
 
 	var previous_year_button := _make_nav_button("<< rok")
-	_connect_tap(previous_year_button, Callable(self, "_on_previous_year"))
+	_connect_navigation_tap(previous_year_button, Callable(self, "_on_previous_year"))
 	year_buttons.add_child(previous_year_button)
 
 	quick_month_picker_button = _make_nav_button("Miesiące")
-	_connect_tap(quick_month_picker_button, Callable(self, "_toggle_month_picker"))
+	_connect_navigation_tap(quick_month_picker_button, Callable(self, "_toggle_month_picker"))
 	year_buttons.add_child(quick_month_picker_button)
 
 	var next_year_button := _make_nav_button("rok >>")
-	_connect_tap(next_year_button, Callable(self, "_on_next_year"))
+	_connect_navigation_tap(next_year_button, Callable(self, "_on_next_year"))
 	year_buttons.add_child(next_year_button)
 
 	month_picker_panel = _build_month_picker_panel()
@@ -550,7 +560,7 @@ func _build_month_picker_panel() -> PanelContainer:
 	for month_index in range(1, 13):
 		var month_button := Button.new()
 		month_button.text = MONTH_NAMES[month_index - 1]
-		_connect_tap(month_button, Callable(self, "_on_month_picker_pressed").bind(month_index))
+		_connect_navigation_tap(month_button, Callable(self, "_on_month_picker_pressed").bind(month_index))
 		_prepare_control(month_button, 16, 48)
 		grid.add_child(month_button)
 
@@ -1828,7 +1838,7 @@ func _make_month_title_row(year: int, month: int) -> HBoxContainer:
 	row.add_theme_constant_override("separation", 8)
 
 	var previous_button := _make_month_title_button("<")
-	_connect_tap(previous_button, Callable(self, "_on_previous_month"))
+	_connect_navigation_tap(previous_button, Callable(self, "_on_previous_month"))
 	row.add_child(previous_button)
 
 	var title := _make_label("%s %d" % [MONTH_NAMES[month - 1], year], 33 if _range_months() == 1 else 28, COLOR_TEXT)
@@ -1837,7 +1847,7 @@ func _make_month_title_row(year: int, month: int) -> HBoxContainer:
 	row.add_child(title)
 
 	var next_button := _make_month_title_button(">")
-	_connect_tap(next_button, Callable(self, "_on_next_month"))
+	_connect_navigation_tap(next_button, Callable(self, "_on_next_month"))
 	row.add_child(next_button)
 
 	return row
@@ -1881,7 +1891,7 @@ func _make_year_month_cell(year: int, month: int, is_current_month: bool) -> But
 	button.add_theme_stylebox_override("pressed", _month_overview_style(_month_overview_color(counts).darkened(0.06), is_current_month))
 	button.add_theme_stylebox_override("focus", _month_overview_style(_month_overview_color(counts), true))
 	_fill_year_month_tile(button, month, counts, is_current_month)
-	_connect_tap(button, Callable(self, "_on_month_picker_pressed").bind(month))
+	_connect_navigation_tap(button, Callable(self, "_on_month_picker_pressed").bind(month))
 	return button
 
 
@@ -2658,6 +2668,74 @@ func _connect_tap(button: BaseButton, action: Callable) -> void:
 	)
 
 
+func _connect_navigation_tap(button: BaseButton, action: Callable) -> void:
+	_register_scroll_safe_control(button)
+	button.mouse_filter = Control.MOUSE_FILTER_STOP
+	button.gui_input.connect(_handle_navigation_button_input.bind(button, action))
+
+
+func _handle_navigation_button_input(event: InputEvent, button: BaseButton, action: Callable) -> void:
+	if event is InputEventScreenTouch:
+		var touch := event as InputEventScreenTouch
+		if touch.pressed:
+			button.set_meta("nav_tap_start", touch.position)
+			button.set_meta("nav_tap_dragged", false)
+		else:
+			_activate_navigation_button_if_clean_tap(button, action, touch.position)
+	elif event is InputEventScreenDrag:
+		var drag := event as InputEventScreenDrag
+		_mark_navigation_button_drag(button, drag.position)
+	elif event is InputEventMouseButton:
+		var mouse_button := event as InputEventMouseButton
+		if mouse_button.button_index != MOUSE_BUTTON_LEFT:
+			return
+		if mouse_button.pressed:
+			button.set_meta("nav_tap_start", mouse_button.position)
+			button.set_meta("nav_tap_dragged", false)
+		else:
+			_activate_navigation_button_if_clean_tap(button, action, mouse_button.position)
+	elif event is InputEventMouseMotion:
+		var mouse_motion := event as InputEventMouseMotion
+		if (mouse_motion.button_mask & MOUSE_BUTTON_MASK_LEFT) != 0:
+			_mark_navigation_button_drag(button, mouse_motion.position)
+
+
+func _mark_navigation_button_drag(button: BaseButton, position: Vector2) -> void:
+	if not button.has_meta("nav_tap_start"):
+		return
+
+	var start_position: Vector2 = button.get_meta("nav_tap_start", position)
+	if start_position.distance_to(position) <= TAP_CANCEL_DISTANCE:
+		return
+
+	button.set_meta("nav_tap_dragged", true)
+	touch_drag_cancelled = true
+	last_drag_release_msec = int(Time.get_ticks_msec())
+	button.set_pressed_no_signal(false)
+	_release_scroll_buttons()
+	_lock_horizontal_scroll_deferred()
+	get_viewport().set_input_as_handled()
+
+
+func _activate_navigation_button_if_clean_tap(button: BaseButton, action: Callable, position: Vector2) -> void:
+	if not button.has_meta("nav_tap_start"):
+		get_viewport().set_input_as_handled()
+		return
+
+	var start_position: Vector2 = button.get_meta("nav_tap_start", position)
+	var was_dragged := bool(button.get_meta("nav_tap_dragged", true))
+	button.remove_meta("nav_tap_start")
+	button.remove_meta("nav_tap_dragged")
+	button.set_pressed_no_signal(false)
+
+	if was_dragged or start_position.distance_to(position) > TAP_CANCEL_DISTANCE or _tap_is_blocked():
+		get_viewport().set_input_as_handled()
+		return
+
+	get_viewport().set_input_as_handled()
+	action.call()
+
+
 func _register_scroll_safe_control(control: Control) -> void:
 	if control.has_meta("scroll_safe_registered"):
 		return
@@ -2932,11 +3010,22 @@ func _lock_horizontal_scroll_deferred() -> void:
 	if main_scroll == null:
 		return
 
-	main_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	main_scroll.scroll_horizontal = 0
-	main_scroll.get_h_scroll_bar().value = 0
+	_lock_horizontal_scroll()
 	main_scroll.set_deferred("scroll_horizontal", 0)
 	main_scroll.get_h_scroll_bar().set_deferred("value", 0)
+
+
+func _lock_horizontal_scroll() -> void:
+	if main_scroll == null:
+		return
+
+	var horizontal_bar := main_scroll.get_h_scroll_bar()
+	main_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	main_scroll.scroll_horizontal = 0
+	horizontal_bar.value = 0
+	horizontal_bar.visible = false
+	horizontal_bar.custom_minimum_size.y = 0
+	horizontal_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 
 func _accent_style(color: Color) -> StyleBoxFlat:
