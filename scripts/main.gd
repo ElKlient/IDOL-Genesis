@@ -148,6 +148,7 @@ var saved_profiles: Dictionary = {}
 var profile_panel_visible := false
 var month_picker_visible := false
 var touch_start_position := Vector2.ZERO
+var touch_drag_total := Vector2.ZERO
 var touch_tracking_active := false
 var touch_drag_cancelled := false
 var last_drag_release_msec := -10000
@@ -2708,27 +2709,27 @@ func _prepare_calendar_drag_blocker(control: Control) -> void:
 		return
 
 	control.set_meta("calendar_drag_blocker_registered", true)
-	control.mouse_filter = Control.MOUSE_FILTER_STOP
+	control.mouse_filter = Control.MOUSE_FILTER_PASS
 	control.gui_input.connect(_handle_calendar_area_input)
 
 
 func _handle_calendar_area_input(event: InputEvent) -> void:
 	_track_scroll_touch(event)
 	if event is InputEventScreenDrag:
-		_consume_calendar_drag()
+		var drag := event as InputEventScreenDrag
+		_block_touch_drag_actions()
+		_lock_horizontal_scroll_deferred()
+		if _is_horizontal_drag(drag.relative):
+			accept_event()
+			get_viewport().set_input_as_handled()
 	elif event is InputEventMouseMotion:
 		var mouse_motion := event as InputEventMouseMotion
 		if (mouse_motion.button_mask & MOUSE_BUTTON_MASK_LEFT) != 0:
-			_consume_calendar_drag()
-
-
-func _consume_calendar_drag() -> void:
-	touch_drag_cancelled = true
-	_block_navigation_after_scroll()
-	_release_scroll_buttons()
-	_lock_horizontal_scroll_deferred()
-	accept_event()
-	get_viewport().set_input_as_handled()
+			_block_touch_drag_actions()
+			_lock_horizontal_scroll_deferred()
+			if _is_horizontal_drag(mouse_motion.relative):
+				accept_event()
+				get_viewport().set_input_as_handled()
 
 
 func _handle_navigation_button_input(event: InputEvent, button: BaseButton, action: Callable) -> void:
@@ -2766,10 +2767,8 @@ func _mark_navigation_button_drag(button: BaseButton, position: Vector2) -> void
 		return
 
 	button.set_meta("nav_tap_dragged", true)
-	touch_drag_cancelled = true
-	_block_navigation_after_scroll()
+	_block_touch_drag_actions()
 	button.set_pressed_no_signal(false)
-	_release_scroll_buttons()
 	_lock_horizontal_scroll_deferred()
 	get_viewport().set_input_as_handled()
 
@@ -2827,9 +2826,13 @@ func _track_scroll_touch(event: InputEvent) -> void:
 		if touch.pressed:
 			_begin_touch_tracking(touch.position)
 		else:
+			_update_touch_tracking(touch.position)
 			_end_touch_tracking()
 	elif event is InputEventScreenDrag:
 		var drag := event as InputEventScreenDrag
+		touch_drag_total += drag.relative
+		if touch_drag_total.length() > TAP_CANCEL_DISTANCE:
+			_block_touch_drag_actions()
 		_update_touch_tracking(drag.position)
 	elif event is InputEventMouseButton:
 		var mouse_button := event as InputEventMouseButton
@@ -2837,10 +2840,14 @@ func _track_scroll_touch(event: InputEvent) -> void:
 			if mouse_button.pressed:
 				_begin_touch_tracking(mouse_button.position)
 			else:
+				_update_touch_tracking(mouse_button.position)
 				_end_touch_tracking()
 	elif event is InputEventMouseMotion:
 		var mouse_motion := event as InputEventMouseMotion
 		if mouse_motion.button_mask != 0:
+			touch_drag_total += mouse_motion.relative
+			if touch_drag_total.length() > TAP_CANCEL_DISTANCE:
+				_block_touch_drag_actions()
 			_update_touch_tracking(mouse_motion.position)
 
 
@@ -2863,9 +2870,7 @@ func _block_horizontal_calendar_drag(event: InputEvent) -> bool:
 	if horizontal < HORIZONTAL_DRAG_BLOCK_DISTANCE or horizontal < vertical * HORIZONTAL_DRAG_DOMINANCE:
 		return false
 
-	touch_drag_cancelled = true
-	_block_navigation_after_scroll()
-	_release_scroll_buttons()
+	_block_touch_drag_actions()
 	_lock_horizontal_scroll_deferred()
 	get_viewport().set_input_as_handled()
 	return true
@@ -2874,6 +2879,7 @@ func _block_horizontal_calendar_drag(event: InputEvent) -> bool:
 func _begin_touch_tracking(position: Vector2) -> void:
 	touch_tracking_active = true
 	touch_start_position = position
+	touch_drag_total = Vector2.ZERO
 	touch_drag_cancelled = false
 
 
@@ -2882,8 +2888,7 @@ func _update_touch_tracking(position: Vector2) -> void:
 		return
 
 	if not touch_drag_cancelled and touch_start_position.distance_to(position) > TAP_CANCEL_DISTANCE:
-		touch_drag_cancelled = true
-		_release_scroll_buttons()
+		_block_touch_drag_actions()
 
 
 func _end_touch_tracking() -> void:
@@ -2891,6 +2896,18 @@ func _end_touch_tracking() -> void:
 		last_drag_release_msec = int(Time.get_ticks_msec())
 
 	touch_tracking_active = false
+
+
+func _block_touch_drag_actions() -> void:
+	touch_drag_cancelled = true
+	_block_navigation_after_scroll()
+	_release_scroll_buttons()
+
+
+func _is_horizontal_drag(movement: Vector2) -> bool:
+	var horizontal := absf(movement.x)
+	var vertical := absf(movement.y)
+	return horizontal >= HORIZONTAL_DRAG_BLOCK_DISTANCE and horizontal >= vertical * HORIZONTAL_DRAG_DOMINANCE
 
 
 func _allow_navigation_action_once() -> void:
