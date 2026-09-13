@@ -39,6 +39,8 @@ const TILE_COLUMNS := 7
 const SETTINGS_PATH := "user://driver_calendar.cfg"
 const TAP_CANCEL_DISTANCE := 18.0
 const TAP_BLOCK_AFTER_DRAG_MS := 180
+const HORIZONTAL_DRAG_BLOCK_DISTANCE := 10.0
+const HORIZONTAL_DRAG_DOMINANCE := 1.15
 const TOUCH_SCROLL_DEADZONE_MENU := 4096
 const RETURN_TODAY_BUTTON_TOP := 84
 const RETURN_TODAY_BUTTON_HEIGHT := 44
@@ -167,6 +169,8 @@ func _ready() -> void:
 
 func _input(event: InputEvent) -> void:
 	_track_scroll_touch(event)
+	if _block_horizontal_calendar_drag(event):
+		return
 	if event is InputEventScreenDrag or event is InputEventMouseMotion:
 		_lock_horizontal_scroll_deferred()
 
@@ -2700,6 +2704,33 @@ func _track_scroll_touch(event: InputEvent) -> void:
 			_update_touch_tracking(mouse_motion.position)
 
 
+func _block_horizontal_calendar_drag(event: InputEvent) -> bool:
+	var movement := Vector2.ZERO
+
+	if event is InputEventScreenDrag:
+		var drag := event as InputEventScreenDrag
+		movement = drag.position - touch_start_position if touch_tracking_active else drag.relative
+	elif event is InputEventMouseMotion:
+		var mouse_motion := event as InputEventMouseMotion
+		if (mouse_motion.button_mask & MOUSE_BUTTON_MASK_LEFT) == 0:
+			return false
+		movement = mouse_motion.position - touch_start_position if touch_tracking_active else mouse_motion.relative
+	else:
+		return false
+
+	var horizontal := absf(movement.x)
+	var vertical := absf(movement.y)
+	if horizontal < HORIZONTAL_DRAG_BLOCK_DISTANCE or horizontal < vertical * HORIZONTAL_DRAG_DOMINANCE:
+		return false
+
+	touch_drag_cancelled = true
+	last_drag_release_msec = int(Time.get_ticks_msec())
+	_release_scroll_buttons()
+	_lock_horizontal_scroll_deferred()
+	get_viewport().set_input_as_handled()
+	return true
+
+
 func _begin_touch_tracking(position: Vector2) -> void:
 	touch_tracking_active = true
 	touch_start_position = position
@@ -3056,6 +3087,9 @@ func _update_pause_result() -> void:
 
 
 func _on_previous_month() -> void:
+	if _tap_is_blocked():
+		return
+
 	_capture_undo_state()
 	var previous := _previous_month(current_year, current_month)
 	current_year = int(previous["year"])
@@ -3065,6 +3099,9 @@ func _on_previous_month() -> void:
 
 
 func _on_previous_year() -> void:
+	if _tap_is_blocked():
+		return
+
 	_capture_undo_state()
 	current_year -= 1
 	_rebuild_calendar()
@@ -3072,6 +3109,9 @@ func _on_previous_year() -> void:
 
 
 func _on_next_month() -> void:
+	if _tap_is_blocked():
+		return
+
 	_capture_undo_state()
 	var next := _next_month(current_year, current_month)
 	current_year = int(next["year"])
@@ -3081,6 +3121,9 @@ func _on_next_month() -> void:
 
 
 func _on_next_year() -> void:
+	if _tap_is_blocked():
+		return
+
 	_capture_undo_state()
 	current_year += 1
 	_rebuild_calendar()
