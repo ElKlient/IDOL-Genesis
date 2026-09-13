@@ -130,6 +130,7 @@ var selected_day_number: int = 0
 var selected_note_key: String = ""
 var work_start_unix: int = 0
 var work_end_unix: int = 0
+var day_touch_targets: Array[Dictionary] = []
 var scroll_safe_buttons: Array[BaseButton] = []
 var navigation_buttons: Array[BaseButton] = []
 var weekly_rest_previous_pressed := true
@@ -153,6 +154,7 @@ var touch_start_position := Vector2.ZERO
 var touch_drag_total := Vector2.ZERO
 var touch_tracking_active := false
 var touch_drag_cancelled := false
+var touch_drag_block_generation := 0
 var last_drag_release_msec := -10000
 var navigation_action_unlock_msec := -10000
 var navigation_blocked_until_msec := -10000
@@ -160,6 +162,9 @@ var navigation_button_action_active := false
 var confirmed_calendar_year: int = 0
 var confirmed_calendar_month: int = 0
 var calendar_page_guard_ready := false
+var shield_touch_start_position := Vector2.ZERO
+var shield_touch_tracking := false
+var shield_touch_dragged := false
 
 
 func _ready() -> void:
@@ -211,6 +216,7 @@ func _on_main_scroll_gui_input(event: InputEvent) -> void:
 
 func _process(_delta: float) -> void:
 	_lock_horizontal_scroll()
+	_sync_calendar_touch_shield()
 	_restore_unapproved_calendar_page()
 
 
@@ -718,7 +724,6 @@ func _add_calendar_only_return_overlay() -> void:
 
 func _add_calendar_touch_shield() -> void:
 	calendar_touch_shield = Control.new()
-	calendar_touch_shield.set_anchors_preset(Control.PRESET_FULL_RECT)
 	calendar_touch_shield.mouse_filter = Control.MOUSE_FILTER_STOP
 	calendar_touch_shield.z_index = 38
 	calendar_touch_shield.visible = false
@@ -727,12 +732,127 @@ func _add_calendar_touch_shield() -> void:
 
 
 func _handle_calendar_touch_shield_input(event: InputEvent) -> void:
-	_track_scroll_touch(event)
-	if _event_is_drag_motion(event):
+	var position := _calendar_touch_event_position(event)
+
+	if event is InputEventScreenTouch:
+		var touch := event as InputEventScreenTouch
+		if touch.pressed:
+			_begin_calendar_shield_touch(position)
+		else:
+			_finish_calendar_shield_touch(position)
+	elif event is InputEventMouseButton:
+		var mouse_button := event as InputEventMouseButton
+		if mouse_button.button_index == MOUSE_BUTTON_LEFT:
+			if mouse_button.pressed:
+				_begin_calendar_shield_touch(position)
+			else:
+				_finish_calendar_shield_touch(position)
+	elif _event_is_drag_motion(event):
+		_mark_calendar_shield_drag(position)
+
+	if shield_touch_dragged:
 		_block_touch_drag_actions()
 	_lock_horizontal_scroll_deferred()
 	accept_event()
 	get_viewport().set_input_as_handled()
+
+
+func _calendar_touch_event_position(event: InputEvent) -> Vector2:
+	var position := Vector2.ZERO
+	if event is InputEventScreenTouch:
+		position = (event as InputEventScreenTouch).position
+	elif event is InputEventScreenDrag:
+		position = (event as InputEventScreenDrag).position
+	elif event is InputEventMouseButton:
+		position = (event as InputEventMouseButton).position
+	elif event is InputEventMouseMotion:
+		position = (event as InputEventMouseMotion).position
+	elif event is InputEventPanGesture:
+		position = (event as InputEventPanGesture).position
+
+	if calendar_touch_shield == null:
+		return position
+
+	if calendar_touch_shield.get_global_rect().has_point(position):
+		return position
+
+	return calendar_touch_shield.get_global_transform_with_canvas() * position
+
+
+func _begin_calendar_shield_touch(position: Vector2) -> void:
+	shield_touch_start_position = position
+	shield_touch_tracking = true
+	shield_touch_dragged = false
+
+
+func _mark_calendar_shield_drag(position: Vector2) -> void:
+	if not shield_touch_tracking:
+		shield_touch_dragged = true
+		return
+
+	if shield_touch_start_position.distance_to(position) > TOUCH_DRAG_CANCEL_DISTANCE:
+		shield_touch_dragged = true
+
+
+func _finish_calendar_shield_touch(position: Vector2) -> void:
+	var was_dragged := shield_touch_dragged
+	if shield_touch_tracking and shield_touch_start_position.distance_to(position) > TOUCH_DRAG_CANCEL_DISTANCE:
+		was_dragged = true
+
+	shield_touch_tracking = false
+	shield_touch_dragged = false
+
+	if was_dragged or calendar_only_mode:
+		_block_touch_drag_actions()
+		return
+
+	var target := _calendar_day_at_position(position)
+	if target.is_empty():
+		return
+
+	_open_day_actions(int(target["year"]), int(target["month"]), int(target["day"]))
+
+
+func _sync_calendar_touch_shield() -> void:
+	if calendar_touch_shield == null:
+		return
+	if months_box == null or not is_instance_valid(months_box):
+		calendar_touch_shield.visible = false
+		return
+	if calendar_root == null or not is_instance_valid(calendar_root) or not calendar_root.visible:
+		calendar_touch_shield.visible = false
+		return
+
+	var rect := months_box.get_global_rect()
+	if rect.size.x <= 1.0 or rect.size.y <= 1.0:
+		calendar_touch_shield.visible = false
+		return
+
+	calendar_touch_shield.position = rect.position
+	calendar_touch_shield.size = rect.size
+	calendar_touch_shield.visible = true
+
+
+func _register_day_touch_target(button: Button, year: int, month: int, day: int) -> void:
+	day_touch_targets.append({
+		"button": button,
+		"year": year,
+		"month": month,
+		"day": day,
+	})
+
+
+func _calendar_day_at_position(position: Vector2) -> Dictionary:
+	for index in range(day_touch_targets.size() - 1, -1, -1):
+		var target := day_touch_targets[index]
+		var button = target.get("button", null)
+		if not (button is Button) or not is_instance_valid(button):
+			day_touch_targets.remove_at(index)
+			continue
+		if button.visible and button.get_global_rect().has_point(position):
+			return target
+
+	return {}
 
 
 func _build_profile_panel() -> PanelContainer:
@@ -1105,8 +1225,7 @@ func _apply_main_view_mode(saved: bool) -> void:
 		summary_label.visible = not saved and not calendar_only_mode
 	if legend_bar != null:
 		legend_bar.visible = not saved and not calendar_only_mode
-	if calendar_touch_shield != null:
-		calendar_touch_shield.visible = calendar_only_mode
+	_sync_calendar_touch_shield()
 	if settings_toggle_button != null:
 		settings_toggle_button.visible = not saved and not calendar_only_mode
 	if settings_panel != null and (saved or calendar_only_mode):
@@ -1836,6 +1955,7 @@ func _rebuild_calendar() -> void:
 		return
 
 	_refresh_today_day_index()
+	day_touch_targets.clear()
 
 	for child in months_box.get_children():
 		child.queue_free()
@@ -1862,6 +1982,7 @@ func _rebuild_calendar() -> void:
 	if month_count == 12:
 		months_box.add_child(_make_year_overview_section(current_year))
 		_lock_horizontal_scroll_deferred()
+		call_deferred("_sync_calendar_touch_shield")
 		return
 
 	var year := current_year
@@ -1873,6 +1994,7 @@ func _rebuild_calendar() -> void:
 			month = 1
 			year += 1
 	_lock_horizontal_scroll_deferred()
+	call_deferred("_sync_calendar_touch_shield")
 
 
 func _make_month_section(year: int, month: int) -> VBoxContainer:
@@ -1881,12 +2003,9 @@ func _make_month_section(year: int, month: int) -> VBoxContainer:
 	section.add_theme_constant_override("separation", 16)
 	_prepare_calendar_drag_blocker(section)
 
-	if year == current_year and month == current_month and not calendar_only_mode:
-		section.add_child(_make_month_title_row(year, month))
-	else:
-		var title := _make_label("%s %d" % [MONTH_NAMES[month - 1], year], 33 if _range_months() == 1 else 28, COLOR_TEXT)
-		title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		section.add_child(title)
+	var title := _make_label("%s %d" % [MONTH_NAMES[month - 1], year], 33 if _range_months() == 1 else 28, COLOR_TEXT)
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	section.add_child(title)
 
 	if year == current_year and month == current_month and _should_show_first_cycle_hint():
 		var hint := _make_label("Kliknij swój pierwszy dzień i wyznacz swój cykl.", 25, COLOR_TODAY)
@@ -1919,28 +2038,6 @@ func _make_month_section(year: int, month: int) -> VBoxContainer:
 		grid.add_child(_make_day_cell(year, month, day, day_index, state, day_index == today_day_index))
 
 	return section
-
-
-func _make_month_title_row(year: int, month: int) -> HBoxContainer:
-	var row := HBoxContainer.new()
-	row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	row.add_theme_constant_override("separation", 8)
-	_prepare_calendar_drag_blocker(row)
-
-	var previous_button := _make_month_title_button("<")
-	_connect_navigation_tap(previous_button, Callable(self, "_on_previous_month"))
-	row.add_child(previous_button)
-
-	var title := _make_label("%s %d" % [MONTH_NAMES[month - 1], year], 33 if _range_months() == 1 else 28, COLOR_TEXT)
-	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	row.add_child(title)
-
-	var next_button := _make_month_title_button(">")
-	_connect_navigation_tap(next_button, Callable(self, "_on_next_month"))
-	row.add_child(next_button)
-
-	return row
 
 
 func _make_year_overview_section(year: int) -> VBoxContainer:
@@ -2036,6 +2133,7 @@ func _make_day_cell(year: int, month: int, day: int, day_index: int, state: int,
 	_fill_day_tile(button, day, day_index, state, notes.has(key), is_today)
 	_connect_tap(button, Callable(self, "_open_day_actions").bind(year, month, day))
 	_prepare_calendar_drag_blocker(button)
+	_register_day_touch_target(button, year, month, day)
 	return button
 
 
@@ -2669,15 +2767,6 @@ func _make_nav_button(text: String) -> Button:
 	return button
 
 
-func _make_month_title_button(text: String) -> Button:
-	var button := Button.new()
-	button.text = text
-	_prepare_control(button, 22, 46)
-	button.custom_minimum_size.x = 58
-	button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	return button
-
-
 func _action_button(text: String, accent: Color = COLOR_TILE_EMPTY) -> Button:
 	var button := Button.new()
 	button.text = text
@@ -2797,6 +2886,7 @@ func _handle_navigation_button_input(event: InputEvent, button: BaseButton, acti
 			button.set_meta("nav_tap_dragged", false)
 			button.set_meta("nav_tap_scroll_start", _main_scroll_vertical())
 			button.set_meta("nav_tap_start_msec", int(Time.get_ticks_msec()))
+			button.set_meta("nav_tap_generation", touch_drag_block_generation)
 		else:
 			_activate_navigation_button_if_clean_tap(button, action, touch.position)
 	elif event is InputEventScreenDrag:
@@ -2811,6 +2901,7 @@ func _handle_navigation_button_input(event: InputEvent, button: BaseButton, acti
 			button.set_meta("nav_tap_dragged", false)
 			button.set_meta("nav_tap_scroll_start", _main_scroll_vertical())
 			button.set_meta("nav_tap_start_msec", int(Time.get_ticks_msec()))
+			button.set_meta("nav_tap_generation", touch_drag_block_generation)
 		else:
 			_activate_navigation_button_if_clean_tap(button, action, mouse_button.position)
 	elif event is InputEventMouseMotion:
@@ -2846,9 +2937,10 @@ func _activate_navigation_button_if_clean_tap(button: BaseButton, action: Callab
 	var scroll_moved := absf(_main_scroll_vertical() - scroll_start) > 1.0
 	var start_msec := int(button.get_meta("nav_tap_start_msec", int(Time.get_ticks_msec())))
 	var tap_timed_out := int(Time.get_ticks_msec()) - start_msec > NAVIGATION_TAP_MAX_MS
+	var drag_generation_changed := int(button.get_meta("nav_tap_generation", touch_drag_block_generation)) != touch_drag_block_generation
 	_clear_navigation_button_tap(button)
 
-	if was_dragged or scroll_moved or tap_timed_out or start_position.distance_to(position) > TOUCH_DRAG_CANCEL_DISTANCE or _tap_is_blocked():
+	if was_dragged or scroll_moved or tap_timed_out or drag_generation_changed or start_position.distance_to(position) > TOUCH_DRAG_CANCEL_DISTANCE or _tap_is_blocked():
 		get_viewport().set_input_as_handled()
 		return
 
@@ -2963,10 +3055,11 @@ func _block_calendar_touch_drag(event: InputEvent) -> bool:
 
 
 func _point_inside_calendar_area(position: Vector2) -> bool:
-	if calendar_root == null or not is_instance_valid(calendar_root) or not calendar_root.visible:
+	var target: Control = months_box if months_box != null and is_instance_valid(months_box) else calendar_root
+	if target == null or not is_instance_valid(target) or not target.visible:
 		return false
 
-	return calendar_root.get_global_rect().has_point(position)
+	return target.get_global_rect().has_point(position)
 
 
 func _begin_touch_tracking(position: Vector2) -> void:
@@ -2992,6 +3085,7 @@ func _end_touch_tracking() -> void:
 
 
 func _block_touch_drag_actions() -> void:
+	touch_drag_block_generation += 1
 	touch_drag_cancelled = true
 	_block_navigation_after_scroll()
 	_release_scroll_buttons()
@@ -3026,6 +3120,8 @@ func _clear_navigation_button_tap(button: BaseButton) -> void:
 		button.remove_meta("nav_tap_scroll_start")
 	if button.has_meta("nav_tap_start_msec"):
 		button.remove_meta("nav_tap_start_msec")
+	if button.has_meta("nav_tap_generation"):
+		button.remove_meta("nav_tap_generation")
 	if not button.toggle_mode:
 		button.set_pressed_no_signal(false)
 
