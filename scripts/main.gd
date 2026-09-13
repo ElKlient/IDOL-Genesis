@@ -130,6 +130,7 @@ var selected_note_key: String = ""
 var work_start_unix: int = 0
 var work_end_unix: int = 0
 var scroll_safe_buttons: Array[BaseButton] = []
+var navigation_buttons: Array[BaseButton] = []
 var weekly_rest_previous_pressed := true
 var fixed_start_previous_pressed := false
 var main_view_saved := false
@@ -188,12 +189,12 @@ func _gui_input(event: InputEvent) -> void:
 func _on_main_scroll_gui_input(event: InputEvent) -> void:
 	_track_scroll_touch(event)
 	if event is InputEventScreenDrag:
-		_block_navigation_after_scroll()
+		_block_touch_drag_actions()
 		_lock_horizontal_scroll_deferred()
 	elif event is InputEventMouseMotion:
 		var mouse_motion := event as InputEventMouseMotion
 		if (mouse_motion.button_mask & MOUSE_BUTTON_MASK_LEFT) != 0:
-			_block_navigation_after_scroll()
+			_block_touch_drag_actions()
 			_lock_horizontal_scroll_deferred()
 
 
@@ -2700,6 +2701,8 @@ func _connect_tap(button: BaseButton, action: Callable) -> void:
 
 func _connect_navigation_tap(button: BaseButton, action: Callable) -> void:
 	_register_scroll_safe_control(button)
+	if not navigation_buttons.has(button):
+		navigation_buttons.append(button)
 	button.mouse_filter = Control.MOUSE_FILTER_STOP
 	button.gui_input.connect(_handle_navigation_button_input.bind(button, action))
 
@@ -2738,6 +2741,7 @@ func _handle_navigation_button_input(event: InputEvent, button: BaseButton, acti
 		if touch.pressed:
 			button.set_meta("nav_tap_start", touch.position)
 			button.set_meta("nav_tap_dragged", false)
+			button.set_meta("nav_tap_scroll_start", _main_scroll_vertical())
 		else:
 			_activate_navigation_button_if_clean_tap(button, action, touch.position)
 	elif event is InputEventScreenDrag:
@@ -2750,6 +2754,7 @@ func _handle_navigation_button_input(event: InputEvent, button: BaseButton, acti
 		if mouse_button.pressed:
 			button.set_meta("nav_tap_start", mouse_button.position)
 			button.set_meta("nav_tap_dragged", false)
+			button.set_meta("nav_tap_scroll_start", _main_scroll_vertical())
 		else:
 			_activate_navigation_button_if_clean_tap(button, action, mouse_button.position)
 	elif event is InputEventMouseMotion:
@@ -2775,16 +2780,17 @@ func _mark_navigation_button_drag(button: BaseButton, position: Vector2) -> void
 
 func _activate_navigation_button_if_clean_tap(button: BaseButton, action: Callable, position: Vector2) -> void:
 	if not button.has_meta("nav_tap_start"):
+		_clear_navigation_button_tap(button)
 		get_viewport().set_input_as_handled()
 		return
 
 	var start_position: Vector2 = button.get_meta("nav_tap_start", position)
 	var was_dragged := bool(button.get_meta("nav_tap_dragged", true))
-	button.remove_meta("nav_tap_start")
-	button.remove_meta("nav_tap_dragged")
-	button.set_pressed_no_signal(false)
+	var scroll_start := float(button.get_meta("nav_tap_scroll_start", _main_scroll_vertical()))
+	var scroll_moved := absf(_main_scroll_vertical() - scroll_start) > 1.0
+	_clear_navigation_button_tap(button)
 
-	if was_dragged or start_position.distance_to(position) > TAP_CANCEL_DISTANCE or _tap_is_blocked():
+	if was_dragged or scroll_moved or start_position.distance_to(position) > TAP_CANCEL_DISTANCE or _tap_is_blocked():
 		get_viewport().set_input_as_handled()
 		return
 
@@ -2902,6 +2908,37 @@ func _block_touch_drag_actions() -> void:
 	touch_drag_cancelled = true
 	_block_navigation_after_scroll()
 	_release_scroll_buttons()
+	_cancel_navigation_button_taps()
+
+
+func _main_scroll_vertical() -> float:
+	if main_scroll == null:
+		return 0.0
+
+	return float(main_scroll.scroll_vertical)
+
+
+func _cancel_navigation_button_taps() -> void:
+	for index in range(navigation_buttons.size() - 1, -1, -1):
+		var button := navigation_buttons[index]
+		if not is_instance_valid(button):
+			navigation_buttons.remove_at(index)
+		else:
+			_clear_navigation_button_tap(button)
+
+
+func _clear_navigation_button_tap(button: BaseButton) -> void:
+	if not is_instance_valid(button):
+		return
+
+	if button.has_meta("nav_tap_start"):
+		button.remove_meta("nav_tap_start")
+	if button.has_meta("nav_tap_dragged"):
+		button.remove_meta("nav_tap_dragged")
+	if button.has_meta("nav_tap_scroll_start"):
+		button.remove_meta("nav_tap_scroll_start")
+	if not button.toggle_mode:
+		button.set_pressed_no_signal(false)
 
 
 func _is_horizontal_drag(movement: Vector2) -> bool:
@@ -3109,8 +3146,7 @@ func _on_horizontal_scroll_changed(value: float) -> void:
 
 
 func _on_main_scroll_vertical_changed(_value: float) -> void:
-	_block_navigation_after_scroll()
-	_release_scroll_buttons()
+	_block_touch_drag_actions()
 
 
 func _lock_horizontal_scroll_deferred() -> void:
