@@ -315,6 +315,7 @@ func _build_ui() -> void:
 	months_box = VBoxContainer.new()
 	months_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	months_box.add_theme_constant_override("separation", 26)
+	_prepare_calendar_drag_blocker(months_box)
 	root.add_child(months_box)
 
 	legend_bar = _build_legend()
@@ -1811,6 +1812,7 @@ func _make_month_section(year: int, month: int) -> VBoxContainer:
 	var section := VBoxContainer.new()
 	section.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	section.add_theme_constant_override("separation", 16)
+	_prepare_calendar_drag_blocker(section)
 
 	if year == current_year and month == current_month and not calendar_only_mode:
 		section.add_child(_make_month_title_row(year, month))
@@ -1835,6 +1837,7 @@ func _make_month_section(year: int, month: int) -> VBoxContainer:
 	grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	grid.add_theme_constant_override("h_separation", 8)
 	grid.add_theme_constant_override("v_separation", 10)
+	_prepare_calendar_drag_blocker(grid)
 	section.add_child(grid)
 
 	var first_offset := ScheduleCalculator.month_start_weekday_monday(year, month)
@@ -1855,6 +1858,7 @@ func _make_month_title_row(year: int, month: int) -> HBoxContainer:
 	var row := HBoxContainer.new()
 	row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_theme_constant_override("separation", 8)
+	_prepare_calendar_drag_blocker(row)
 
 	var previous_button := _make_month_title_button("<")
 	_connect_navigation_tap(previous_button, Callable(self, "_on_previous_month"))
@@ -1876,6 +1880,7 @@ func _make_year_overview_section(year: int) -> VBoxContainer:
 	var section := VBoxContainer.new()
 	section.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	section.add_theme_constant_override("separation", 16)
+	_prepare_calendar_drag_blocker(section)
 
 	var title := _make_label("Rok %d" % year, 33, COLOR_TEXT)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -1886,6 +1891,7 @@ func _make_year_overview_section(year: int) -> VBoxContainer:
 	grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	grid.add_theme_constant_override("h_separation", 8)
 	grid.add_theme_constant_override("v_separation", 10)
+	_prepare_calendar_drag_blocker(grid)
 	section.add_child(grid)
 
 	var now := Time.get_datetime_dict_from_system()
@@ -1969,6 +1975,7 @@ func _make_day_spacer() -> Control:
 	var spacer := Control.new()
 	spacer.custom_minimum_size = Vector2(0, _day_cell_height())
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_prepare_calendar_drag_blocker(spacer)
 	return spacer
 
 
@@ -2694,6 +2701,34 @@ func _connect_navigation_tap(button: BaseButton, action: Callable) -> void:
 	_register_scroll_safe_control(button)
 	button.mouse_filter = Control.MOUSE_FILTER_STOP
 	button.gui_input.connect(_handle_navigation_button_input.bind(button, action))
+
+
+func _prepare_calendar_drag_blocker(control: Control) -> void:
+	if control.has_meta("calendar_drag_blocker_registered"):
+		return
+
+	control.set_meta("calendar_drag_blocker_registered", true)
+	control.mouse_filter = Control.MOUSE_FILTER_STOP
+	control.gui_input.connect(_handle_calendar_area_input)
+
+
+func _handle_calendar_area_input(event: InputEvent) -> void:
+	_track_scroll_touch(event)
+	if event is InputEventScreenDrag:
+		_consume_calendar_drag()
+	elif event is InputEventMouseMotion:
+		var mouse_motion := event as InputEventMouseMotion
+		if (mouse_motion.button_mask & MOUSE_BUTTON_MASK_LEFT) != 0:
+			_consume_calendar_drag()
+
+
+func _consume_calendar_drag() -> void:
+	touch_drag_cancelled = true
+	_block_navigation_after_scroll()
+	_release_scroll_buttons()
+	_lock_horizontal_scroll_deferred()
+	accept_event()
+	get_viewport().set_input_as_handled()
 
 
 func _handle_navigation_button_input(event: InputEvent, button: BaseButton, action: Callable) -> void:
