@@ -156,6 +156,10 @@ var touch_drag_cancelled := false
 var last_drag_release_msec := -10000
 var navigation_action_unlock_msec := -10000
 var navigation_blocked_until_msec := -10000
+var navigation_button_action_active := false
+var confirmed_calendar_year: int = 0
+var confirmed_calendar_month: int = 0
+var calendar_page_guard_ready := false
 
 
 func _ready() -> void:
@@ -171,6 +175,7 @@ func _ready() -> void:
 	_load_settings_from_disk()
 	_apply_settings()
 	_apply_main_view_mode(main_view_saved)
+	_accept_calendar_page()
 
 
 func _input(event: InputEvent) -> void:
@@ -201,6 +206,7 @@ func _on_main_scroll_gui_input(event: InputEvent) -> void:
 
 func _process(_delta: float) -> void:
 	_lock_horizontal_scroll()
+	_restore_unapproved_calendar_page()
 
 
 func _force_portrait() -> void:
@@ -605,7 +611,7 @@ func _add_return_today_overlay() -> void:
 
 	return_today_button = Button.new()
 	return_today_button.text = "Wróć do aktualnej daty"
-	_connect_tap(return_today_button, Callable(self, "_on_return_to_today_pressed"))
+	_connect_navigation_tap(return_today_button, Callable(self, "_on_return_to_today_pressed"))
 	_prepare_control(return_today_button, 18, RETURN_TODAY_BUTTON_HEIGHT)
 	return_today_button.custom_minimum_size.x = RETURN_TODAY_BUTTON_WIDTH
 	return_today_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
@@ -983,7 +989,7 @@ func _set_profile_panel_visible(visible: bool) -> void:
 
 
 func _toggle_month_picker() -> void:
-	if not _navigation_action_allowed():
+	if not _navigation_button_action_allowed():
 		return
 
 	_set_month_picker_visible(not month_picker_visible)
@@ -1191,6 +1197,7 @@ func _load_settings_from_disk() -> void:
 	_set_profile_panel_visible(false)
 	current_year = int(config.get_value("calendar", "current_year", current_year))
 	current_month = clampi(int(config.get_value("calendar", "current_month", current_month)), 1, 12)
+	_accept_calendar_page()
 
 	_set_option_selected(schedule_option, _valid_option_index(schedule_option, int(config.get_value("calendar", "schedule_selected", 0))))
 	_set_option_selected(range_option, _valid_option_index(range_option, int(config.get_value("calendar", "range_selected", 0))))
@@ -1552,6 +1559,7 @@ func _restore_calendar_state(snapshot: Dictionary) -> void:
 	_apply_quick_navigation_body_visibility()
 	current_year = int(snapshot.get("current_year", current_year))
 	current_month = clampi(int(snapshot.get("current_month", current_month)), 1, 12)
+	_accept_calendar_page()
 
 	_set_option_selected(schedule_option, _valid_option_index(schedule_option, int(snapshot.get("schedule_selected", 0))))
 	_set_option_selected(range_option, _valid_option_index(range_option, int(snapshot.get("range_selected", 0))))
@@ -1717,6 +1725,7 @@ func _reset_calendar_settings() -> void:
 	var now := Time.get_datetime_dict_from_system()
 	current_year = int(now["year"])
 	current_month = int(now["month"])
+	_accept_calendar_page()
 	_refresh_today_day_index()
 	_rebuild_calendar()
 	_apply_main_view_mode(false)
@@ -2223,7 +2232,7 @@ func _on_quick_range_selected(index: int) -> void:
 
 
 func _on_month_picker_pressed(month_index: int) -> void:
-	if not _navigation_action_allowed():
+	if not _navigation_button_action_allowed():
 		return
 
 	if current_month == month_index and _range_months() == 1:
@@ -2232,6 +2241,7 @@ func _on_month_picker_pressed(month_index: int) -> void:
 
 	_capture_undo_state()
 	current_month = clampi(month_index, 1, 12)
+	_accept_calendar_page()
 	if range_option != null:
 		_set_option_selected(range_option, 0)
 	_sync_quick_range_option()
@@ -2791,7 +2801,9 @@ func _activate_navigation_button_if_clean_tap(button: BaseButton, action: Callab
 
 	get_viewport().set_input_as_handled()
 	_allow_navigation_action_once()
+	navigation_button_action_active = true
 	action.call()
+	navigation_button_action_active = false
 
 
 func _register_scroll_safe_control(control: Control) -> void:
@@ -2944,6 +2956,23 @@ func _is_horizontal_drag(movement: Vector2) -> bool:
 	return horizontal >= HORIZONTAL_DRAG_BLOCK_DISTANCE and horizontal >= vertical * HORIZONTAL_DRAG_DOMINANCE
 
 
+func _accept_calendar_page() -> void:
+	confirmed_calendar_year = current_year
+	confirmed_calendar_month = current_month
+	calendar_page_guard_ready = true
+
+
+func _restore_unapproved_calendar_page() -> void:
+	if not calendar_page_guard_ready:
+		return
+	if current_year == confirmed_calendar_year and current_month == confirmed_calendar_month:
+		return
+
+	current_year = confirmed_calendar_year
+	current_month = confirmed_calendar_month
+	_rebuild_calendar()
+
+
 func _allow_navigation_action_once() -> void:
 	navigation_action_unlock_msec = int(Time.get_ticks_msec())
 
@@ -2956,6 +2985,14 @@ func _navigation_action_allowed() -> bool:
 	var elapsed_msec := int(Time.get_ticks_msec()) - navigation_action_unlock_msec
 	navigation_action_unlock_msec = -10000
 	return elapsed_msec >= 0 and elapsed_msec <= TAP_BLOCK_AFTER_DRAG_MS
+
+
+func _navigation_button_action_allowed() -> bool:
+	if not navigation_button_action_active:
+		navigation_action_unlock_msec = -10000
+		return false
+
+	return _navigation_action_allowed()
 
 
 func _block_navigation_after_scroll() -> void:
@@ -3316,7 +3353,7 @@ func _update_pause_result() -> void:
 
 
 func _on_previous_month() -> void:
-	if not _navigation_action_allowed():
+	if not _navigation_button_action_allowed():
 		return
 
 	if _tap_is_blocked():
@@ -3326,12 +3363,13 @@ func _on_previous_month() -> void:
 	var previous := _previous_month(current_year, current_month)
 	current_year = int(previous["year"])
 	current_month = int(previous["month"])
+	_accept_calendar_page()
 	_rebuild_calendar()
 	_save_settings_to_disk()
 
 
 func _on_previous_year() -> void:
-	if not _navigation_action_allowed():
+	if not _navigation_button_action_allowed():
 		return
 
 	if _tap_is_blocked():
@@ -3339,12 +3377,13 @@ func _on_previous_year() -> void:
 
 	_capture_undo_state()
 	current_year -= 1
+	_accept_calendar_page()
 	_rebuild_calendar()
 	_save_settings_to_disk()
 
 
 func _on_next_month() -> void:
-	if not _navigation_action_allowed():
+	if not _navigation_button_action_allowed():
 		return
 
 	if _tap_is_blocked():
@@ -3354,12 +3393,13 @@ func _on_next_month() -> void:
 	var next := _next_month(current_year, current_month)
 	current_year = int(next["year"])
 	current_month = int(next["month"])
+	_accept_calendar_page()
 	_rebuild_calendar()
 	_save_settings_to_disk()
 
 
 func _on_next_year() -> void:
-	if not _navigation_action_allowed():
+	if not _navigation_button_action_allowed():
 		return
 
 	if _tap_is_blocked():
@@ -3367,15 +3407,20 @@ func _on_next_year() -> void:
 
 	_capture_undo_state()
 	current_year += 1
+	_accept_calendar_page()
 	_rebuild_calendar()
 	_save_settings_to_disk()
 
 
 func _on_return_to_today_pressed() -> void:
+	if not _navigation_button_action_allowed():
+		return
+
 	_capture_undo_state()
 	var now := Time.get_datetime_dict_from_system()
 	current_year = int(now["year"])
 	current_month = int(now["month"])
+	_accept_calendar_page()
 	_refresh_today_day_index()
 	_rebuild_calendar()
 	if main_scroll != null:
