@@ -95,6 +95,7 @@ var month_picker_panel: PanelContainer
 var settings_toggle_button: Button
 var settings_panel: PanelContainer
 var legend_bar: HBoxContainer
+var calendar_touch_shield: Control
 var calendar_only_toggle_button: Button
 var calendar_only_return_button: Button
 var day_tools_panel: PanelContainer
@@ -179,6 +180,8 @@ func _ready() -> void:
 
 func _input(event: InputEvent) -> void:
 	_track_scroll_touch(event)
+	if _consume_calendar_only_drag(event):
+		return
 	if _block_calendar_touch_drag(event):
 		return
 	if event is InputEventScreenDrag or event is InputEventMouseMotion:
@@ -187,6 +190,9 @@ func _input(event: InputEvent) -> void:
 
 func _gui_input(event: InputEvent) -> void:
 	_track_scroll_touch(event)
+	if _consume_calendar_only_drag(event):
+		accept_event()
+		return
 	if _block_calendar_touch_drag(event):
 		accept_event()
 
@@ -246,6 +252,7 @@ func _build_ui() -> void:
 	_add_return_today_overlay()
 	_add_reset_undo_overlay()
 	_add_profile_overlay()
+	_add_calendar_touch_shield()
 	_add_calendar_only_return_overlay()
 
 	var root := VBoxContainer.new()
@@ -709,6 +716,25 @@ func _add_calendar_only_return_overlay() -> void:
 	overlay.add_child(calendar_only_return_button)
 
 
+func _add_calendar_touch_shield() -> void:
+	calendar_touch_shield = Control.new()
+	calendar_touch_shield.set_anchors_preset(Control.PRESET_FULL_RECT)
+	calendar_touch_shield.mouse_filter = Control.MOUSE_FILTER_STOP
+	calendar_touch_shield.z_index = 38
+	calendar_touch_shield.visible = false
+	calendar_touch_shield.gui_input.connect(_handle_calendar_touch_shield_input)
+	add_child(calendar_touch_shield)
+
+
+func _handle_calendar_touch_shield_input(event: InputEvent) -> void:
+	_track_scroll_touch(event)
+	if _event_is_drag_motion(event):
+		_block_touch_drag_actions()
+	_lock_horizontal_scroll_deferred()
+	accept_event()
+	get_viewport().set_input_as_handled()
+
+
 func _build_profile_panel() -> PanelContainer:
 	var panel := _panel()
 	panel.custom_minimum_size.x = PROFILE_PANEL_WIDTH
@@ -1079,6 +1105,8 @@ func _apply_main_view_mode(saved: bool) -> void:
 		summary_label.visible = not saved and not calendar_only_mode
 	if legend_bar != null:
 		legend_bar.visible = not saved and not calendar_only_mode
+	if calendar_touch_shield != null:
+		calendar_touch_shield.visible = calendar_only_mode
 	if settings_toggle_button != null:
 		settings_toggle_button.visible = not saved and not calendar_only_mode
 	if settings_panel != null and (saved or calendar_only_mode):
@@ -2007,6 +2035,7 @@ func _make_day_cell(year: int, month: int, day: int, day_index: int, state: int,
 	button.add_theme_stylebox_override("focus", _tile_style(_state_color(state), true, is_vacation))
 	_fill_day_tile(button, day, day_index, state, notes.has(key), is_today)
 	_connect_tap(button, Callable(self, "_open_day_actions").bind(year, month, day))
+	_prepare_calendar_drag_blocker(button)
 	return button
 
 
@@ -2888,6 +2917,26 @@ func _track_scroll_touch(event: InputEvent) -> void:
 			_update_touch_tracking(mouse_motion.position)
 
 
+func _consume_calendar_only_drag(event: InputEvent) -> bool:
+	if not calendar_only_mode or not _event_is_drag_motion(event):
+		return false
+
+	_block_touch_drag_actions()
+	_lock_horizontal_scroll_deferred()
+	get_viewport().set_input_as_handled()
+	return true
+
+
+func _event_is_drag_motion(event: InputEvent) -> bool:
+	if event is InputEventScreenDrag or event is InputEventPanGesture:
+		return true
+	if event is InputEventMouseMotion:
+		var mouse_motion := event as InputEventMouseMotion
+		return (mouse_motion.button_mask & MOUSE_BUTTON_MASK_LEFT) != 0
+
+	return false
+
+
 func _block_calendar_touch_drag(event: InputEvent) -> bool:
 	var position := Vector2.ZERO
 
@@ -3013,6 +3062,10 @@ func _navigation_action_allowed() -> bool:
 
 
 func _navigation_button_action_allowed() -> bool:
+	if calendar_only_mode:
+		navigation_action_unlock_msec = -10000
+		return false
+
 	if not navigation_button_action_active:
 		navigation_action_unlock_msec = -10000
 		return false
