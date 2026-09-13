@@ -39,6 +39,9 @@ const TILE_COLUMNS := 7
 const SETTINGS_PATH := "user://driver_calendar.cfg"
 const TOUCH_DRAG_CANCEL_DISTANCE := 8.0
 const TAP_BLOCK_AFTER_DRAG_MS := 450
+const NAVIGATION_TAP_MAX_MS := 300
+const NAVIGATION_TAP_MOVE_LIMIT := 6.0
+const NAVIGATION_TAP_SCROLL_LIMIT := 1.0
 const NAVIGATION_BLOCK_AFTER_SCROLL_MS := 1600
 const TOUCH_SCROLL_DEADZONE_MENU := 18
 const RETURN_TODAY_BUTTON_TOP := 84
@@ -2856,12 +2859,7 @@ func _connect_navigation_tap(button: BaseButton, action: Callable) -> void:
 	if not navigation_buttons.has(button):
 		navigation_buttons.append(button)
 	button.mouse_filter = Control.MOUSE_FILTER_PASS
-	button.gui_input.connect(_handle_navigation_button_input.bind(button))
-	button.pressed.connect(func() -> void:
-		if _tap_is_blocked():
-			return
-		_run_navigation_button_action(action)
-	)
+	button.gui_input.connect(_handle_navigation_button_input.bind(button, action))
 
 
 func _prepare_calendar_drag_blocker(control: Control) -> void:
@@ -2884,14 +2882,116 @@ func _handle_calendar_area_input(event: InputEvent) -> void:
 	get_viewport().set_input_as_handled()
 
 
-func _handle_navigation_button_input(event: InputEvent, button: BaseButton) -> void:
-	if not _event_is_drag_motion(event):
+func _handle_navigation_button_input(event: InputEvent, button: BaseButton, action: Callable) -> void:
+	if event is InputEventScreenTouch:
+		var touch := event as InputEventScreenTouch
+		if touch.pressed:
+			_begin_navigation_button_tap(button, touch.position)
+		else:
+			_finish_navigation_button_tap(button, action, touch.position)
+	elif event is InputEventMouseButton:
+		var mouse_button := event as InputEventMouseButton
+		if mouse_button.button_index != MOUSE_BUTTON_LEFT:
+			return
+		if mouse_button.pressed:
+			_begin_navigation_button_tap(button, mouse_button.position)
+		else:
+			_finish_navigation_button_tap(button, action, mouse_button.position)
+	elif _event_is_drag_motion(event):
+		_cancel_navigation_button_tap_if_moved(button, _event_pointer_position(event))
+
+
+func _begin_navigation_button_tap(button: BaseButton, position: Vector2) -> void:
+	button.set_meta("nav_press_position", position)
+	button.set_meta("nav_press_global_position", button.get_global_mouse_position())
+	button.set_meta("nav_press_generation", touch_drag_block_generation)
+	button.set_meta("nav_press_msec", int(Time.get_ticks_msec()))
+	button.set_meta("nav_press_scroll", _current_vertical_scroll())
+
+
+func _finish_navigation_button_tap(button: BaseButton, action: Callable, position: Vector2) -> void:
+	var clean_tap := _navigation_button_tap_is_clean(button, position)
+	_clear_navigation_button_tap(button)
+	button.set_pressed_no_signal(false)
+	accept_event()
+
+	if not clean_tap:
+		get_viewport().set_input_as_handled()
+		return
+
+	get_viewport().set_input_as_handled()
+	_run_navigation_button_action(action)
+
+
+func _cancel_navigation_button_tap_if_moved(button: BaseButton, position: Vector2) -> void:
+	if not button.has_meta("nav_press_position"):
+		_block_touch_drag_actions()
+		button.set_pressed_no_signal(false)
+		_lock_horizontal_scroll_deferred()
+		return
+
+	var start_position: Vector2 = button.get_meta("nav_press_position", position)
+	var start_global_position: Vector2 = button.get_meta("nav_press_global_position", button.get_global_mouse_position())
+	var event_moved := start_position.distance_to(position) > NAVIGATION_TAP_MOVE_LIMIT
+	var global_moved := start_global_position.distance_to(button.get_global_mouse_position()) > NAVIGATION_TAP_MOVE_LIMIT
+	if not event_moved and not global_moved:
 		return
 
 	_block_touch_drag_actions()
+	_clear_navigation_button_tap(button)
 	button.set_pressed_no_signal(false)
 	_lock_horizontal_scroll_deferred()
-	get_viewport().set_input_as_handled()
+
+
+func _navigation_button_tap_is_clean(button: BaseButton, position: Vector2) -> bool:
+	if _tap_is_blocked():
+		return false
+	if not button.has_meta("nav_press_position"):
+		return false
+
+	var start_generation := int(button.get_meta("nav_press_generation", touch_drag_block_generation))
+	if start_generation != touch_drag_block_generation:
+		return false
+
+	var start_msec := int(button.get_meta("nav_press_msec", int(Time.get_ticks_msec())))
+	if int(Time.get_ticks_msec()) - start_msec > NAVIGATION_TAP_MAX_MS:
+		return false
+
+	var start_scroll := float(button.get_meta("nav_press_scroll", _current_vertical_scroll()))
+	if absf(_current_vertical_scroll() - start_scroll) > NAVIGATION_TAP_SCROLL_LIMIT:
+		return false
+
+	var start_position: Vector2 = button.get_meta("nav_press_position", position)
+	if start_position.distance_to(position) > NAVIGATION_TAP_MOVE_LIMIT:
+		return false
+
+	var start_global_position: Vector2 = button.get_meta("nav_press_global_position", button.get_global_mouse_position())
+	if start_global_position.distance_to(button.get_global_mouse_position()) > NAVIGATION_TAP_MOVE_LIMIT:
+		return false
+
+	return true
+
+
+func _event_pointer_position(event: InputEvent) -> Vector2:
+	if event is InputEventScreenTouch:
+		return (event as InputEventScreenTouch).position
+	if event is InputEventScreenDrag:
+		return (event as InputEventScreenDrag).position
+	if event is InputEventMouseButton:
+		return (event as InputEventMouseButton).position
+	if event is InputEventMouseMotion:
+		return (event as InputEventMouseMotion).position
+	if event is InputEventPanGesture:
+		return (event as InputEventPanGesture).position
+
+	return get_viewport().get_mouse_position()
+
+
+func _current_vertical_scroll() -> float:
+	if main_scroll == null:
+		return 0.0
+
+	return float(main_scroll.scroll_vertical)
 
 
 func _run_navigation_button_action(action: Callable) -> void:
@@ -3064,6 +3164,16 @@ func _clear_navigation_button_tap(button: BaseButton) -> void:
 	if not is_instance_valid(button):
 		return
 
+	if button.has_meta("nav_press_position"):
+		button.remove_meta("nav_press_position")
+	if button.has_meta("nav_press_global_position"):
+		button.remove_meta("nav_press_global_position")
+	if button.has_meta("nav_press_generation"):
+		button.remove_meta("nav_press_generation")
+	if button.has_meta("nav_press_msec"):
+		button.remove_meta("nav_press_msec")
+	if button.has_meta("nav_press_scroll"):
+		button.remove_meta("nav_press_scroll")
 	if not button.toggle_mode:
 		button.set_pressed_no_signal(false)
 
