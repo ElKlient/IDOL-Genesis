@@ -496,7 +496,7 @@ func _build_navigation_panel() -> PanelContainer:
 	box.add_child(nav)
 
 	var previous_button := _make_nav_button("<")
-	_connect_navigation_tap(previous_button, Callable(self, "_on_previous_month"))
+	_connect_navigation_tap(previous_button, Callable(self, "_button_previous_month"))
 	nav.add_child(previous_button)
 
 	range_option = OptionButton.new()
@@ -509,7 +509,7 @@ func _build_navigation_panel() -> PanelContainer:
 	nav.add_child(range_option)
 
 	var next_button := _make_nav_button(">")
-	_connect_navigation_tap(next_button, Callable(self, "_on_next_month"))
+	_connect_navigation_tap(next_button, Callable(self, "_button_next_month"))
 	nav.add_child(next_button)
 
 	var year_buttons := HBoxContainer.new()
@@ -517,11 +517,11 @@ func _build_navigation_panel() -> PanelContainer:
 	box.add_child(year_buttons)
 
 	var previous_year_button := _make_nav_button("<< rok")
-	_connect_navigation_tap(previous_year_button, Callable(self, "_on_previous_year"))
+	_connect_navigation_tap(previous_year_button, Callable(self, "_button_previous_year"))
 	year_buttons.add_child(previous_year_button)
 
 	var next_year_button := _make_nav_button("rok >>")
-	_connect_navigation_tap(next_year_button, Callable(self, "_on_next_year"))
+	_connect_navigation_tap(next_year_button, Callable(self, "_button_next_year"))
 	year_buttons.add_child(next_year_button)
 
 	return panel
@@ -558,7 +558,7 @@ func _build_quick_navigation_panel() -> PanelContainer:
 	quick_navigation_body.add_child(nav)
 
 	var previous_button := _make_nav_button("<")
-	_connect_navigation_tap(previous_button, Callable(self, "_on_previous_month"))
+	_connect_navigation_tap(previous_button, Callable(self, "_button_previous_month"))
 	nav.add_child(previous_button)
 
 	quick_range_option = OptionButton.new()
@@ -571,7 +571,7 @@ func _build_quick_navigation_panel() -> PanelContainer:
 	nav.add_child(quick_range_option)
 
 	var next_button := _make_nav_button(">")
-	_connect_navigation_tap(next_button, Callable(self, "_on_next_month"))
+	_connect_navigation_tap(next_button, Callable(self, "_button_next_month"))
 	nav.add_child(next_button)
 
 	var year_buttons := HBoxContainer.new()
@@ -579,15 +579,15 @@ func _build_quick_navigation_panel() -> PanelContainer:
 	quick_navigation_body.add_child(year_buttons)
 
 	var previous_year_button := _make_nav_button("<< rok")
-	_connect_navigation_tap(previous_year_button, Callable(self, "_on_previous_year"))
+	_connect_navigation_tap(previous_year_button, Callable(self, "_button_previous_year"))
 	year_buttons.add_child(previous_year_button)
 
 	quick_month_picker_button = _make_nav_button("Miesiące")
-	_connect_navigation_tap(quick_month_picker_button, Callable(self, "_toggle_month_picker"))
+	_connect_navigation_tap(quick_month_picker_button, Callable(self, "_button_toggle_month_picker"))
 	year_buttons.add_child(quick_month_picker_button)
 
 	var next_year_button := _make_nav_button("rok >>")
-	_connect_navigation_tap(next_year_button, Callable(self, "_on_next_year"))
+	_connect_navigation_tap(next_year_button, Callable(self, "_button_next_year"))
 	year_buttons.add_child(next_year_button)
 
 	month_picker_panel = _build_month_picker_panel()
@@ -618,7 +618,7 @@ func _build_month_picker_panel() -> PanelContainer:
 	for month_index in range(1, 13):
 		var month_button := Button.new()
 		month_button.text = MONTH_NAMES[month_index - 1]
-		_connect_navigation_tap(month_button, Callable(self, "_on_month_picker_pressed").bind(month_index))
+		_connect_navigation_tap(month_button, Callable(self, "_button_pick_month").bind(month_index))
 		_prepare_control(month_button, 16, 48)
 		grid.add_child(month_button)
 
@@ -643,7 +643,7 @@ func _add_return_today_overlay() -> void:
 
 	return_today_button = Button.new()
 	return_today_button.text = "Wróć do aktualnej daty"
-	_connect_navigation_tap(return_today_button, Callable(self, "_on_return_to_today_pressed"))
+	_connect_navigation_tap(return_today_button, Callable(self, "_button_return_to_today"))
 	_prepare_control(return_today_button, 18, RETURN_TODAY_BUTTON_HEIGHT)
 	return_today_button.custom_minimum_size.x = RETURN_TODAY_BUTTON_WIDTH
 	return_today_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
@@ -1159,7 +1159,7 @@ func _set_profile_panel_visible(visible: bool) -> void:
 		profile_panel.visible = visible
 
 
-func _toggle_month_picker() -> void:
+func _button_toggle_month_picker() -> void:
 	if not _navigation_button_action_allowed():
 		return
 
@@ -2089,7 +2089,7 @@ func _make_year_month_cell(year: int, month: int, is_current_month: bool) -> But
 	button.add_theme_stylebox_override("pressed", _month_overview_style(_month_overview_color(counts).darkened(0.06), is_current_month))
 	button.add_theme_stylebox_override("focus", _month_overview_style(_month_overview_color(counts), true))
 	_fill_year_month_tile(button, month, counts, is_current_month)
-	_connect_navigation_tap(button, Callable(self, "_on_month_picker_pressed").bind(month))
+	_connect_navigation_tap(button, Callable(self, "_button_pick_month").bind(month))
 	return button
 
 
@@ -2394,7 +2394,7 @@ func _on_quick_range_selected(index: int) -> void:
 	_save_settings_to_disk()
 
 
-func _on_month_picker_pressed(month_index: int) -> void:
+func _button_pick_month(month_index: int) -> void:
 	if not _navigation_button_action_allowed():
 		return
 
@@ -3581,7 +3581,7 @@ func _update_pause_result() -> void:
 	]
 
 
-func _on_previous_month() -> void:
+func _button_previous_month() -> void:
 	if not _navigation_button_action_allowed():
 		return
 
@@ -3597,7 +3597,7 @@ func _on_previous_month() -> void:
 	_save_settings_to_disk()
 
 
-func _on_previous_year() -> void:
+func _button_previous_year() -> void:
 	if not _navigation_button_action_allowed():
 		return
 
@@ -3611,7 +3611,7 @@ func _on_previous_year() -> void:
 	_save_settings_to_disk()
 
 
-func _on_next_month() -> void:
+func _button_next_month() -> void:
 	if not _navigation_button_action_allowed():
 		return
 
@@ -3627,7 +3627,7 @@ func _on_next_month() -> void:
 	_save_settings_to_disk()
 
 
-func _on_next_year() -> void:
+func _button_next_year() -> void:
 	if not _navigation_button_action_allowed():
 		return
 
@@ -3641,7 +3641,7 @@ func _on_next_year() -> void:
 	_save_settings_to_disk()
 
 
-func _on_return_to_today_pressed() -> void:
+func _button_return_to_today() -> void:
 	if not _navigation_button_action_allowed():
 		return
 
