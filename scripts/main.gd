@@ -39,6 +39,7 @@ const TILE_COLUMNS := 7
 const SETTINGS_PATH := "user://driver_calendar.cfg"
 const TAP_CANCEL_DISTANCE := 18.0
 const TAP_BLOCK_AFTER_DRAG_MS := 180
+const NAVIGATION_TAP_MAX_MS := 420
 const HORIZONTAL_DRAG_BLOCK_DISTANCE := 10.0
 const HORIZONTAL_DRAG_DOMINANCE := 1.15
 const NAVIGATION_BLOCK_AFTER_SCROLL_MS := 700
@@ -2742,6 +2743,7 @@ func _handle_navigation_button_input(event: InputEvent, button: BaseButton, acti
 			button.set_meta("nav_tap_start", touch.position)
 			button.set_meta("nav_tap_dragged", false)
 			button.set_meta("nav_tap_scroll_start", _main_scroll_vertical())
+			button.set_meta("nav_tap_start_msec", int(Time.get_ticks_msec()))
 		else:
 			_activate_navigation_button_if_clean_tap(button, action, touch.position)
 	elif event is InputEventScreenDrag:
@@ -2755,6 +2757,7 @@ func _handle_navigation_button_input(event: InputEvent, button: BaseButton, acti
 			button.set_meta("nav_tap_start", mouse_button.position)
 			button.set_meta("nav_tap_dragged", false)
 			button.set_meta("nav_tap_scroll_start", _main_scroll_vertical())
+			button.set_meta("nav_tap_start_msec", int(Time.get_ticks_msec()))
 		else:
 			_activate_navigation_button_if_clean_tap(button, action, mouse_button.position)
 	elif event is InputEventMouseMotion:
@@ -2788,9 +2791,11 @@ func _activate_navigation_button_if_clean_tap(button: BaseButton, action: Callab
 	var was_dragged := bool(button.get_meta("nav_tap_dragged", true))
 	var scroll_start := float(button.get_meta("nav_tap_scroll_start", _main_scroll_vertical()))
 	var scroll_moved := absf(_main_scroll_vertical() - scroll_start) > 1.0
+	var start_msec := int(button.get_meta("nav_tap_start_msec", int(Time.get_ticks_msec())))
+	var tap_timed_out := int(Time.get_ticks_msec()) - start_msec > NAVIGATION_TAP_MAX_MS
 	_clear_navigation_button_tap(button)
 
-	if was_dragged or scroll_moved or start_position.distance_to(position) > TAP_CANCEL_DISTANCE or _tap_is_blocked():
+	if was_dragged or scroll_moved or tap_timed_out or start_position.distance_to(position) > TAP_CANCEL_DISTANCE or _tap_is_blocked():
 		get_viewport().set_input_as_handled()
 		return
 
@@ -2937,6 +2942,8 @@ func _clear_navigation_button_tap(button: BaseButton) -> void:
 		button.remove_meta("nav_tap_dragged")
 	if button.has_meta("nav_tap_scroll_start"):
 		button.remove_meta("nav_tap_scroll_start")
+	if button.has_meta("nav_tap_start_msec"):
+		button.remove_meta("nav_tap_start_msec")
 	if not button.toggle_mode:
 		button.set_pressed_no_signal(false)
 
