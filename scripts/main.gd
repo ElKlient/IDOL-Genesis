@@ -37,11 +37,9 @@ const COLOR_VACATION := Color(0.40, 0.48, 0.58, 0.86)
 const PORTRAIT_WIDTH := 640
 const TILE_COLUMNS := 7
 const SETTINGS_PATH := "user://driver_calendar.cfg"
-const TAP_CANCEL_DISTANCE := 18.0
+const TOUCH_DRAG_CANCEL_DISTANCE := 8.0
 const TAP_BLOCK_AFTER_DRAG_MS := 180
 const NAVIGATION_TAP_MAX_MS := 420
-const HORIZONTAL_DRAG_BLOCK_DISTANCE := 10.0
-const HORIZONTAL_DRAG_DOMINANCE := 1.15
 const NAVIGATION_BLOCK_AFTER_SCROLL_MS := 700
 const TOUCH_SCROLL_DEADZONE_MENU := 18
 const RETURN_TODAY_BUTTON_TOP := 84
@@ -181,7 +179,7 @@ func _ready() -> void:
 
 func _input(event: InputEvent) -> void:
 	_track_scroll_touch(event)
-	if _block_horizontal_calendar_drag(event):
+	if _block_calendar_touch_drag(event):
 		return
 	if event is InputEventScreenDrag or event is InputEventMouseMotion:
 		_lock_horizontal_scroll_deferred()
@@ -189,7 +187,7 @@ func _input(event: InputEvent) -> void:
 
 func _gui_input(event: InputEvent) -> void:
 	_track_scroll_touch(event)
-	if _block_horizontal_calendar_drag(event):
+	if _block_calendar_touch_drag(event):
 		accept_event()
 
 
@@ -2749,20 +2747,17 @@ func _prepare_calendar_drag_blocker(control: Control) -> void:
 func _handle_calendar_area_input(event: InputEvent) -> void:
 	_track_scroll_touch(event)
 	if event is InputEventScreenDrag:
-		var drag := event as InputEventScreenDrag
 		_block_touch_drag_actions()
 		_lock_horizontal_scroll_deferred()
-		if _is_horizontal_drag(drag.relative):
-			accept_event()
-			get_viewport().set_input_as_handled()
+		accept_event()
+		get_viewport().set_input_as_handled()
 	elif event is InputEventMouseMotion:
 		var mouse_motion := event as InputEventMouseMotion
 		if (mouse_motion.button_mask & MOUSE_BUTTON_MASK_LEFT) != 0:
 			_block_touch_drag_actions()
 			_lock_horizontal_scroll_deferred()
-			if _is_horizontal_drag(mouse_motion.relative):
-				accept_event()
-				get_viewport().set_input_as_handled()
+			accept_event()
+			get_viewport().set_input_as_handled()
 
 
 func _handle_navigation_button_input(event: InputEvent, button: BaseButton, action: Callable) -> void:
@@ -2800,7 +2795,7 @@ func _mark_navigation_button_drag(button: BaseButton, position: Vector2) -> void
 		return
 
 	var start_position: Vector2 = button.get_meta("nav_tap_start", position)
-	if start_position.distance_to(position) <= TAP_CANCEL_DISTANCE:
+	if start_position.distance_to(position) <= TOUCH_DRAG_CANCEL_DISTANCE:
 		return
 
 	button.set_meta("nav_tap_dragged", true)
@@ -2824,7 +2819,7 @@ func _activate_navigation_button_if_clean_tap(button: BaseButton, action: Callab
 	var tap_timed_out := int(Time.get_ticks_msec()) - start_msec > NAVIGATION_TAP_MAX_MS
 	_clear_navigation_button_tap(button)
 
-	if was_dragged or scroll_moved or tap_timed_out or start_position.distance_to(position) > TAP_CANCEL_DISTANCE or _tap_is_blocked():
+	if was_dragged or scroll_moved or tap_timed_out or start_position.distance_to(position) > TOUCH_DRAG_CANCEL_DISTANCE or _tap_is_blocked():
 		get_viewport().set_input_as_handled()
 		return
 
@@ -2873,7 +2868,7 @@ func _track_scroll_touch(event: InputEvent) -> void:
 	elif event is InputEventScreenDrag:
 		var drag := event as InputEventScreenDrag
 		touch_drag_total += drag.relative
-		if touch_drag_total.length() > TAP_CANCEL_DISTANCE:
+		if touch_drag_total.length() > TOUCH_DRAG_CANCEL_DISTANCE:
 			_block_touch_drag_actions()
 		_update_touch_tracking(drag.position)
 	elif event is InputEventMouseButton:
@@ -2888,34 +2883,41 @@ func _track_scroll_touch(event: InputEvent) -> void:
 		var mouse_motion := event as InputEventMouseMotion
 		if mouse_motion.button_mask != 0:
 			touch_drag_total += mouse_motion.relative
-			if touch_drag_total.length() > TAP_CANCEL_DISTANCE:
+			if touch_drag_total.length() > TOUCH_DRAG_CANCEL_DISTANCE:
 				_block_touch_drag_actions()
 			_update_touch_tracking(mouse_motion.position)
 
 
-func _block_horizontal_calendar_drag(event: InputEvent) -> bool:
-	var movement := Vector2.ZERO
+func _block_calendar_touch_drag(event: InputEvent) -> bool:
+	var position := Vector2.ZERO
 
 	if event is InputEventScreenDrag:
 		var drag := event as InputEventScreenDrag
-		movement = drag.position - touch_start_position if touch_tracking_active else drag.relative
+		position = drag.position
 	elif event is InputEventMouseMotion:
 		var mouse_motion := event as InputEventMouseMotion
 		if (mouse_motion.button_mask & MOUSE_BUTTON_MASK_LEFT) == 0:
 			return false
-		movement = mouse_motion.position - touch_start_position if touch_tracking_active else mouse_motion.relative
+		position = mouse_motion.position
 	else:
 		return false
 
-	var horizontal := absf(movement.x)
-	var vertical := absf(movement.y)
-	if horizontal < HORIZONTAL_DRAG_BLOCK_DISTANCE or horizontal < vertical * HORIZONTAL_DRAG_DOMINANCE:
+	var starts_on_calendar := touch_tracking_active and _point_inside_calendar_area(touch_start_position)
+	var is_over_calendar := _point_inside_calendar_area(position)
+	if not starts_on_calendar and not is_over_calendar:
 		return false
 
 	_block_touch_drag_actions()
 	_lock_horizontal_scroll_deferred()
 	get_viewport().set_input_as_handled()
 	return true
+
+
+func _point_inside_calendar_area(position: Vector2) -> bool:
+	if calendar_root == null or not is_instance_valid(calendar_root) or not calendar_root.visible:
+		return false
+
+	return calendar_root.get_global_rect().has_point(position)
 
 
 func _begin_touch_tracking(position: Vector2) -> void:
@@ -2929,7 +2931,7 @@ func _update_touch_tracking(position: Vector2) -> void:
 	if not touch_tracking_active:
 		return
 
-	if not touch_drag_cancelled and touch_start_position.distance_to(position) > TAP_CANCEL_DISTANCE:
+	if not touch_drag_cancelled and touch_start_position.distance_to(position) > TOUCH_DRAG_CANCEL_DISTANCE:
 		_block_touch_drag_actions()
 
 
@@ -2977,12 +2979,6 @@ func _clear_navigation_button_tap(button: BaseButton) -> void:
 		button.remove_meta("nav_tap_start_msec")
 	if not button.toggle_mode:
 		button.set_pressed_no_signal(false)
-
-
-func _is_horizontal_drag(movement: Vector2) -> bool:
-	var horizontal := absf(movement.x)
-	var vertical := absf(movement.y)
-	return horizontal >= HORIZONTAL_DRAG_BLOCK_DISTANCE and horizontal >= vertical * HORIZONTAL_DRAG_DOMINANCE
 
 
 func _accept_calendar_page() -> void:
