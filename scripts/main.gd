@@ -68,6 +68,7 @@ var today_day_index: int
 
 var main_scroll: ScrollContainer
 var calendar_root: VBoxContainer
+var options_root: VBoxContainer
 var months_box: VBoxContainer
 var return_today_button: Button
 var profile_button: Button
@@ -233,20 +234,16 @@ func _build_ui() -> void:
 	safe_margin.add_theme_constant_override("margin_bottom", 20)
 	add_child(safe_margin)
 
-	main_scroll = ScrollContainer.new()
-	main_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	main_scroll.scroll_deadzone = TOUCH_SCROLL_DEADZONE_MENU
-	main_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	main_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	main_scroll.resized.connect(_sync_calendar_root_width)
-	main_scroll.gui_input.connect(_on_main_scroll_gui_input)
-	safe_margin.add_child(main_scroll)
-	_lock_horizontal_scroll_deferred()
-	_style_main_scrollbar()
+	var screen_root := VBoxContainer.new()
+	screen_root.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	screen_root.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	screen_root.add_theme_constant_override("separation", 12)
+	screen_root.resized.connect(_sync_calendar_root_width)
+	safe_margin.add_child(screen_root)
 
-	var center := CenterContainer.new()
-	center.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	main_scroll.add_child(center)
+	var calendar_center := CenterContainer.new()
+	calendar_center.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	screen_root.add_child(calendar_center)
 
 	_add_return_today_overlay()
 	_add_reset_undo_overlay()
@@ -258,7 +255,28 @@ func _build_ui() -> void:
 	root.custom_minimum_size = Vector2(PORTRAIT_WIDTH, 0)
 	root.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	root.add_theme_constant_override("separation", 18)
-	center.add_child(root)
+	calendar_center.add_child(root)
+
+	main_scroll = ScrollContainer.new()
+	main_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	main_scroll.scroll_deadzone = TOUCH_SCROLL_DEADZONE_MENU
+	main_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	main_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	main_scroll.resized.connect(_sync_calendar_root_width)
+	main_scroll.gui_input.connect(_on_main_scroll_gui_input)
+	screen_root.add_child(main_scroll)
+	_lock_horizontal_scroll_deferred()
+	_style_main_scrollbar()
+
+	var options_center := CenterContainer.new()
+	options_center.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	main_scroll.add_child(options_center)
+
+	options_root = VBoxContainer.new()
+	options_root.custom_minimum_size = Vector2(PORTRAIT_WIDTH, 0)
+	options_root.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	options_root.add_theme_constant_override("separation", 18)
+	options_center.add_child(options_root)
 	_sync_calendar_root_width()
 
 	header_bar = HBoxContainer.new()
@@ -331,25 +349,25 @@ func _build_ui() -> void:
 	root.add_child(legend_bar)
 
 	quick_navigation_panel = _build_quick_navigation_panel()
-	root.add_child(quick_navigation_panel)
+	options_root.add_child(quick_navigation_panel)
 
 	settings_toggle_button = Button.new()
 	settings_toggle_button.text = "Zastosuj"
 	_connect_tap(settings_toggle_button, Callable(self, "_on_settings_primary_pressed"))
 	_prepare_control(settings_toggle_button, 22, 62)
-	root.add_child(settings_toggle_button)
+	options_root.add_child(settings_toggle_button)
 
 	settings_panel = _build_settings_panel()
-	root.add_child(settings_panel)
+	options_root.add_child(settings_panel)
 	day_tools_panel = _build_day_tools_panel()
-	root.add_child(day_tools_panel)
+	options_root.add_child(day_tools_panel)
 
 	calendar_only_toggle_button = Button.new()
 	calendar_only_toggle_button.text = "Pokaż tylko kalendarz"
 	_connect_tap(calendar_only_toggle_button, Callable(self, "_enter_calendar_only_mode"))
 	_prepare_control(calendar_only_toggle_button, 22, 62)
 	calendar_only_toggle_button.visible = false
-	root.add_child(calendar_only_toggle_button)
+	options_root.add_child(calendar_only_toggle_button)
 	_set_settings_visible(true)
 
 	_build_day_action_dialog()
@@ -1051,6 +1069,8 @@ func _apply_main_view_mode(saved: bool) -> void:
 		calendar_only_mode = false
 	_update_main_scroll_touch_mode()
 
+	if main_scroll != null:
+		main_scroll.visible = not calendar_only_mode
 	if navigation_panel != null:
 		navigation_panel.visible = not saved and not calendar_only_mode
 	if quick_navigation_panel != null:
@@ -1097,18 +1117,27 @@ func _update_main_scroll_touch_mode() -> void:
 
 	main_scroll.scroll_deadzone = TOUCH_SCROLL_DEADZONE_MENU
 	main_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	main_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED if calendar_only_mode else ScrollContainer.SCROLL_MODE_AUTO
+	if calendar_only_mode:
+		main_scroll.scroll_vertical = 0
 	_lock_horizontal_scroll_deferred()
 
 
 func _sync_calendar_root_width() -> void:
-	if main_scroll == null or calendar_root == null:
+	if calendar_root == null and options_root == null:
 		return
 
-	var available_width := main_scroll.size.x - SCROLLBAR_TOUCH_WIDTH
+	var available_width := get_viewport_rect().size.x - 36.0 - SCROLLBAR_TOUCH_WIDTH
+	if main_scroll != null and main_scroll.size.x > 0.0:
+		available_width = main_scroll.size.x - SCROLLBAR_TOUCH_WIDTH
 	if available_width <= 0.0:
 		return
 
-	calendar_root.custom_minimum_size.x = minf(float(PORTRAIT_WIDTH), available_width)
+	var root_width := minf(float(PORTRAIT_WIDTH), available_width)
+	if calendar_root != null:
+		calendar_root.custom_minimum_size.x = root_width
+	if options_root != null:
+		options_root.custom_minimum_size.x = root_width
 	_lock_horizontal_scroll_deferred()
 
 
