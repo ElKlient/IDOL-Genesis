@@ -150,6 +150,7 @@ var touch_start_position := Vector2.ZERO
 var touch_tracking_active := false
 var touch_drag_cancelled := false
 var last_drag_release_msec := -10000
+var navigation_action_unlock_msec := -10000
 
 
 func _ready() -> void:
@@ -963,6 +964,9 @@ func _set_profile_panel_visible(visible: bool) -> void:
 
 
 func _toggle_month_picker() -> void:
+	if not _navigation_action_allowed():
+		return
+
 	_set_month_picker_visible(not month_picker_visible)
 
 
@@ -2194,6 +2198,9 @@ func _on_quick_range_selected(index: int) -> void:
 
 
 func _on_month_picker_pressed(month_index: int) -> void:
+	if not _navigation_action_allowed():
+		return
+
 	if current_month == month_index and _range_months() == 1:
 		_set_month_picker_visible(false)
 		return
@@ -2733,6 +2740,7 @@ func _activate_navigation_button_if_clean_tap(button: BaseButton, action: Callab
 		return
 
 	get_viewport().set_input_as_handled()
+	_allow_navigation_action_once()
 	action.call()
 
 
@@ -2829,6 +2837,16 @@ func _end_touch_tracking() -> void:
 		last_drag_release_msec = int(Time.get_ticks_msec())
 
 	touch_tracking_active = false
+
+
+func _allow_navigation_action_once() -> void:
+	navigation_action_unlock_msec = int(Time.get_ticks_msec())
+
+
+func _navigation_action_allowed() -> bool:
+	var elapsed_msec := int(Time.get_ticks_msec()) - navigation_action_unlock_msec
+	navigation_action_unlock_msec = -10000
+	return elapsed_msec >= 0 and elapsed_msec <= TAP_BLOCK_AFTER_DRAG_MS
 
 
 func _release_scroll_buttons() -> void:
@@ -3176,6 +3194,9 @@ func _update_pause_result() -> void:
 
 
 func _on_previous_month() -> void:
+	if not _navigation_action_allowed():
+		return
+
 	if _tap_is_blocked():
 		return
 
@@ -3188,6 +3209,9 @@ func _on_previous_month() -> void:
 
 
 func _on_previous_year() -> void:
+	if not _navigation_action_allowed():
+		return
+
 	if _tap_is_blocked():
 		return
 
@@ -3198,6 +3222,9 @@ func _on_previous_year() -> void:
 
 
 func _on_next_month() -> void:
+	if not _navigation_action_allowed():
+		return
+
 	if _tap_is_blocked():
 		return
 
@@ -3210,6 +3237,9 @@ func _on_next_month() -> void:
 
 
 func _on_next_year() -> void:
+	if not _navigation_action_allowed():
+		return
+
 	if _tap_is_blocked():
 		return
 
