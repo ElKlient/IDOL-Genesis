@@ -42,7 +42,7 @@ const TAP_BLOCK_AFTER_DRAG_MS := 180
 const HORIZONTAL_DRAG_BLOCK_DISTANCE := 10.0
 const HORIZONTAL_DRAG_DOMINANCE := 1.15
 const NAVIGATION_BLOCK_AFTER_SCROLL_MS := 700
-const TOUCH_SCROLL_DEADZONE_MENU := 4096
+const TOUCH_SCROLL_DEADZONE_MENU := 18
 const RETURN_TODAY_BUTTON_TOP := 84
 const RETURN_TODAY_BUTTON_HEIGHT := 44
 const RETURN_TODAY_BUTTON_WIDTH := 300
@@ -184,6 +184,18 @@ func _gui_input(event: InputEvent) -> void:
 		accept_event()
 
 
+func _on_main_scroll_gui_input(event: InputEvent) -> void:
+	_track_scroll_touch(event)
+	if event is InputEventScreenDrag:
+		_block_navigation_after_scroll()
+		_lock_horizontal_scroll_deferred()
+	elif event is InputEventMouseMotion:
+		var mouse_motion := event as InputEventMouseMotion
+		if (mouse_motion.button_mask & MOUSE_BUTTON_MASK_LEFT) != 0:
+			_block_navigation_after_scroll()
+			_lock_horizontal_scroll_deferred()
+
+
 func _process(_delta: float) -> void:
 	_lock_horizontal_scroll()
 
@@ -218,6 +230,7 @@ func _build_ui() -> void:
 	main_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	main_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	main_scroll.resized.connect(_sync_calendar_root_width)
+	main_scroll.gui_input.connect(_on_main_scroll_gui_input)
 	safe_margin.add_child(main_scroll)
 	_lock_horizontal_scroll_deferred()
 	_style_main_scrollbar()
