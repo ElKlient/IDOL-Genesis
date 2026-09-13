@@ -1232,11 +1232,10 @@ func _apply_main_view_mode(saved: bool) -> void:
 	if main_scroll != null:
 		main_scroll.visible = not calendar_only_mode
 	if navigation_panel != null:
-		navigation_panel.visible = not saved and not calendar_only_mode
+		navigation_panel.visible = not calendar_only_mode
 	if quick_navigation_panel != null:
-		quick_navigation_panel.visible = saved and not calendar_only_mode
-		if not saved or calendar_only_mode:
-			_set_month_picker_visible(false)
+		quick_navigation_panel.visible = false
+		_set_month_picker_visible(false)
 	if summary_label != null:
 		summary_label.visible = not saved and not calendar_only_mode
 	if legend_bar != null:
@@ -2865,7 +2864,8 @@ func _connect_navigation_tap(button: BaseButton, action: Callable) -> void:
 	_register_scroll_safe_control(button)
 	if not navigation_buttons.has(button):
 		navigation_buttons.append(button)
-	button.mouse_filter = Control.MOUSE_FILTER_PASS
+	button.mouse_filter = Control.MOUSE_FILTER_STOP
+	button.action_mode = BaseButton.ACTION_MODE_BUTTON_PRESS
 	button.gui_input.connect(_handle_navigation_button_input.bind(button, action))
 
 
