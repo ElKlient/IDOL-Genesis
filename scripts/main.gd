@@ -63,6 +63,7 @@ var current_month: int
 var today_day_index: int
 
 var main_scroll: ScrollContainer
+var calendar_root: VBoxContainer
 var months_box: VBoxContainer
 var return_today_button: Button
 var profile_button: Button
@@ -199,6 +200,7 @@ func _build_ui() -> void:
 	main_scroll.scroll_deadzone = TOUCH_SCROLL_DEADZONE_MENU
 	main_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	main_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	main_scroll.resized.connect(_sync_calendar_root_width)
 	safe_margin.add_child(main_scroll)
 	_lock_horizontal_scroll_deferred()
 	_style_main_scrollbar()
@@ -213,10 +215,12 @@ func _build_ui() -> void:
 	_add_calendar_only_return_overlay()
 
 	var root := VBoxContainer.new()
+	calendar_root = root
 	root.custom_minimum_size = Vector2(PORTRAIT_WIDTH, 0)
 	root.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	root.add_theme_constant_override("separation", 18)
 	center.add_child(root)
+	_sync_calendar_root_width()
 
 	header_bar = HBoxContainer.new()
 	header_bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -1049,6 +1053,20 @@ func _update_main_scroll_touch_mode() -> void:
 		return
 
 	main_scroll.scroll_deadzone = TOUCH_SCROLL_DEADZONE_MENU
+	main_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_lock_horizontal_scroll_deferred()
+
+
+func _sync_calendar_root_width() -> void:
+	if main_scroll == null or calendar_root == null:
+		return
+
+	var available_width := main_scroll.size.x - SCROLLBAR_TOUCH_WIDTH
+	if available_width <= 0.0:
+		return
+
+	calendar_root.custom_minimum_size.x = minf(float(PORTRAIT_WIDTH), available_width)
+	_lock_horizontal_scroll_deferred()
 
 
 func _update_undo_buttons() -> void:
@@ -2883,6 +2901,9 @@ func _lock_horizontal_scroll_deferred() -> void:
 	if main_scroll == null:
 		return
 
+	main_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	main_scroll.scroll_horizontal = 0
+	main_scroll.get_h_scroll_bar().value = 0
 	main_scroll.set_deferred("scroll_horizontal", 0)
 	main_scroll.get_h_scroll_bar().set_deferred("value", 0)
 
