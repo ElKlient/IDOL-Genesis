@@ -41,6 +41,7 @@ const TAP_CANCEL_DISTANCE := 18.0
 const TAP_BLOCK_AFTER_DRAG_MS := 180
 const HORIZONTAL_DRAG_BLOCK_DISTANCE := 10.0
 const HORIZONTAL_DRAG_DOMINANCE := 1.15
+const NAVIGATION_BLOCK_AFTER_SCROLL_MS := 700
 const TOUCH_SCROLL_DEADZONE_MENU := 4096
 const RETURN_TODAY_BUTTON_TOP := 84
 const RETURN_TODAY_BUTTON_HEIGHT := 44
@@ -151,6 +152,7 @@ var touch_tracking_active := false
 var touch_drag_cancelled := false
 var last_drag_release_msec := -10000
 var navigation_action_unlock_msec := -10000
+var navigation_blocked_until_msec := -10000
 
 
 func _ready() -> void:
@@ -2717,7 +2719,7 @@ func _mark_navigation_button_drag(button: BaseButton, position: Vector2) -> void
 
 	button.set_meta("nav_tap_dragged", true)
 	touch_drag_cancelled = true
-	last_drag_release_msec = int(Time.get_ticks_msec())
+	_block_navigation_after_scroll()
 	button.set_pressed_no_signal(false)
 	_release_scroll_buttons()
 	_lock_horizontal_scroll_deferred()
@@ -2763,7 +2765,11 @@ func _tap_is_blocked() -> bool:
 	if touch_drag_cancelled:
 		return true
 
-	var elapsed_msec := int(Time.get_ticks_msec()) - last_drag_release_msec
+	var now_msec := int(Time.get_ticks_msec())
+	if now_msec <= navigation_blocked_until_msec:
+		return true
+
+	var elapsed_msec := now_msec - last_drag_release_msec
 	return elapsed_msec >= 0 and elapsed_msec < TAP_BLOCK_AFTER_DRAG_MS
 
 
@@ -2810,7 +2816,7 @@ func _block_horizontal_calendar_drag(event: InputEvent) -> bool:
 		return false
 
 	touch_drag_cancelled = true
-	last_drag_release_msec = int(Time.get_ticks_msec())
+	_block_navigation_after_scroll()
 	_release_scroll_buttons()
 	_lock_horizontal_scroll_deferred()
 	get_viewport().set_input_as_handled()
@@ -2844,9 +2850,20 @@ func _allow_navigation_action_once() -> void:
 
 
 func _navigation_action_allowed() -> bool:
+	if _tap_is_blocked():
+		navigation_action_unlock_msec = -10000
+		return false
+
 	var elapsed_msec := int(Time.get_ticks_msec()) - navigation_action_unlock_msec
 	navigation_action_unlock_msec = -10000
 	return elapsed_msec >= 0 and elapsed_msec <= TAP_BLOCK_AFTER_DRAG_MS
+
+
+func _block_navigation_after_scroll() -> void:
+	var now_msec := int(Time.get_ticks_msec())
+	last_drag_release_msec = now_msec
+	navigation_blocked_until_msec = now_msec + NAVIGATION_BLOCK_AFTER_SCROLL_MS
+	navigation_action_unlock_msec = -10000
 
 
 func _release_scroll_buttons() -> void:
@@ -3010,6 +3027,8 @@ func _style_main_scrollbar() -> void:
 	scroll_bar.add_theme_stylebox_override("grabber", _scrollbar_grabber_style(0.48))
 	scroll_bar.add_theme_stylebox_override("grabber_highlight", _scrollbar_grabber_style(0.68))
 	scroll_bar.add_theme_stylebox_override("grabber_pressed", _scrollbar_grabber_style(0.82))
+	if not scroll_bar.value_changed.is_connected(_on_main_scroll_vertical_changed):
+		scroll_bar.value_changed.connect(_on_main_scroll_vertical_changed)
 
 	var horizontal_bar := main_scroll.get_h_scroll_bar()
 	horizontal_bar.visible = false
@@ -3022,6 +3041,11 @@ func _style_main_scrollbar() -> void:
 func _on_horizontal_scroll_changed(value: float) -> void:
 	if value != 0.0:
 		_lock_horizontal_scroll_deferred()
+
+
+func _on_main_scroll_vertical_changed(_value: float) -> void:
+	_block_navigation_after_scroll()
+	_release_scroll_buttons()
 
 
 func _lock_horizontal_scroll_deferred() -> void:
