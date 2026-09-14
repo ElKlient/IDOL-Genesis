@@ -1,6 +1,5 @@
 extends Control
 
-const BackgroundArt = preload("res://scripts/background_art.gd")
 const LOGO_BACKGROUND_TEXTURE = preload("res://assets/luzne_tloki_logo.jpg")
 const LOGO_BACKGROUND_SHADER_CODE := """
 shader_type canvas_item;
@@ -221,7 +220,8 @@ func _force_portrait() -> void:
 
 
 func _build_ui() -> void:
-	var background := BackgroundArt.new()
+	var background := ColorRect.new()
+	background.color = Color(0.025, 0.030, 0.032, 1.0)
 	background.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(background)
 
