@@ -29,6 +29,7 @@ const PROFILE_PANEL_HEIGHT := 410
 const SYSTEM_REPEAT_YEARS_AHEAD := 5
 const DEFAULT_EVENT_COLOR_INDEX := 2
 const MAX_EVENT_DOTS_ON_TILE := 5
+const MONTH_LAYOUT_COUNTS := [1, 4, 6, 12]
 
 const COLOR_PANEL := Color(0.070, 0.085, 0.087, 0.82)
 const COLOR_PANEL_SOFT := Color(0.105, 0.120, 0.116, 0.76)
@@ -56,6 +57,7 @@ const CATEGORY_COLOR_VALUES := [
 
 var current_year: int
 var current_month: int
+var month_layout_count := 1
 var selected_calendar_index := 0
 var calendars: Array[Dictionary] = []
 
@@ -64,15 +66,27 @@ var content_root: VBoxContainer
 var calendar_root: VBoxContainer
 var months_box: VBoxContainer
 var month_title_label: Label
+var month_layout_option: OptionButton
 var calendar_name_label: Label
 var profile_overlay: VBoxContainer
 var profile_button: Button
 var profile_panel: PanelContainer
+var today_button: Button
+var nav_box: HBoxContainer
 var calendar_option: OptionButton
 var calendar_status_label: Label
 var share_code_label: Label
 var join_code_input: LineEdit
 var share_status_label: Label
+var system_days_panel: PanelContainer
+var system_days_toggle_button: Button
+var sharing_panel: PanelContainer
+var sharing_toggle_button: Button
+var sharing_body: VBoxContainer
+var calendar_only_button: Button
+var system_days_expanded := false
+var sharing_expanded := false
+var calendar_only_mode := false
 
 var day_dialog: AcceptDialog
 var day_dialog_title: Label
@@ -156,6 +170,18 @@ func _build_ui() -> void:
 	header.add_theme_constant_override("separation", 8)
 	screen_root.add_child(header)
 
+	month_layout_option = OptionButton.new()
+	month_layout_option.add_item("Układ: 1", 1)
+	month_layout_option.add_item("Układ: 4", 4)
+	month_layout_option.add_item("Układ: 6", 6)
+	month_layout_option.add_item("Układ: 12", 12)
+	month_layout_option.item_selected.connect(_on_month_layout_selected)
+	_prepare_control(month_layout_option, 14, PROFILE_BUTTON_HEIGHT)
+	month_layout_option.custom_minimum_size.x = 158
+	month_layout_option.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	_prepare_large_dropdown(month_layout_option)
+	header.add_child(month_layout_option)
+
 	calendar_name_label = _make_label("Wspólny Kalendarz", 30, COLOR_TEXT)
 	calendar_name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	calendar_name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -163,28 +189,28 @@ func _build_ui() -> void:
 
 	_add_profile_overlay()
 
-	var today_button := Button.new()
+	today_button = Button.new()
 	today_button.text = "Wróć do aktualnej daty"
 	_prepare_control(today_button, 18, 52)
 	_connect_tap(today_button, Callable(self, "_return_to_today"))
 	screen_root.add_child(today_button)
 
-	var nav := HBoxContainer.new()
-	nav.add_theme_constant_override("separation", 8)
-	screen_root.add_child(nav)
+	nav_box = HBoxContainer.new()
+	nav_box.add_theme_constant_override("separation", 8)
+	screen_root.add_child(nav_box)
 
 	var previous_button := _make_nav_button("<")
 	_connect_tap(previous_button, Callable(self, "_previous_month"))
-	nav.add_child(previous_button)
+	nav_box.add_child(previous_button)
 
 	month_title_label = _make_label("", 32, COLOR_TEXT)
 	month_title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	month_title_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	nav.add_child(month_title_label)
+	nav_box.add_child(month_title_label)
 
 	var next_button := _make_nav_button(">")
 	_connect_tap(next_button, Callable(self, "_next_month"))
-	nav.add_child(next_button)
+	nav_box.add_child(next_button)
 
 	main_scroll = ScrollContainer.new()
 	main_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -213,8 +239,18 @@ func _build_ui() -> void:
 	months_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	calendar_root.add_child(months_box)
 
-	content_root.add_child(_build_system_days_panel())
-	content_root.add_child(_build_sharing_panel())
+	system_days_panel = _build_system_days_panel()
+	content_root.add_child(system_days_panel)
+
+	sharing_panel = _build_sharing_panel()
+	content_root.add_child(sharing_panel)
+
+	calendar_only_button = Button.new()
+	calendar_only_button.text = "Pokaż tylko kalendarz"
+	_prepare_control(calendar_only_button, 18, 56)
+	_connect_tap(calendar_only_button, Callable(self, "_toggle_calendar_only_mode"))
+	content_root.add_child(calendar_only_button)
+
 	_style_main_scrollbar()
 	_build_day_dialog()
 	_sync_content_width()
@@ -296,7 +332,11 @@ func _build_system_days_panel() -> PanelContainer:
 	var panel := _panel()
 	var box := _panel_box(panel)
 
+	system_days_toggle_button = _make_panel_toggle_button("Schematy cykliczne", Callable(self, "_toggle_system_days_panel"))
+	box.add_child(system_days_toggle_button)
+
 	system_days_body = VBoxContainer.new()
+	system_days_body.visible = system_days_expanded
 	system_days_body.add_theme_constant_override("separation", 10)
 	box.add_child(system_days_body)
 
@@ -328,32 +368,39 @@ func _build_system_days_panel() -> PanelContainer:
 func _build_sharing_panel() -> PanelContainer:
 	var panel := _panel()
 	var box := _panel_box(panel)
-	box.add_child(_make_section_label("Udostępnianie"))
+
+	sharing_toggle_button = _make_panel_toggle_button("Udostępnij kalendarz", Callable(self, "_toggle_sharing_panel"))
+	box.add_child(sharing_toggle_button)
+
+	sharing_body = VBoxContainer.new()
+	sharing_body.visible = sharing_expanded
+	sharing_body.add_theme_constant_override("separation", 10)
+	box.add_child(sharing_body)
 
 	share_code_label = _make_label("", 18, COLOR_TEXT)
 	share_code_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	box.add_child(share_code_label)
+	sharing_body.add_child(share_code_label)
 
 	var generate_button := Button.new()
 	generate_button.text = "Generuj kod/link"
 	_prepare_control(generate_button, 18, 54)
 	_connect_tap(generate_button, Callable(self, "_generate_share_code"))
-	box.add_child(generate_button)
+	sharing_body.add_child(generate_button)
 
 	join_code_input = LineEdit.new()
 	join_code_input.placeholder_text = "Wklej kod wspólnego kalendarza"
 	_prepare_control(join_code_input, 18, 54)
-	box.add_child(join_code_input)
+	sharing_body.add_child(join_code_input)
 
 	var join_button := Button.new()
 	join_button.text = "Dołącz do kalendarza"
 	_prepare_control(join_button, 18, 54)
 	_connect_tap(join_button, Callable(self, "_join_calendar_by_code"))
-	box.add_child(join_button)
+	sharing_body.add_child(join_button)
 
 	share_status_label = _make_label("Na razie kod przygotowuje kalendarz grupowy lokalnie. Synchronizacja online będzie kolejnym krokiem.", 14, COLOR_TEXT_MUTED)
 	share_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	box.add_child(share_status_label)
+	sharing_body.add_child(share_status_label)
 
 	return panel
 
@@ -507,18 +554,37 @@ func _refresh_all() -> void:
 	_load_system_days_from_calendar()
 	_refresh_profile_ui()
 	_refresh_category_ui()
+	_refresh_month_layout_option()
 	_refresh_month_title()
 	_rebuild_calendar()
 	_refresh_sharing_ui()
 	_refresh_system_days_ui()
+	_apply_main_view_mode()
 
 
 func _refresh_month_title() -> void:
 	if month_title_label != null:
-		month_title_label.text = "%s %d" % [MONTH_NAMES[current_month - 1], current_year]
+		match month_layout_count:
+			12:
+				month_title_label.text = "%d" % current_year
+			4, 6:
+				month_title_label.text = "%s %d - %d mies." % [MONTH_NAMES[current_month - 1], current_year, month_layout_count]
+			_:
+				month_title_label.text = "%s %d" % [MONTH_NAMES[current_month - 1], current_year]
 	if calendar_name_label != null:
 		var calendar := _selected_calendar()
 		calendar_name_label.text = String(calendar.get("name", "Wspólny Kalendarz"))
+
+
+func _refresh_month_layout_option() -> void:
+	if month_layout_option == null:
+		return
+
+	month_layout_count = _normalized_month_layout_count(month_layout_count)
+	for index in range(month_layout_option.get_item_count()):
+		if month_layout_option.get_item_id(index) == month_layout_count:
+			month_layout_option.select(index)
+			return
 
 
 func _rebuild_calendar() -> void:
@@ -528,33 +594,78 @@ func _rebuild_calendar() -> void:
 	for child in months_box.get_children():
 		child.queue_free()
 
-	months_box.add_child(_make_month_section(current_year, current_month))
+	month_layout_count = _normalized_month_layout_count(month_layout_count)
+	if month_layout_count == 1:
+		months_box.add_child(_make_month_section(current_year, current_month, false, false, false))
+		return
+
+	var grid := GridContainer.new()
+	grid.columns = 2
+	grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	grid.add_theme_constant_override("h_separation", 8)
+	grid.add_theme_constant_override("v_separation", 10)
+	months_box.add_child(grid)
+
+	for month_data in _visible_months():
+		grid.add_child(_make_month_section(
+			int(month_data["year"]),
+			int(month_data["month"]),
+			true,
+			true,
+			month_layout_count == 12
+		))
 
 
-func _make_month_section(year: int, month: int) -> VBoxContainer:
+func _visible_months() -> Array[Dictionary]:
+	var result: Array[Dictionary] = []
+	if month_layout_count == 12:
+		for month in range(1, 13):
+			result.append({"year": current_year, "month": month})
+		return result
+
+	for offset in range(month_layout_count):
+		result.append(_month_from_offset(current_year, current_month, offset))
+	return result
+
+
+func _month_from_offset(year: int, month: int, offset: int) -> Dictionary:
+	var absolute_month := year * 12 + month - 1 + offset
+	return {
+		"year": int(absolute_month / 12),
+		"month": absolute_month % 12 + 1,
+	}
+
+
+func _make_month_section(year: int, month: int, show_title: bool, compact: bool, year_overview: bool) -> VBoxContainer:
 	var section := VBoxContainer.new()
 	section.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	section.add_theme_constant_override("separation", 14)
+	section.add_theme_constant_override("separation", 7 if compact else 14)
+
+	if show_title:
+		var title := _make_label("%s %d" % [MONTH_NAMES[month - 1], year], 15 if year_overview else 17, COLOR_TEXT)
+		title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		section.add_child(title)
 
 	var grid := GridContainer.new()
 	grid.columns = TILE_COLUMNS
 	grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	grid.add_theme_constant_override("h_separation", 8)
-	grid.add_theme_constant_override("v_separation", 10)
+	grid.add_theme_constant_override("h_separation", 3 if compact else 8)
+	grid.add_theme_constant_override("v_separation", 3 if compact else 10)
 	section.add_child(grid)
 
 	var first_offset := _month_start_weekday_monday(year, month)
 	for _offset in range(first_offset):
-		grid.add_child(_make_day_spacer())
+		grid.add_child(_make_day_spacer(compact, year_overview))
 
 	var days_current := _days_in_month(year, month)
 	for day in range(1, days_current + 1):
-		grid.add_child(_make_day_cell(year, month, day))
+		grid.add_child(_make_day_cell(year, month, day, compact, year_overview))
 
 	return section
 
 
-func _make_day_cell(year: int, month: int, day: int) -> Button:
+func _make_day_cell(year: int, month: int, day: int, compact: bool, year_overview: bool) -> Button:
 	var key := _date_key(year, month, day)
 	var event_ids := _event_ids_for_day(key)
 	var detail_events := _event_details_for_day(key)
@@ -564,7 +675,7 @@ func _make_day_cell(year: int, month: int, day: int) -> Button:
 
 	var button := Button.new()
 	button.text = ""
-	button.custom_minimum_size = Vector2(0, 84)
+	button.custom_minimum_size = Vector2(0, _day_tile_height(compact, year_overview))
 	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	button.clip_text = true
 	button.focus_mode = Control.FOCUS_NONE
@@ -572,27 +683,35 @@ func _make_day_cell(year: int, month: int, day: int) -> Button:
 	button.add_theme_stylebox_override("hover", _tile_style(color.lightened(0.06), is_today, true))
 	button.add_theme_stylebox_override("pressed", _tile_style(color.darkened(0.08), is_today, true))
 	button.add_theme_stylebox_override("focus", _tile_style(color, true, true))
-	_fill_day_tile(button, year, month, day, event_ids, detail_events, has_note)
+	_fill_day_tile(button, year, month, day, event_ids, detail_events, has_note, compact, year_overview)
 	_connect_tap(button, Callable(self, "_open_day_dialog").bind(year, month, day))
 	return button
 
 
-func _make_day_spacer() -> Control:
+func _make_day_spacer(compact: bool, year_overview: bool) -> Control:
 	var spacer := Panel.new()
-	spacer.custom_minimum_size = Vector2(0, 84)
+	spacer.custom_minimum_size = Vector2(0, _day_tile_height(compact, year_overview))
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	spacer.add_theme_stylebox_override("panel", _tile_style(Color(0.90, 0.93, 0.88, 0.05), false, false))
 	return spacer
 
 
-func _fill_day_tile(button: Button, year: int, month: int, day: int, event_ids: Array, detail_events: Array, has_note: bool) -> void:
+func _day_tile_height(compact: bool, year_overview: bool) -> int:
+	if year_overview:
+		return 34
+	if compact:
+		return 46
+	return 84
+
+
+func _fill_day_tile(button: Button, year: int, month: int, day: int, event_ids: Array, detail_events: Array, has_note: bool, compact: bool, year_overview: bool) -> void:
 	var margin := MarginContainer.new()
 	margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	margin.set_anchors_preset(Control.PRESET_FULL_RECT)
-	margin.add_theme_constant_override("margin_left", 6)
-	margin.add_theme_constant_override("margin_right", 6)
-	margin.add_theme_constant_override("margin_top", 7)
-	margin.add_theme_constant_override("margin_bottom", 6)
+	margin.add_theme_constant_override("margin_left", 3 if compact else 6)
+	margin.add_theme_constant_override("margin_right", 3 if compact else 6)
+	margin.add_theme_constant_override("margin_top", 2 if compact else 7)
+	margin.add_theme_constant_override("margin_bottom", 2 if compact else 6)
 	button.add_child(margin)
 
 	var box := VBoxContainer.new()
@@ -601,17 +720,18 @@ func _fill_day_tile(button: Button, year: int, month: int, day: int, event_ids: 
 	box.add_theme_constant_override("separation", 1)
 	margin.add_child(box)
 
-	var day_label := _tile_label(str(day), 26, COLOR_TEXT)
+	var day_label := _tile_label(str(day), 13 if year_overview else (16 if compact else 26), COLOR_TEXT)
 	box.add_child(day_label)
 
-	var weekday_label := _tile_label(WEEKDAY_SHORT_TILE[_weekday_monday_index(year, month, day)], 13, COLOR_TEXT_MUTED)
-	box.add_child(weekday_label)
+	if not year_overview:
+		var weekday_label := _tile_label(WEEKDAY_SHORT_TILE[_weekday_monday_index(year, month, day)], 9 if compact else 13, COLOR_TEXT_MUTED)
+		box.add_child(weekday_label)
 
 	var marker_text := _marker_text(event_ids, has_note)
-	if marker_text != "":
-		box.add_child(_tile_label(marker_text, 10, COLOR_TEXT))
+	if marker_text != "" and not year_overview:
+		box.add_child(_tile_label(marker_text, 7 if compact else 10, COLOR_TEXT))
 
-	_add_event_dots_to_tile(box, detail_events)
+	_add_event_dots_to_tile(box, detail_events, compact or year_overview)
 
 
 func _marker_text(event_ids: Array, has_note: bool) -> String:
@@ -628,7 +748,7 @@ func _marker_text(event_ids: Array, has_note: bool) -> String:
 	return ", ".join(parts).left(18)
 
 
-func _add_event_dots_to_tile(box: VBoxContainer, detail_events: Array) -> void:
+func _add_event_dots_to_tile(box: VBoxContainer, detail_events: Array, compact: bool) -> void:
 	var colors: Array[int] = []
 	for item in detail_events:
 		if not (item is Dictionary):
@@ -653,7 +773,8 @@ func _add_event_dots_to_tile(box: VBoxContainer, detail_events: Array) -> void:
 	for color_index in colors:
 		var dot := Panel.new()
 		dot.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		dot.custom_minimum_size = Vector2(9, 9)
+		var dot_size := 6 if compact else 9
+		dot.custom_minimum_size = Vector2(dot_size, dot_size)
 		dot.add_theme_stylebox_override("panel", _event_dot_style(_category_color(color_index)))
 		dots.add_child(dot)
 
@@ -792,6 +913,71 @@ func _add_quick_category_to_selected_day(category_id: String) -> void:
 func _refresh_system_days_ui() -> void:
 	if system_days_body == null:
 		return
+	_refresh_collapsible_panels()
+
+
+func _refresh_collapsible_panels() -> void:
+	if system_days_body != null:
+		system_days_body.visible = system_days_expanded and not calendar_only_mode
+	if sharing_body != null:
+		sharing_body.visible = sharing_expanded and not calendar_only_mode
+
+	if system_days_toggle_button != null:
+		system_days_toggle_button.text = "Schematy cykliczne - schowaj" if system_days_expanded else "Schematy cykliczne - otwórz"
+	if sharing_toggle_button != null:
+		sharing_toggle_button.text = "Udostępnij kalendarz - schowaj" if sharing_expanded else "Udostępnij kalendarz - otwórz"
+
+
+func _toggle_system_days_panel() -> void:
+	system_days_expanded = not system_days_expanded
+	_refresh_collapsible_panels()
+	_save_settings_to_disk()
+
+
+func _toggle_sharing_panel() -> void:
+	sharing_expanded = not sharing_expanded
+	_refresh_collapsible_panels()
+	_save_settings_to_disk()
+
+
+func _toggle_calendar_only_mode() -> void:
+	calendar_only_mode = not calendar_only_mode
+	_apply_main_view_mode()
+	_save_settings_to_disk()
+
+
+func _apply_main_view_mode() -> void:
+	if system_days_panel != null:
+		system_days_panel.visible = not calendar_only_mode
+	if sharing_panel != null:
+		sharing_panel.visible = not calendar_only_mode
+	if month_layout_option != null:
+		month_layout_option.visible = not calendar_only_mode
+	if profile_overlay != null:
+		profile_overlay.visible = not calendar_only_mode
+	if today_button != null:
+		today_button.visible = not calendar_only_mode
+	if calendar_only_button != null:
+		calendar_only_button.text = "Pokaż opcje" if calendar_only_mode else "Pokaż tylko kalendarz"
+	_refresh_collapsible_panels()
+
+
+func _normalized_month_layout_count(value: int) -> int:
+	if MONTH_LAYOUT_COUNTS.has(value):
+		return value
+	return 1
+
+
+func _on_month_layout_selected(index: int) -> void:
+	if month_layout_option == null:
+		return
+
+	month_layout_count = _normalized_month_layout_count(month_layout_option.get_item_id(index))
+	if month_layout_count == 12:
+		current_month = 1
+	_refresh_month_title()
+	_rebuild_calendar()
+	_save_settings_to_disk()
 
 
 func _append_category_to_system_from_selected_day(category_id: String) -> void:
@@ -1305,23 +1491,31 @@ func _join_calendar_by_code() -> void:
 
 
 func _previous_month() -> void:
-	current_month -= 1
-	if current_month < 1:
-		current_month = 12
+	if month_layout_count == 12:
 		current_year -= 1
+		current_month = 1
+	else:
+		_shift_current_month(-month_layout_count)
 	_refresh_month_title()
 	_rebuild_calendar()
 	_save_settings_to_disk()
 
 
 func _next_month() -> void:
-	current_month += 1
-	if current_month > 12:
-		current_month = 1
+	if month_layout_count == 12:
 		current_year += 1
+		current_month = 1
+	else:
+		_shift_current_month(month_layout_count)
 	_refresh_month_title()
 	_rebuild_calendar()
 	_save_settings_to_disk()
+
+
+func _shift_current_month(delta: int) -> void:
+	var shifted := _month_from_offset(current_year, current_month, delta)
+	current_year = int(shifted["year"])
+	current_month = int(shifted["month"])
 
 
 func _return_to_today() -> void:
@@ -1446,6 +1640,10 @@ func _save_settings_to_disk() -> void:
 	config.set_value("ui", "selected_calendar_index", selected_calendar_index)
 	config.set_value("ui", "current_year", current_year)
 	config.set_value("ui", "current_month", current_month)
+	config.set_value("ui", "month_layout_count", month_layout_count)
+	config.set_value("ui", "system_days_expanded", system_days_expanded)
+	config.set_value("ui", "sharing_expanded", sharing_expanded)
+	config.set_value("ui", "calendar_only_mode", calendar_only_mode)
 	config.set_value("data", "calendars", calendars.duplicate(true))
 
 	var error := config.save(SETTINGS_PATH)
@@ -1462,6 +1660,10 @@ func _load_settings_from_disk() -> void:
 	selected_calendar_index = int(config.get_value("ui", "selected_calendar_index", 0))
 	current_year = int(config.get_value("ui", "current_year", current_year))
 	current_month = clampi(int(config.get_value("ui", "current_month", current_month)), 1, 12)
+	month_layout_count = _normalized_month_layout_count(int(config.get_value("ui", "month_layout_count", month_layout_count)))
+	system_days_expanded = bool(config.get_value("ui", "system_days_expanded", system_days_expanded))
+	sharing_expanded = bool(config.get_value("ui", "sharing_expanded", sharing_expanded))
+	calendar_only_mode = bool(config.get_value("ui", "calendar_only_mode", calendar_only_mode))
 
 	calendars.clear()
 	var loaded: Variant = config.get_value("data", "calendars", [])
@@ -1588,6 +1790,14 @@ func _make_nav_button(text: String) -> Button:
 	button.custom_minimum_size.x = 82
 	button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	_prepare_control(button, 24, 58)
+	return button
+
+
+func _make_panel_toggle_button(text: String, action: Callable) -> Button:
+	var button := Button.new()
+	button.text = text
+	_prepare_control(button, 19, 62)
+	_connect_tap(button, action)
 	return button
 
 
