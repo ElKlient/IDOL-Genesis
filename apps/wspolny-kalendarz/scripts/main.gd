@@ -84,11 +84,13 @@ var day_event_form_box: VBoxContainer
 var day_event_name_input: LineEdit
 var day_event_time_input: LineEdit
 var day_event_description_input: TextEdit
-var day_event_color_option: OptionButton
+var day_event_color_palette: GridContainer
+var day_event_color_index := 0
 var day_event_status_label: Label
 var day_fixed_button_form_box: VBoxContainer
 var day_fixed_name_input: LineEdit
-var day_fixed_color_option: OptionButton
+var day_fixed_color_palette: GridContainer
+var day_fixed_color_index := 0
 var day_fixed_delete_option: OptionButton
 var day_fixed_delete_ids: Array[String] = []
 var day_fixed_status_label: Label
@@ -298,7 +300,8 @@ func _build_profile_panel() -> PanelContainer:
 
 func _build_pattern_dialog() -> void:
 	pattern_dialog = AcceptDialog.new()
-	pattern_dialog.title = "Schemat cykliczny"
+	pattern_dialog.title = ""
+	pattern_dialog.borderless = true
 	pattern_dialog.min_size = Vector2i(620, 500)
 	add_child(pattern_dialog)
 
@@ -306,7 +309,7 @@ func _build_pattern_dialog() -> void:
 	box.add_theme_constant_override("separation", 11)
 	pattern_dialog.add_child(box)
 
-	box.add_child(_make_section_label("Schemat cykliczny"))
+	_add_dialog_header(box, "Schemat cykliczny", Callable(self, "_close_pattern_dialog"))
 
 	pattern_start_input = LineEdit.new()
 	pattern_start_input.placeholder_text = "Pierwszy dzień cyklu, np. 2026-09-14"
@@ -378,13 +381,16 @@ func _build_sharing_panel() -> PanelContainer:
 
 func _build_day_dialog() -> void:
 	day_dialog = AcceptDialog.new()
-	day_dialog.title = "Dzień"
+	day_dialog.title = ""
+	day_dialog.borderless = true
 	day_dialog.min_size = Vector2i(620, 820)
 	add_child(day_dialog)
 
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 10)
 	day_dialog.add_child(box)
+
+	_add_dialog_header(box, "Dzień", Callable(self, "_close_day_dialog"))
 
 	day_dialog_title = _make_label("", 24, COLOR_TEXT)
 	day_dialog_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -440,8 +446,9 @@ func _build_day_dialog() -> void:
 	day_event_description_input.add_theme_stylebox_override("normal", _control_style(Color(0.90, 0.94, 0.90, 0.10)))
 	day_event_form_box.add_child(day_event_description_input)
 
-	day_event_color_option = _make_category_color_option()
-	day_event_form_box.add_child(day_event_color_option)
+	day_event_form_box.add_child(_make_label("Kolor", 14, COLOR_TEXT_MUTED))
+	day_event_color_palette = _make_color_palette("event")
+	day_event_form_box.add_child(day_event_color_palette)
 
 	var save_event_button := Button.new()
 	save_event_button.text = "Zapisz wydarzenie"
@@ -463,8 +470,9 @@ func _build_day_dialog() -> void:
 	_prepare_control(day_fixed_name_input, 18, 52)
 	day_fixed_button_form_box.add_child(day_fixed_name_input)
 
-	day_fixed_color_option = _make_category_color_option()
-	day_fixed_button_form_box.add_child(day_fixed_color_option)
+	day_fixed_button_form_box.add_child(_make_label("Kolor przycisku", 14, COLOR_TEXT_MUTED))
+	day_fixed_color_palette = _make_color_palette("fixed")
+	day_fixed_button_form_box.add_child(day_fixed_color_palette)
 
 	var save_fixed_button := Button.new()
 	save_fixed_button.text = "Zapisz przycisk i dodaj do dnia"
@@ -671,6 +679,11 @@ func _open_day_dialog(year: int, month: int, day: int) -> void:
 	day_dialog.popup_centered(Vector2i(620, 820))
 
 
+func _close_day_dialog() -> void:
+	if day_dialog != null:
+		day_dialog.hide()
+
+
 func _refresh_day_dialog() -> void:
 	if day_dialog_title == null:
 		return
@@ -687,6 +700,9 @@ func _reset_day_dialog_forms() -> void:
 		day_event_form_box.visible = false
 	if day_fixed_button_form_box != null:
 		day_fixed_button_form_box.visible = false
+	day_event_color_index = 0
+	day_fixed_color_index = 0
+	_refresh_color_palettes()
 	if day_event_status_label != null:
 		day_event_status_label.text = ""
 	if day_fixed_status_label != null:
@@ -804,7 +820,7 @@ func _save_day_event() -> void:
 		day_event_status_label.text = "Wpisz nazwę wydarzenia."
 		return
 
-	var color_index := clampi(day_event_color_option.selected, 0, CATEGORY_COLOR_VALUES.size() - 1)
+	var color_index := clampi(day_event_color_index, 0, CATEGORY_COLOR_VALUES.size() - 1)
 	var event: Dictionary = {
 		"id": _new_id("event"),
 		"name": name,
@@ -838,7 +854,7 @@ func _save_fixed_button() -> void:
 		day_fixed_status_label.text = "Wpisz nazwę stałego przycisku."
 		return
 
-	var color_index := clampi(day_fixed_color_option.selected, 0, CATEGORY_COLOR_VALUES.size() - 1)
+	var color_index := clampi(day_fixed_color_index, 0, CATEGORY_COLOR_VALUES.size() - 1)
 	var category_id := _category_id_for_name_with_color(name, color_index)
 	_add_category_id_to_day(selected_day_key, category_id)
 	day_fixed_name_input.text = ""
@@ -999,6 +1015,11 @@ func _open_pattern_dialog() -> void:
 		else:
 			pattern_start_input.text = _date_key(current_year, current_month, 1)
 	pattern_dialog.popup_centered(Vector2i(620, 500))
+
+
+func _close_pattern_dialog() -> void:
+	if pattern_dialog != null:
+		pattern_dialog.hide()
 
 
 func _apply_pattern_from_ui() -> void:
@@ -1569,14 +1590,71 @@ func _prepare_control(control: Control, font_size: int, min_height: int) -> void
 		control.add_theme_color_override("font_placeholder_color", COLOR_TEXT_DIM)
 
 
-func _make_category_color_option() -> OptionButton:
-	var option := OptionButton.new()
-	for color_name in CATEGORY_COLOR_NAMES:
-		option.add_item(color_name)
-	option.select(0)
-	_prepare_control(option, 18, 52)
-	_prepare_large_dropdown(option)
-	return option
+func _make_color_palette(context: String) -> GridContainer:
+	var palette := GridContainer.new()
+	palette.columns = 3
+	palette.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	palette.add_theme_constant_override("h_separation", 8)
+	palette.add_theme_constant_override("v_separation", 8)
+	for index in range(CATEGORY_COLOR_VALUES.size()):
+		var swatch := Button.new()
+		swatch.text = ""
+		swatch.tooltip_text = CATEGORY_COLOR_NAMES[index]
+		swatch.custom_minimum_size = Vector2(0, 48)
+		swatch.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		swatch.focus_mode = Control.FOCUS_NONE
+		swatch.add_theme_font_size_override("font_size", 20)
+		swatch.add_theme_color_override("font_color", COLOR_TEXT)
+		_connect_tap(swatch, Callable(self, "_select_palette_color").bind(context, index))
+		palette.add_child(swatch)
+	_refresh_color_palette(palette, 0)
+	return palette
+
+
+func _select_palette_color(context: String, color_index: int) -> void:
+	var clean_index := clampi(color_index, 0, CATEGORY_COLOR_VALUES.size() - 1)
+	if context == "event":
+		day_event_color_index = clean_index
+	elif context == "fixed":
+		day_fixed_color_index = clean_index
+	_refresh_color_palettes()
+
+
+func _refresh_color_palettes() -> void:
+	_refresh_color_palette(day_event_color_palette, day_event_color_index)
+	_refresh_color_palette(day_fixed_color_palette, day_fixed_color_index)
+
+
+func _refresh_color_palette(palette: GridContainer, selected_index: int) -> void:
+	if palette == null:
+		return
+
+	var color_index := 0
+	for child in palette.get_children():
+		if not (child is Button):
+			continue
+		var swatch: Button = child as Button
+		_style_color_swatch(swatch, color_index, color_index == selected_index)
+		color_index += 1
+
+
+func _style_color_swatch(swatch: Button, color_index: int, selected: bool) -> void:
+	var color := _category_color(color_index)
+	swatch.add_theme_stylebox_override("normal", _color_swatch_style(color, selected))
+	swatch.add_theme_stylebox_override("hover", _color_swatch_style(color.lightened(0.07), selected))
+	swatch.add_theme_stylebox_override("pressed", _color_swatch_style(color.darkened(0.07), selected))
+	swatch.add_theme_stylebox_override("focus", _color_swatch_style(color, true))
+
+
+func _color_swatch_style(color: Color, selected: bool) -> StyleBoxFlat:
+	var style := _control_style(color)
+	style.set_border_width_all(4 if selected else 1)
+	style.border_color = COLOR_TODAY if selected else Color(1.0, 1.0, 1.0, 0.18)
+	style.content_margin_left = 6
+	style.content_margin_right = 6
+	style.content_margin_top = 6
+	style.content_margin_bottom = 6
+	return style
 
 
 func _prepare_large_dropdown(option: OptionButton) -> void:
@@ -1635,6 +1713,30 @@ func _make_section_label(text: String) -> Label:
 	var label := _make_label(text, 21, COLOR_TEXT)
 	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	return label
+
+
+func _add_dialog_header(parent: VBoxContainer, title: String, close_action: Callable) -> void:
+	var header := HBoxContainer.new()
+	header.add_theme_constant_override("separation", 8)
+	parent.add_child(header)
+
+	var left_spacer := Control.new()
+	left_spacer.custom_minimum_size.x = 64
+	header.add_child(left_spacer)
+
+	var title_label := _make_label(title, 20, COLOR_TEXT)
+	title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	header.add_child(title_label)
+
+	var close_button := Button.new()
+	close_button.text = "X"
+	close_button.tooltip_text = "Zamknij"
+	_prepare_control(close_button, 30, 64)
+	close_button.custom_minimum_size.x = 64
+	close_button.size_flags_horizontal = Control.SIZE_SHRINK_END
+	_connect_tap(close_button, close_action)
+	header.add_child(close_button)
 
 
 func _make_label(text: String, font_size: int, color: Color) -> Label:
