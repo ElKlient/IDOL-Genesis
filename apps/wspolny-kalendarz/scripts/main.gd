@@ -602,16 +602,14 @@ func _rebuild_calendar() -> void:
 	var grid := GridContainer.new()
 	grid.columns = 2
 	grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	grid.add_theme_constant_override("h_separation", 8)
-	grid.add_theme_constant_override("v_separation", 10)
+	grid.add_theme_constant_override("h_separation", 14)
+	grid.add_theme_constant_override("v_separation", 16)
 	months_box.add_child(grid)
 
 	for month_data in _visible_months():
-		grid.add_child(_make_month_section(
+		grid.add_child(_make_month_card(
 			int(month_data["year"]),
 			int(month_data["month"]),
-			true,
-			true,
 			month_layout_count == 12
 		))
 
@@ -634,6 +632,14 @@ func _month_from_offset(year: int, month: int, offset: int) -> Dictionary:
 		"year": int(absolute_month / 12),
 		"month": absolute_month % 12 + 1,
 	}
+
+
+func _make_month_card(year: int, month: int, year_overview: bool) -> PanelContainer:
+	var card := PanelContainer.new()
+	card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	card.add_theme_stylebox_override("panel", _month_card_style())
+	card.add_child(_make_month_section(year, month, true, true, year_overview))
+	return card
 
 
 func _make_month_section(year: int, month: int, show_title: bool, compact: bool, year_overview: bool) -> VBoxContainer:
@@ -2064,6 +2070,22 @@ func _event_dot_style(color: Color) -> StyleBoxFlat:
 	style.shadow_color = Color(color.r, color.g, color.b, 0.78)
 	style.shadow_size = 7
 	style.shadow_offset = Vector2.ZERO
+	return style
+
+
+func _month_card_style() -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.045, 0.055, 0.055, 0.34)
+	style.set_corner_radius_all(8)
+	style.set_border_width_all(1)
+	style.border_color = Color(1.0, 1.0, 1.0, 0.14)
+	style.shadow_color = Color(0.0, 0.0, 0.0, 0.22)
+	style.shadow_size = 8
+	style.shadow_offset = Vector2(0, 3)
+	style.content_margin_left = 6
+	style.content_margin_right = 6
+	style.content_margin_top = 7
+	style.content_margin_bottom = 7
 	return style
 
 
