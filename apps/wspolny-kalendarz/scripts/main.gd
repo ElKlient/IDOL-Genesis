@@ -1,6 +1,21 @@
 extends Control
 
 const BackgroundArt = preload("res://scripts/background_art.gd")
+const LOGO_BACKGROUND_TEXTURE = preload("res://assets/luzne_tloki_logo.jpg")
+const LOGO_BACKGROUND_SHADER_CODE := """
+shader_type canvas_item;
+
+uniform vec4 logo_color : source_color = vec4(0.62, 0.66, 0.64, 0.22);
+uniform float white_cutoff = 0.78;
+uniform float softness = 0.20;
+
+void fragment() {
+	vec4 tex = texture(TEXTURE, UV);
+	float luminance = dot(tex.rgb, vec3(0.299, 0.587, 0.114));
+	float ink = 1.0 - smoothstep(white_cutoff - softness, white_cutoff, luminance);
+	COLOR = vec4(logo_color.rgb, logo_color.a * ink * tex.a);
+}
+"""
 
 const MONTH_NAMES := [
 	"Styczeń",
@@ -210,6 +225,8 @@ func _build_ui() -> void:
 	background.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(background)
 
+	_add_logo_background()
+
 	var scrim := ColorRect.new()
 	scrim.color = Color(0.0, 0.0, 0.0, 0.16)
 	scrim.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -322,6 +339,24 @@ func _build_ui() -> void:
 	_build_system_scheme_delete_dialog()
 	_build_calendar_delete_dialog()
 	_sync_content_width()
+
+
+func _add_logo_background() -> void:
+	var logo := TextureRect.new()
+	logo.texture = LOGO_BACKGROUND_TEXTURE
+	logo.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	logo.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	logo.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	logo.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+	logo.set_anchors_preset(Control.PRESET_FULL_RECT)
+
+	var logo_shader := Shader.new()
+	logo_shader.code = LOGO_BACKGROUND_SHADER_CODE
+	var logo_material := ShaderMaterial.new()
+	logo_material.shader = logo_shader
+	logo.material = logo_material
+
+	add_child(logo)
 
 
 func _add_profile_overlay() -> void:
