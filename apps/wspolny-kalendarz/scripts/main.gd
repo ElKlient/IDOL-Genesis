@@ -656,7 +656,7 @@ func _make_month_section(year: int, month: int, show_title: bool, compact: bool,
 
 	var first_offset := _month_start_weekday_monday(year, month)
 	for _offset in range(first_offset):
-		grid.add_child(_make_day_spacer(compact, year_overview))
+		grid.add_child(_make_day_spacer(year, month, compact, year_overview))
 
 	var days_current := _days_in_month(year, month)
 	for day in range(1, days_current + 1):
@@ -684,11 +684,26 @@ func _make_day_cell(year: int, month: int, day: int, compact: bool, year_overvie
 	button.add_theme_stylebox_override("pressed", _tile_style(color.darkened(0.08), is_today, true))
 	button.add_theme_stylebox_override("focus", _tile_style(color, true, true))
 	_fill_day_tile(button, year, month, day, event_ids, detail_events, has_note, compact, year_overview)
-	_connect_tap(button, Callable(self, "_open_day_dialog").bind(year, month, day))
+	if compact or year_overview:
+		_connect_tap(button, Callable(self, "_open_single_month_from_overview").bind(year, month))
+	else:
+		_connect_tap(button, Callable(self, "_open_day_dialog").bind(year, month, day))
 	return button
 
 
-func _make_day_spacer(compact: bool, year_overview: bool) -> Control:
+func _make_day_spacer(year: int, month: int, compact: bool, year_overview: bool) -> Control:
+	if compact or year_overview:
+		var spacer_button := Button.new()
+		spacer_button.text = ""
+		spacer_button.custom_minimum_size = Vector2(0, _day_tile_height(compact, year_overview))
+		spacer_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		spacer_button.focus_mode = Control.FOCUS_NONE
+		spacer_button.add_theme_stylebox_override("normal", _tile_style(Color(0.90, 0.93, 0.88, 0.05), false, false))
+		spacer_button.add_theme_stylebox_override("hover", _tile_style(Color(0.90, 0.93, 0.88, 0.08), false, false))
+		spacer_button.add_theme_stylebox_override("pressed", _tile_style(Color(0.90, 0.93, 0.88, 0.12), false, true))
+		_connect_tap(spacer_button, Callable(self, "_open_single_month_from_overview").bind(year, month))
+		return spacer_button
+
 	var spacer := Panel.new()
 	spacer.custom_minimum_size = Vector2(0, _day_tile_height(compact, year_overview))
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -977,6 +992,18 @@ func _on_month_layout_selected(index: int) -> void:
 		current_month = 1
 	_refresh_month_title()
 	_rebuild_calendar()
+	_save_settings_to_disk()
+
+
+func _open_single_month_from_overview(year: int, month: int) -> void:
+	current_year = year
+	current_month = clampi(month, 1, 12)
+	month_layout_count = 1
+	_refresh_month_layout_option()
+	_refresh_month_title()
+	_rebuild_calendar()
+	if main_scroll != null:
+		main_scroll.set_deferred("scroll_vertical", 0)
 	_save_settings_to_disk()
 
 
