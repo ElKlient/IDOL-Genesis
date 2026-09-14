@@ -70,12 +70,6 @@ var calendar_status_label: Label
 var share_code_label: Label
 var join_code_input: LineEdit
 var share_status_label: Label
-var pattern_button: Button
-var pattern_dialog: AcceptDialog
-var pattern_start_input: LineEdit
-var pattern_sequence_input: LineEdit
-var pattern_years_spin: SpinBox
-var pattern_status_label: Label
 
 var day_dialog: AcceptDialog
 var day_dialog_title: Label
@@ -94,6 +88,10 @@ var day_fixed_color_index := 0
 var day_fixed_delete_option: OptionButton
 var day_fixed_delete_ids: Array[String] = []
 var day_fixed_status_label: Label
+var day_pattern_box: VBoxContainer
+var day_pattern_steps_label: Label
+var day_pattern_status_label: Label
+var day_pattern_category_ids: Array[String] = []
 var day_event_list_label: Label
 var day_note_edit: TextEdit
 var day_save_note_button: Button
@@ -186,12 +184,6 @@ func _build_ui() -> void:
 	_connect_tap(next_button, Callable(self, "_next_month"))
 	nav.add_child(next_button)
 
-	pattern_button = Button.new()
-	pattern_button.text = "Schemat cykliczny"
-	_prepare_control(pattern_button, 18, 52)
-	_connect_tap(pattern_button, Callable(self, "_open_pattern_dialog"))
-	screen_root.add_child(pattern_button)
-
 	main_scroll = ScrollContainer.new()
 	main_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	main_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
@@ -222,7 +214,6 @@ func _build_ui() -> void:
 	content_root.add_child(_build_sharing_panel())
 	_style_main_scrollbar()
 	_build_day_dialog()
-	_build_pattern_dialog()
 	_sync_content_width()
 
 
@@ -296,54 +287,6 @@ func _build_profile_panel() -> PanelContainer:
 	box.add_child(calendar_status_label)
 
 	return panel
-
-
-func _build_pattern_dialog() -> void:
-	pattern_dialog = AcceptDialog.new()
-	pattern_dialog.title = ""
-	pattern_dialog.borderless = true
-	pattern_dialog.min_size = Vector2i(620, 500)
-	add_child(pattern_dialog)
-
-	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 11)
-	pattern_dialog.add_child(box)
-
-	_add_dialog_header(box, "Schemat cykliczny", Callable(self, "_close_pattern_dialog"))
-
-	pattern_start_input = LineEdit.new()
-	pattern_start_input.placeholder_text = "Pierwszy dzień cyklu, np. 2026-09-14"
-	_prepare_control(pattern_start_input, 18, 54)
-	box.add_child(pattern_start_input)
-
-	pattern_sequence_input = LineEdit.new()
-	pattern_sequence_input.placeholder_text = "Schemat, np. praca, praca, praca, wolne"
-	_prepare_control(pattern_sequence_input, 18, 54)
-	box.add_child(pattern_sequence_input)
-
-	var options_grid := GridContainer.new()
-	options_grid.columns = 2
-	options_grid.add_theme_constant_override("h_separation", 8)
-	options_grid.add_theme_constant_override("v_separation", 8)
-	box.add_child(options_grid)
-
-	pattern_years_spin = _make_spin(1, 20, 5)
-	pattern_years_spin.allow_greater = false
-	options_grid.add_child(_field_stack("Lata do przodu", pattern_years_spin))
-
-	var info := _make_label("Schemat dopisuje oznaczenia do dni. Nie kasuje wpisanych wydarzeń ani notatek.", 14, COLOR_TEXT_MUTED)
-	info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	options_grid.add_child(info)
-
-	var apply_button := Button.new()
-	apply_button.text = "Zastosuj schemat"
-	_prepare_control(apply_button, 18, 56)
-	_connect_tap(apply_button, Callable(self, "_apply_pattern_from_ui"))
-	box.add_child(apply_button)
-
-	pattern_status_label = _make_label("Wpisz cykl po przecinku. Dni zapiszą się jak zwykłe oznaczenia do udostępniania.", 14, COLOR_TEXT_MUTED)
-	pattern_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	box.add_child(pattern_status_label)
 
 
 func _build_sharing_panel() -> PanelContainer:
@@ -420,6 +363,51 @@ func _build_day_dialog() -> void:
 	_prepare_control(fixed_button, 18, 52)
 	_connect_tap(fixed_button, Callable(self, "_toggle_day_fixed_button_form"))
 	action_row.add_child(fixed_button)
+
+	var pattern_from_day_button := Button.new()
+	pattern_from_day_button.text = "Dodaj schemat cykliczny"
+	_prepare_control(pattern_from_day_button, 18, 52)
+	_connect_tap(pattern_from_day_button, Callable(self, "_toggle_day_pattern_form"))
+	box.add_child(pattern_from_day_button)
+
+	day_pattern_box = VBoxContainer.new()
+	day_pattern_box.visible = false
+	day_pattern_box.add_theme_constant_override("separation", 8)
+	box.add_child(day_pattern_box)
+
+	var pattern_info := _make_label("Klikaj szybkie przyciski powyżej w kolejności cyklu. Wybrany dzień jest początkiem schematu.", 14, COLOR_TEXT_MUTED)
+	pattern_info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	day_pattern_box.add_child(pattern_info)
+
+	day_pattern_steps_label = _make_label("", 16, COLOR_TEXT)
+	day_pattern_steps_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	day_pattern_box.add_child(day_pattern_steps_label)
+
+	var pattern_edit_row := HBoxContainer.new()
+	pattern_edit_row.add_theme_constant_override("separation", 8)
+	day_pattern_box.add_child(pattern_edit_row)
+
+	var undo_pattern_button := Button.new()
+	undo_pattern_button.text = "Cofnij ostatni"
+	_prepare_control(undo_pattern_button, 16, 48)
+	_connect_tap(undo_pattern_button, Callable(self, "_undo_day_pattern_step"))
+	pattern_edit_row.add_child(undo_pattern_button)
+
+	var clear_pattern_button := Button.new()
+	clear_pattern_button.text = "Wyczyść schemat"
+	_prepare_control(clear_pattern_button, 16, 48)
+	_connect_tap(clear_pattern_button, Callable(self, "_clear_day_pattern"))
+	pattern_edit_row.add_child(clear_pattern_button)
+
+	var apply_pattern_button := Button.new()
+	apply_pattern_button.text = "Zastosuj do całego roku"
+	_prepare_control(apply_pattern_button, 18, 52)
+	_connect_tap(apply_pattern_button, Callable(self, "_apply_day_pattern_to_year"))
+	day_pattern_box.add_child(apply_pattern_button)
+
+	day_pattern_status_label = _make_label("", 14, COLOR_TEXT_MUTED)
+	day_pattern_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	day_pattern_box.add_child(day_pattern_status_label)
 
 	day_event_form_box = VBoxContainer.new()
 	day_event_form_box.visible = false
@@ -538,7 +526,6 @@ func _refresh_all() -> void:
 	selected_calendar_index = clampi(selected_calendar_index, 0, calendars.size() - 1)
 	_refresh_profile_ui()
 	_refresh_category_ui()
-	_refresh_pattern_ui()
 	_refresh_month_title()
 	_rebuild_calendar()
 	_refresh_sharing_ui()
@@ -700,9 +687,13 @@ func _reset_day_dialog_forms() -> void:
 		day_event_form_box.visible = false
 	if day_fixed_button_form_box != null:
 		day_fixed_button_form_box.visible = false
+	if day_pattern_box != null:
+		day_pattern_box.visible = false
 	day_event_color_index = 0
 	day_fixed_color_index = 0
+	day_pattern_category_ids.clear()
 	_refresh_color_palettes()
+	_refresh_day_pattern_ui()
 	if day_event_status_label != null:
 		day_event_status_label.text = ""
 	if day_fixed_status_label != null:
@@ -775,11 +766,93 @@ func _refresh_day_event_list() -> void:
 func _add_quick_category_to_selected_day(category_id: String) -> void:
 	if selected_day_key == "":
 		return
+	if day_pattern_box != null and day_pattern_box.visible:
+		_add_category_to_day_pattern(category_id)
+		return
 
 	_add_category_id_to_day(selected_day_key, category_id)
 	_save_settings_to_disk()
 	_rebuild_calendar()
 	_refresh_day_event_list()
+
+
+func _toggle_day_pattern_form() -> void:
+	if day_pattern_box == null:
+		return
+
+	var show_form := not day_pattern_box.visible
+	day_pattern_box.visible = show_form
+	if show_form:
+		if day_event_form_box != null:
+			day_event_form_box.visible = false
+		if day_fixed_button_form_box != null:
+			day_fixed_button_form_box.visible = false
+	if day_pattern_status_label != null:
+		day_pattern_status_label.text = ""
+	_refresh_day_pattern_ui()
+
+
+func _add_category_to_day_pattern(category_id: String) -> void:
+	if category_id == "":
+		return
+
+	day_pattern_category_ids.append(category_id)
+	_refresh_day_pattern_ui()
+
+
+func _undo_day_pattern_step() -> void:
+	if not day_pattern_category_ids.is_empty():
+		day_pattern_category_ids.remove_at(day_pattern_category_ids.size() - 1)
+	_refresh_day_pattern_ui()
+
+
+func _clear_day_pattern() -> void:
+	day_pattern_category_ids.clear()
+	_refresh_day_pattern_ui()
+
+
+func _refresh_day_pattern_ui() -> void:
+	if day_pattern_steps_label == null:
+		return
+
+	var names: Array[String] = []
+	for category_id in day_pattern_category_ids:
+		var category: Dictionary = _category_by_id(String(category_id))
+		if category.is_empty():
+			continue
+		names.append(String(category.get("name", "")))
+	if names.is_empty():
+		day_pattern_steps_label.text = "Cykl: jeszcze pusty"
+	else:
+		day_pattern_steps_label.text = "Cykl: %s" % " -> ".join(names)
+
+
+func _apply_day_pattern_to_year() -> void:
+	if selected_day_key == "":
+		return
+	if day_pattern_category_ids.is_empty():
+		day_pattern_status_label.text = "Kliknij szybkie przyciski, żeby ułożyć cykl."
+		return
+
+	var start_unix := _unix_from_date(selected_day_year, selected_day_month, selected_day_number)
+	var end_unix := _unix_from_date(selected_day_year, 12, 31)
+	var total_days := int((end_unix - start_unix) / 86400) + 1
+	if total_days <= 0:
+		day_pattern_status_label.text = "Ten schemat nie ma gdzie się zastosować w tym roku."
+		return
+
+	var changed_days := 0
+	for offset in range(total_days):
+		var date := Time.get_datetime_dict_from_unix_time(start_unix + offset * 86400)
+		var key := _date_key(int(date["year"]), int(date["month"]), int(date["day"]))
+		var category_id: String = day_pattern_category_ids[offset % day_pattern_category_ids.size()]
+		if _add_category_id_to_day(key, category_id):
+			changed_days += 1
+
+	_save_settings_to_disk()
+	_rebuild_calendar()
+	_refresh_day_event_list()
+	day_pattern_status_label.text = "Zastosowano od %s do %d-12-31. Dopisano %d dni." % [selected_day_key, selected_day_year, changed_days]
 
 
 func _toggle_day_event_form() -> void:
@@ -790,6 +863,8 @@ func _toggle_day_event_form() -> void:
 	day_event_form_box.visible = show_form
 	if day_fixed_button_form_box != null and show_form:
 		day_fixed_button_form_box.visible = false
+	if day_pattern_box != null and show_form:
+		day_pattern_box.visible = false
 	if day_event_status_label != null:
 		day_event_status_label.text = ""
 	if show_form and day_event_name_input != null:
@@ -804,6 +879,8 @@ func _toggle_day_fixed_button_form() -> void:
 	day_fixed_button_form_box.visible = show_form
 	if day_event_form_box != null and show_form:
 		day_event_form_box.visible = false
+	if day_pattern_box != null and show_form:
+		day_pattern_box.visible = false
 	if day_fixed_status_label != null:
 		day_fixed_status_label.text = ""
 	_refresh_fixed_delete_option()
@@ -911,6 +988,7 @@ func _delete_fixed_button() -> void:
 			break
 
 	_remove_category_from_events(category_id)
+	_remove_category_from_day_pattern(category_id)
 	_save_settings_to_disk()
 	_refresh_day_quick_buttons()
 	_refresh_fixed_delete_option()
@@ -921,6 +999,18 @@ func _delete_fixed_button() -> void:
 			day_fixed_status_label.text = "Usunięto: %s" % removed_name
 		else:
 			day_fixed_status_label.text = "Usunięto stały przycisk."
+
+
+func _remove_category_from_day_pattern(category_id: String) -> void:
+	if category_id == "":
+		return
+
+	var clean_ids: Array[String] = []
+	for existing_id in day_pattern_category_ids:
+		if String(existing_id) != category_id:
+			clean_ids.append(String(existing_id))
+	day_pattern_category_ids = clean_ids
+	_refresh_day_pattern_ui()
 
 
 func _save_selected_day_note() -> void:
@@ -991,100 +1081,6 @@ func _refresh_category_ui() -> void:
 	_refresh_fixed_delete_option()
 
 
-func _refresh_pattern_ui() -> void:
-	if pattern_start_input == null:
-		return
-
-	var pattern := _pattern_settings()
-	pattern_start_input.text = String(pattern.get("start_date", ""))
-	pattern_sequence_input.text = String(pattern.get("sequence", ""))
-	pattern_years_spin.set_value_no_signal(float(pattern.get("years", 5)))
-
-	if pattern_status_label != null:
-		pattern_status_label.text = "Wpisz cykl po przecinku. Dni zapiszą się jak zwykłe oznaczenia do udostępniania."
-
-
-func _open_pattern_dialog() -> void:
-	if pattern_dialog == null:
-		return
-
-	_refresh_pattern_ui()
-	if pattern_start_input.text.strip_edges() == "":
-		if selected_day_key != "":
-			pattern_start_input.text = selected_day_key
-		else:
-			pattern_start_input.text = _date_key(current_year, current_month, 1)
-	pattern_dialog.popup_centered(Vector2i(620, 500))
-
-
-func _close_pattern_dialog() -> void:
-	if pattern_dialog != null:
-		pattern_dialog.hide()
-
-
-func _apply_pattern_from_ui() -> void:
-	if pattern_start_input == null:
-		return
-
-	var start_text := pattern_start_input.text.strip_edges()
-	var start_date := _date_from_string(start_text)
-	if start_date.is_empty():
-		pattern_status_label.text = "Podaj pierwszy dzień cyklu w formacie RRRR-MM-DD."
-		return
-
-	var steps := _parse_pattern_steps(pattern_sequence_input.text)
-	if steps.is_empty():
-		pattern_status_label.text = "Wpisz schemat, np. praca, praca, wolne."
-		return
-
-	var years := clampi(int(pattern_years_spin.value), 1, 20)
-	var pattern := _pattern_settings()
-	pattern["start_date"] = start_text
-	pattern["sequence"] = pattern_sequence_input.text.strip_edges()
-	pattern["years"] = years
-
-	var category_ids: Array[String] = []
-	for index in range(steps.size()):
-		category_ids.append(_category_id_for_name(steps[index], index))
-
-	var start_year := int(start_date.get("year", current_year))
-	var start_month := int(start_date.get("month", current_month))
-	var start_day := int(start_date.get("day", 1))
-	var start_unix := _unix_from_date(start_year, start_month, start_day)
-	var end_year := start_year + years - 1
-	var end_unix := _unix_from_date(end_year, 12, 31)
-	var total_days := int((end_unix - start_unix) / 86400) + 1
-	if total_days <= 0:
-		pattern_status_label.text = "Zakres dat jest pusty."
-		return
-
-	var changed_days := 0
-	for offset in range(total_days):
-		var date := Time.get_datetime_dict_from_unix_time(start_unix + offset * 86400)
-		var key := _date_key(int(date["year"]), int(date["month"]), int(date["day"]))
-		if _add_category_id_to_day(key, category_ids[offset % category_ids.size()]):
-			changed_days += 1
-
-	_save_settings_to_disk()
-	_refresh_category_ui()
-	_rebuild_calendar()
-	pattern_status_label.text = "Zastosowano schemat na %d dni, do %d-12-31." % [changed_days, end_year]
-
-
-func _parse_pattern_steps(value: String) -> Array[String]:
-	var clean: Array[String] = []
-	var normalized := value.replace(";", ",").replace("|", ",").replace("/", ",")
-	for raw_step in normalized.split(",", false):
-		var step := String(raw_step).strip_edges()
-		if step != "":
-			clean.append(step)
-	return clean
-
-
-func _category_id_for_name(name: String, color_offset: int) -> String:
-	return _category_id_for_name_with_color(name, _category_color_index_for_name(name, color_offset))
-
-
 func _category_id_for_name_with_color(name: String, color_index: int) -> String:
 	var categories := _categories()
 	var wanted := _category_name_key(name)
@@ -1108,19 +1104,6 @@ func _category_id_for_name_with_color(name: String, color_index: int) -> String:
 
 func _category_name_key(value: String) -> String:
 	return value.strip_edges().to_lower()
-
-
-func _category_color_index_for_name(name: String, fallback_offset: int) -> int:
-	var key := _category_name_key(name)
-	if key == "praca" or key == "work":
-		return 0
-	if key == "wolne" or key == "dom" or key == "home" or key == "free":
-		return 1
-	if key == "pauza" or key == "24h" or key == "odpoczynek":
-		return 2
-	if key == "urlop" or key == "wakacje":
-		return 3
-	return fallback_offset % CATEGORY_COLOR_VALUES.size()
 
 
 func _refresh_profile_ui() -> void:
@@ -1237,7 +1220,6 @@ func _join_calendar_by_code() -> void:
 		"events": {},
 		"event_details": {},
 		"notes": {},
-		"pattern": _default_pattern_settings(),
 	})
 	selected_calendar_index = calendars.size() - 1
 	join_code_input.text = ""
@@ -1292,7 +1274,6 @@ func _make_calendar(name: String, kind: String) -> Dictionary:
 		"events": {},
 		"event_details": {},
 		"notes": {},
-		"pattern": _default_pattern_settings(),
 	}
 
 
@@ -1328,26 +1309,6 @@ func _notes() -> Dictionary:
 	if not calendar.has("notes") or not (calendar["notes"] is Dictionary):
 		calendar["notes"] = {}
 	return calendar["notes"]
-
-
-func _pattern_settings() -> Dictionary:
-	var calendar := _selected_calendar()
-	if not calendar.has("pattern") or not (calendar["pattern"] is Dictionary):
-		calendar["pattern"] = _default_pattern_settings()
-	var pattern: Dictionary = calendar["pattern"]
-	var defaults := _default_pattern_settings()
-	for key in defaults.keys():
-		if not pattern.has(key):
-			pattern[key] = defaults[key]
-	return pattern
-
-
-func _default_pattern_settings() -> Dictionary:
-	return {
-		"start_date": "",
-		"sequence": "",
-		"years": 5,
-	}
 
 
 func _event_ids_for_day(key: String) -> Array:
@@ -1449,8 +1410,7 @@ func _sanitize_calendar(value: Dictionary) -> Dictionary:
 		calendar["event_details"] = {}
 	if not calendar.has("notes") or not (calendar["notes"] is Dictionary):
 		calendar["notes"] = {}
-	if not calendar.has("pattern") or not (calendar["pattern"] is Dictionary):
-		calendar["pattern"] = _default_pattern_settings()
+	calendar.erase("pattern")
 	return calendar
 
 
@@ -1528,33 +1488,6 @@ func _days_in_month(year: int, month: int) -> int:
 
 func _is_leap_year(year: int) -> bool:
 	return year % 400 == 0 or (year % 4 == 0 and year % 100 != 0)
-
-
-func _make_spin(min_value: int, max_value: int, value: int) -> SpinBox:
-	var spin := SpinBox.new()
-	spin.min_value = min_value
-	spin.max_value = max_value
-	spin.step = 1
-	spin.value = value
-	spin.allow_greater = true
-	spin.custom_minimum_size.y = 54
-	spin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	spin.add_theme_font_size_override("font_size", 18)
-	spin.add_theme_color_override("font_color", COLOR_TEXT)
-	spin.add_theme_color_override("font_focus_color", COLOR_TEXT)
-	spin.add_theme_stylebox_override("normal", _control_style(Color(0.90, 0.94, 0.90, 0.13)))
-	spin.add_theme_stylebox_override("focus", _control_style(Color(0.92, 0.72, 0.38, 0.18), true))
-	return spin
-
-
-func _field_stack(label_text: String, field: Control) -> VBoxContainer:
-	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 4)
-	var label := _make_label(label_text, 14, COLOR_TEXT_MUTED)
-	box.add_child(label)
-	field.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	box.add_child(field)
-	return box
 
 
 func _connect_tap(button: BaseButton, action: Callable) -> void:
