@@ -139,6 +139,7 @@ var day_fixed_color_index := 0
 var day_fixed_delete_option: OptionButton
 var day_fixed_delete_ids: Array[String] = []
 var day_fixed_status_label: Label
+var day_holiday_label: Label
 var day_event_list_label: Label
 var day_note_form_box: VBoxContainer
 var day_note_edit: TextEdit
@@ -634,6 +635,16 @@ func _build_day_dialog() -> void:
 	day_fixed_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	day_fixed_button_form_box.add_child(day_fixed_status_label)
 
+	day_holiday_label = _make_label("", 22, COLOR_TEXT)
+	day_holiday_label.visible = false
+	day_holiday_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	day_holiday_label.add_theme_color_override("font_outline_color", Color(0.0, 0.0, 0.0, 0.88))
+	day_holiday_label.add_theme_color_override("font_shadow_color", Color(0.0, 0.0, 0.0, 0.78))
+	day_holiday_label.add_theme_constant_override("outline_size", 2)
+	day_holiday_label.add_theme_constant_override("shadow_offset_x", 1)
+	day_holiday_label.add_theme_constant_override("shadow_offset_y", 2)
+	box.add_child(day_holiday_label)
+
 	day_event_list_label = _make_label("", 16, COLOR_TEXT_MUTED)
 	day_event_list_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	box.add_child(day_event_list_label)
@@ -1029,9 +1040,8 @@ func _refresh_day_event_list() -> void:
 		return
 
 	var event_ids := _event_ids_for_day(selected_day_key)
+	var has_holidays := _refresh_day_holiday_label()
 	var lines: Array[String] = []
-	for holiday_name in _holiday_names_for_day(selected_day_year, selected_day_month, selected_day_number):
-		lines.append("Święto: %s" % holiday_name)
 	for event_id in event_ids:
 		var category: Dictionary = _category_by_id(String(event_id))
 		if not category.is_empty():
@@ -1052,9 +1062,27 @@ func _refresh_day_event_list() -> void:
 			line = "%s - %s" % [line, description.left(58)]
 		lines.append(line)
 	if lines.is_empty():
-		day_event_list_label.text = "Ten dzień jest pusty."
+		day_event_list_label.text = "Brak innych wpisów." if has_holidays else "Ten dzień jest pusty."
 	else:
 		day_event_list_label.text = "Wpisy:\n%s" % "\n".join(lines)
+
+
+func _refresh_day_holiday_label() -> bool:
+	if day_holiday_label == null:
+		return false
+
+	var holiday_names := _holiday_names_for_day(selected_day_year, selected_day_month, selected_day_number)
+	if holiday_names.is_empty():
+		day_holiday_label.text = ""
+		day_holiday_label.visible = false
+		return false
+
+	var lines: Array[String] = []
+	for holiday_name in holiday_names:
+		lines.append("ŚWIĘTO: %s" % holiday_name)
+	day_holiday_label.text = "\n".join(lines)
+	day_holiday_label.visible = true
+	return true
 
 
 func _add_quick_category_to_selected_day(category_id: String) -> void:
