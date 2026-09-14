@@ -1,7 +1,6 @@
 extends Control
 
 const BackgroundArt = preload("res://scripts/background_art.gd")
-const ScheduleCalculator = preload("res://scripts/schedule_calculator.gd")
 
 const MONTH_NAMES := [
 	"Styczeń",
@@ -35,10 +34,6 @@ const COLOR_TEXT := Color(0.94, 0.955, 0.925)
 const COLOR_TEXT_MUTED := Color(0.76, 0.80, 0.77)
 const COLOR_TEXT_DIM := Color(0.54, 0.58, 0.55)
 const COLOR_TODAY := Color(0.92, 0.72, 0.38)
-const COLOR_DRIVER_WORK := Color(0.58, 0.27, 0.30, 0.88)
-const COLOR_DRIVER_HOME := Color(0.28, 0.50, 0.37, 0.88)
-const COLOR_DRIVER_REST := Color(0.60, 0.49, 0.27, 0.88)
-
 const CATEGORY_COLOR_NAMES := [
 	"Czerwony",
 	"Zielony",
@@ -60,7 +55,6 @@ var current_year: int
 var current_month: int
 var selected_calendar_index := 0
 var calendars: Array[Dictionary] = []
-var driver_calculator := ScheduleCalculator.new()
 
 var main_scroll: ScrollContainer
 var content_root: VBoxContainer
@@ -80,13 +74,11 @@ var category_delete_button: Button
 var share_code_label: Label
 var join_code_input: LineEdit
 var share_status_label: Label
-var driver_enabled_toggle: CheckButton
-var driver_preset_option: OptionButton
-var driver_start_input: LineEdit
-var driver_work_spin: SpinBox
-var driver_home_spin: SpinBox
-var driver_rest_toggle: CheckButton
-var driver_status_label: Label
+var pattern_start_input: LineEdit
+var pattern_sequence_input: LineEdit
+var pattern_years_spin: SpinBox
+var pattern_overwrite_toggle: CheckButton
+var pattern_status_label: Label
 
 var day_dialog: AcceptDialog
 var day_dialog_title: Label
@@ -212,7 +204,7 @@ func _build_ui() -> void:
 	calendar_root.add_child(months_box)
 
 	content_root.add_child(_build_categories_panel())
-	content_root.add_child(_build_driver_panel())
+	content_root.add_child(_build_pattern_panel())
 	content_root.add_child(_build_sharing_panel())
 	_style_main_scrollbar()
 	_build_day_dialog()
@@ -332,62 +324,46 @@ func _build_categories_panel() -> PanelContainer:
 	return panel
 
 
-func _build_driver_panel() -> PanelContainer:
+func _build_pattern_panel() -> PanelContainer:
 	var panel := _panel()
 	var box := _panel_box(panel)
-	box.add_child(_make_section_label("System kierowcy"))
+	box.add_child(_make_section_label("Powtarzalny schemat"))
 
-	driver_enabled_toggle = CheckButton.new()
-	driver_enabled_toggle.text = "Użyj automatycznego grafiku kierowcy"
-	driver_enabled_toggle.toggled.connect(_on_driver_enabled_toggled)
-	_prepare_control(driver_enabled_toggle, 18, 56)
-	box.add_child(driver_enabled_toggle)
+	pattern_start_input = LineEdit.new()
+	pattern_start_input.placeholder_text = "Pierwszy dzień cyklu, np. 2026-09-14"
+	_prepare_control(pattern_start_input, 18, 54)
+	box.add_child(pattern_start_input)
 
-	driver_preset_option = OptionButton.new()
-	driver_preset_option.add_item("Własny")
-	driver_preset_option.add_item("2 na 1")
-	driver_preset_option.add_item("2 na 2")
-	driver_preset_option.add_item("3 na 1")
-	driver_preset_option.add_item("3 na 2")
-	driver_preset_option.add_item("4 na 1")
-	driver_preset_option.add_item("6 dni + 24h + 6 dni")
-	driver_preset_option.item_selected.connect(_on_driver_preset_selected)
-	_prepare_control(driver_preset_option, 18, 54)
-	_prepare_large_dropdown(driver_preset_option)
-	box.add_child(driver_preset_option)
+	pattern_sequence_input = LineEdit.new()
+	pattern_sequence_input.placeholder_text = "Schemat, np. praca, praca, praca, wolne"
+	_prepare_control(pattern_sequence_input, 18, 54)
+	box.add_child(pattern_sequence_input)
 
-	driver_start_input = LineEdit.new()
-	driver_start_input.placeholder_text = "Pierwszy dzień cyklu, np. 2026-09-14"
-	_prepare_control(driver_start_input, 18, 54)
-	box.add_child(driver_start_input)
+	var options_grid := GridContainer.new()
+	options_grid.columns = 2
+	options_grid.add_theme_constant_override("h_separation", 8)
+	options_grid.add_theme_constant_override("v_separation", 8)
+	box.add_child(options_grid)
 
-	var cycle_grid := GridContainer.new()
-	cycle_grid.columns = 2
-	cycle_grid.add_theme_constant_override("h_separation", 8)
-	cycle_grid.add_theme_constant_override("v_separation", 8)
-	box.add_child(cycle_grid)
+	pattern_years_spin = _make_spin(1, 20, 5)
+	pattern_years_spin.allow_greater = false
+	options_grid.add_child(_field_stack("Lata do przodu", pattern_years_spin))
 
-	driver_work_spin = _make_spin(1, 90, 14)
-	cycle_grid.add_child(_field_stack("Dni pracy", driver_work_spin))
-
-	driver_home_spin = _make_spin(1, 90, 7)
-	cycle_grid.add_child(_field_stack("Dni domu", driver_home_spin))
-
-	driver_rest_toggle = CheckButton.new()
-	driver_rest_toggle.text = "Pauza 24h co 6 dni pracy"
-	driver_rest_toggle.button_pressed = true
-	_prepare_control(driver_rest_toggle, 18, 56)
-	box.add_child(driver_rest_toggle)
+	pattern_overwrite_toggle = CheckButton.new()
+	pattern_overwrite_toggle.text = "Nadpisz dni w zakresie"
+	pattern_overwrite_toggle.button_pressed = true
+	_prepare_control(pattern_overwrite_toggle, 17, 54)
+	options_grid.add_child(pattern_overwrite_toggle)
 
 	var apply_button := Button.new()
-	apply_button.text = "Zastosuj system"
+	apply_button.text = "Zastosuj schemat"
 	_prepare_control(apply_button, 18, 56)
-	_connect_tap(apply_button, Callable(self, "_apply_driver_settings_from_ui"))
+	_connect_tap(apply_button, Callable(self, "_apply_pattern_from_ui"))
 	box.add_child(apply_button)
 
-	driver_status_label = _make_label("", 14, COLOR_TEXT_MUTED)
-	driver_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	box.add_child(driver_status_label)
+	pattern_status_label = _make_label("Wpisz cykl po przecinku. Dni zapiszą się jak zwykłe oznaczenia do udostępniania.", 14, COLOR_TEXT_MUTED)
+	pattern_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	box.add_child(pattern_status_label)
 
 	return panel
 
@@ -481,8 +457,7 @@ func _refresh_all() -> void:
 	selected_calendar_index = clampi(selected_calendar_index, 0, calendars.size() - 1)
 	_refresh_profile_ui()
 	_refresh_category_ui()
-	_refresh_driver_ui()
-	_configure_driver_calculator()
+	_refresh_pattern_ui()
 	_refresh_month_title()
 	_rebuild_calendar()
 	_refresh_sharing_ui()
@@ -533,9 +508,8 @@ func _make_day_cell(year: int, month: int, day: int) -> Button:
 	var key := _date_key(year, month, day)
 	var event_ids := _event_ids_for_day(key)
 	var has_note := _notes().has(key) and String(_notes()[key]).strip_edges() != ""
-	var driver_state := _driver_state_for_date(year, month, day)
 	var is_today := _is_today(year, month, day)
-	var color := _color_for_day(event_ids, driver_state)
+	var color := _color_for_day(event_ids)
 
 	var button := Button.new()
 	button.text = ""
@@ -547,7 +521,7 @@ func _make_day_cell(year: int, month: int, day: int) -> Button:
 	button.add_theme_stylebox_override("hover", _tile_style(color.lightened(0.06), is_today, true))
 	button.add_theme_stylebox_override("pressed", _tile_style(color.darkened(0.08), is_today, true))
 	button.add_theme_stylebox_override("focus", _tile_style(color, true, true))
-	_fill_day_tile(button, year, month, day, event_ids, has_note, driver_state)
+	_fill_day_tile(button, year, month, day, event_ids, has_note)
 	_connect_tap(button, Callable(self, "_open_day_dialog").bind(year, month, day))
 	return button
 
@@ -560,7 +534,7 @@ func _make_day_spacer() -> Control:
 	return spacer
 
 
-func _fill_day_tile(button: Button, year: int, month: int, day: int, event_ids: Array, has_note: bool, driver_state: int) -> void:
+func _fill_day_tile(button: Button, year: int, month: int, day: int, event_ids: Array, has_note: bool) -> void:
 	var margin := MarginContainer.new()
 	margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	margin.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -582,16 +556,13 @@ func _fill_day_tile(button: Button, year: int, month: int, day: int, event_ids: 
 	var weekday_label := _tile_label(WEEKDAY_SHORT_TILE[_weekday_monday_index(year, month, day)], 13, COLOR_TEXT_MUTED)
 	box.add_child(weekday_label)
 
-	var marker_text := _marker_text(event_ids, has_note, driver_state)
+	var marker_text := _marker_text(event_ids, has_note)
 	if marker_text != "":
 		box.add_child(_tile_label(marker_text, 10, COLOR_TEXT))
 
 
-func _marker_text(event_ids: Array, has_note: bool, driver_state: int) -> String:
+func _marker_text(event_ids: Array, has_note: bool) -> String:
 	var parts: Array[String] = []
-	var driver_label := _driver_short_label(driver_state)
-	if driver_label != "":
-		parts.append(driver_label)
 	for event_id in event_ids:
 		var category := _category_by_id(String(event_id))
 		if category.is_empty():
@@ -642,9 +613,6 @@ func _refresh_day_category_option() -> void:
 func _refresh_day_event_list() -> void:
 	var event_ids := _event_ids_for_day(selected_day_key)
 	var names: Array[String] = []
-	var driver_label := _driver_short_label(_driver_state_for_date(selected_day_year, selected_day_month, selected_day_number))
-	if driver_label != "":
-		names.append("system: %s" % driver_label)
 	for event_id in event_ids:
 		var category := _category_by_id(String(event_id))
 		if not category.is_empty():
@@ -775,121 +743,121 @@ func _refresh_category_ui() -> void:
 		_refresh_day_category_option()
 
 
-func _refresh_driver_ui() -> void:
-	if driver_enabled_toggle == null:
+func _refresh_pattern_ui() -> void:
+	if pattern_start_input == null:
 		return
 
-	var driver := _driver_settings()
-	driver_enabled_toggle.set_pressed_no_signal(bool(driver.get("enabled", false)))
-	driver_preset_option.select(clampi(int(driver.get("preset", 0)), 0, driver_preset_option.get_item_count() - 1))
-	driver_start_input.text = String(driver.get("start_date", ""))
-	driver_work_spin.set_value_no_signal(float(driver.get("work_days", 14)))
-	driver_home_spin.set_value_no_signal(float(driver.get("home_days", 7)))
-	driver_rest_toggle.set_pressed_no_signal(bool(driver.get("weekly_rest", true)))
+	var pattern := _pattern_settings()
+	pattern_start_input.text = String(pattern.get("start_date", ""))
+	pattern_sequence_input.text = String(pattern.get("sequence", ""))
+	pattern_years_spin.set_value_no_signal(float(pattern.get("years", 5)))
+	pattern_overwrite_toggle.set_pressed_no_signal(bool(pattern.get("overwrite", true)))
 
-	if driver_status_label != null:
-		driver_status_label.text = "Wyłączony. Włącz, jeśli ten kalendarz ma automatycznie oznaczać system pracy."
+	if pattern_status_label != null:
+		pattern_status_label.text = "Wpisz cykl po przecinku. Dni zapiszą się jak zwykłe oznaczenia do udostępniania."
 
 
-func _on_driver_enabled_toggled(enabled: bool) -> void:
-	_driver_settings()["enabled"] = enabled
-	_apply_driver_settings_from_ui()
-
-
-func _on_driver_preset_selected(index: int) -> void:
-	match index:
-		1:
-			_set_driver_cycle_values(14, 7, true)
-		2:
-			_set_driver_cycle_values(14, 14, true)
-		3:
-			_set_driver_cycle_values(21, 7, true)
-		4:
-			_set_driver_cycle_values(21, 14, true)
-		5:
-			_set_driver_cycle_values(28, 7, true)
-		6:
-			_set_driver_cycle_values(12, 8, true)
-		_:
-			pass
-
-
-func _set_driver_cycle_values(work_days: int, home_days: int, weekly_rest: bool) -> void:
-	driver_work_spin.set_value_no_signal(work_days)
-	driver_home_spin.set_value_no_signal(home_days)
-	driver_rest_toggle.set_pressed_no_signal(weekly_rest)
-
-
-func _apply_driver_settings_from_ui() -> void:
-	if driver_enabled_toggle == null:
+func _apply_pattern_from_ui() -> void:
+	if pattern_start_input == null:
 		return
 
-	var driver := _driver_settings()
-	driver["enabled"] = driver_enabled_toggle.button_pressed
-	driver["preset"] = driver_preset_option.selected
-	driver["start_date"] = driver_start_input.text.strip_edges()
-	driver["work_days"] = int(driver_work_spin.value)
-	driver["home_days"] = int(driver_home_spin.value)
-	driver["weekly_rest"] = driver_rest_toggle.button_pressed
+	var start_text := pattern_start_input.text.strip_edges()
+	var start_date := _date_from_string(start_text)
+	if start_date.is_empty():
+		pattern_status_label.text = "Podaj pierwszy dzień cyklu w formacie RRRR-MM-DD."
+		return
+
+	var steps := _parse_pattern_steps(pattern_sequence_input.text)
+	if steps.is_empty():
+		pattern_status_label.text = "Wpisz schemat, np. praca, praca, wolne."
+		return
+
+	var years := clampi(int(pattern_years_spin.value), 1, 20)
+	var pattern := _pattern_settings()
+	pattern["start_date"] = start_text
+	pattern["sequence"] = pattern_sequence_input.text.strip_edges()
+	pattern["years"] = years
+	pattern["overwrite"] = pattern_overwrite_toggle.button_pressed
+
+	var category_ids: Array[String] = []
+	for index in range(steps.size()):
+		category_ids.append(_category_id_for_name(steps[index], index))
+
+	var start_year := int(start_date.get("year", current_year))
+	var start_month := int(start_date.get("month", current_month))
+	var start_day := int(start_date.get("day", 1))
+	var start_unix := _unix_from_date(start_year, start_month, start_day)
+	var end_year := start_year + years - 1
+	var end_unix := _unix_from_date(end_year, 12, 31)
+	var total_days := int((end_unix - start_unix) / 86400) + 1
+	if total_days <= 0:
+		pattern_status_label.text = "Zakres dat jest pusty."
+		return
+
+	var events := _events()
+	var changed_days := 0
+	for offset in range(total_days):
+		var date := Time.get_datetime_dict_from_unix_time(start_unix + offset * 86400)
+		var key := _date_key(int(date["year"]), int(date["month"]), int(date["day"]))
+		if not pattern_overwrite_toggle.button_pressed and events.has(key) and events[key] is Array:
+			var existing_ids: Array = events[key]
+			if not existing_ids.is_empty():
+				continue
+		events[key] = [category_ids[offset % category_ids.size()]]
+		changed_days += 1
 
 	_save_settings_to_disk()
-	_configure_driver_calculator()
-	_refresh_profile_ui()
-	_refresh_month_title()
+	_refresh_category_ui()
 	_rebuild_calendar()
+	pattern_status_label.text = "Zastosowano schemat na %d dni, do %d-12-31." % [changed_days, end_year]
 
 
-func _configure_driver_calculator() -> void:
-	var driver := _driver_settings()
-	if not bool(driver.get("enabled", false)):
-		driver_calculator.configure_empty()
-		if driver_status_label != null:
-			driver_status_label.text = "Wyłączony. Włącz, jeśli ten kalendarz ma automatycznie oznaczać system pracy."
-		return
-
-	var ok := driver_calculator.configure_preset(
-		String(driver.get("start_date", "")),
-		int(driver.get("work_days", 14)),
-		int(driver.get("home_days", 7)),
-		"days",
-		bool(driver.get("weekly_rest", true))
-	)
-	if driver_status_label == null:
-		return
-	if ok:
-		driver_status_label.text = "Aktywny: %s" % driver_calculator.cycle_label()
-	else:
-		driver_status_label.text = driver_calculator.last_error
+func _parse_pattern_steps(value: String) -> Array[String]:
+	var clean: Array[String] = []
+	var normalized := value.replace(";", ",").replace("|", ",").replace("/", ",")
+	for raw_step in normalized.split(",", false):
+		var step := String(raw_step).strip_edges()
+		if step != "":
+			clean.append(step)
+	return clean
 
 
-func _driver_state_for_date(year: int, month: int, day: int) -> int:
-	if driver_calculator.mode == "none":
-		return ScheduleCalculator.DayState.NONE
-	return driver_calculator.get_state_for_day(ScheduleCalculator.day_index_from_date(year, month, day))
+func _category_id_for_name(name: String, color_offset: int) -> String:
+	var categories := _categories()
+	var wanted := _category_name_key(name)
+	for item in categories:
+		if not (item is Dictionary):
+			continue
+		var category: Dictionary = item as Dictionary
+		if _category_name_key(String(category.get("name", ""))) == wanted:
+			var category_id := String(category.get("id", ""))
+			if category_id != "":
+				return category_id
+
+	var category: Dictionary = {
+		"id": _new_id("cat"),
+		"name": name,
+		"color": _category_color_index_for_name(name, color_offset),
+	}
+	categories.append(category)
+	return String(category["id"])
 
 
-func _driver_short_label(state: int) -> String:
-	match state:
-		ScheduleCalculator.DayState.WORK:
-			return "Praca"
-		ScheduleCalculator.DayState.HOME:
-			return "Dom"
-		ScheduleCalculator.DayState.REST:
-			return "24h"
-		ScheduleCalculator.DayState.VACATION:
-			return "Urlop"
-	return ""
+func _category_name_key(value: String) -> String:
+	return value.strip_edges().to_lower()
 
 
-func _driver_state_color(state: int) -> Color:
-	match state:
-		ScheduleCalculator.DayState.WORK:
-			return COLOR_DRIVER_WORK
-		ScheduleCalculator.DayState.HOME:
-			return COLOR_DRIVER_HOME
-		ScheduleCalculator.DayState.REST:
-			return COLOR_DRIVER_REST
-	return COLOR_TILE_EMPTY
+func _category_color_index_for_name(name: String, fallback_offset: int) -> int:
+	var key := _category_name_key(name)
+	if key == "praca" or key == "work":
+		return 0
+	if key == "wolne" or key == "dom" or key == "home" or key == "free":
+		return 1
+	if key == "pauza" or key == "24h" or key == "odpoczynek":
+		return 2
+	if key == "urlop" or key == "wakacje":
+		return 3
+	return fallback_offset % CATEGORY_COLOR_VALUES.size()
 
 
 func _refresh_profile_ui() -> void:
@@ -1005,7 +973,7 @@ func _join_calendar_by_code() -> void:
 		"categories": [],
 		"events": {},
 		"notes": {},
-		"driver": _default_driver_settings(),
+		"pattern": _default_pattern_settings(),
 	})
 	selected_calendar_index = calendars.size() - 1
 	join_code_input.text = ""
@@ -1059,7 +1027,7 @@ func _make_calendar(name: String, kind: String) -> Dictionary:
 		"categories": [],
 		"events": {},
 		"notes": {},
-		"driver": _default_driver_settings(),
+		"pattern": _default_pattern_settings(),
 	}
 
 
@@ -1090,26 +1058,24 @@ func _notes() -> Dictionary:
 	return calendar["notes"]
 
 
-func _driver_settings() -> Dictionary:
+func _pattern_settings() -> Dictionary:
 	var calendar := _selected_calendar()
-	if not calendar.has("driver") or not (calendar["driver"] is Dictionary):
-		calendar["driver"] = _default_driver_settings()
-	var driver: Dictionary = calendar["driver"]
-	var defaults := _default_driver_settings()
+	if not calendar.has("pattern") or not (calendar["pattern"] is Dictionary):
+		calendar["pattern"] = _default_pattern_settings()
+	var pattern: Dictionary = calendar["pattern"]
+	var defaults := _default_pattern_settings()
 	for key in defaults.keys():
-		if not driver.has(key):
-			driver[key] = defaults[key]
-	return driver
+		if not pattern.has(key):
+			pattern[key] = defaults[key]
+	return pattern
 
 
-func _default_driver_settings() -> Dictionary:
+func _default_pattern_settings() -> Dictionary:
 	return {
-		"enabled": false,
-		"preset": 0,
 		"start_date": "",
-		"work_days": 14,
-		"home_days": 7,
-		"weekly_rest": true,
+		"sequence": "",
+		"years": 5,
+		"overwrite": true,
 	}
 
 
@@ -1127,13 +1093,13 @@ func _category_by_id(category_id: String) -> Dictionary:
 	return {}
 
 
-func _color_for_day(event_ids: Array, driver_state: int) -> Color:
+func _color_for_day(event_ids: Array) -> Color:
 	if not event_ids.is_empty():
 		var category := _category_by_id(String(event_ids[0]))
 		if not category.is_empty():
 			return _category_color(int(category.get("color", 0)))
 
-	return _driver_state_color(driver_state)
+	return COLOR_TILE_EMPTY
 
 
 func _category_color(index: int) -> Color:
@@ -1187,8 +1153,8 @@ func _sanitize_calendar(value: Dictionary) -> Dictionary:
 		calendar["events"] = {}
 	if not calendar.has("notes") or not (calendar["notes"] is Dictionary):
 		calendar["notes"] = {}
-	if not calendar.has("driver") or not (calendar["driver"] is Dictionary):
-		calendar["driver"] = _default_driver_settings()
+	if not calendar.has("pattern") or not (calendar["pattern"] is Dictionary):
+		calendar["pattern"] = _default_pattern_settings()
 	return calendar
 
 
@@ -1202,6 +1168,28 @@ func _new_share_code() -> String:
 
 func _date_key(year: int, month: int, day: int) -> String:
 	return "%04d-%02d-%02d" % [year, month, day]
+
+
+func _date_from_string(value: String) -> Dictionary:
+	var parts := value.strip_edges().split("-", false)
+	if parts.size() != 3:
+		return {}
+	if not String(parts[0]).is_valid_int() or not String(parts[1]).is_valid_int() or not String(parts[2]).is_valid_int():
+		return {}
+
+	var year := int(parts[0])
+	var month := int(parts[1])
+	var day := int(parts[2])
+	if month < 1 or month > 12:
+		return {}
+	if day < 1 or day > _days_in_month(year, month):
+		return {}
+
+	return {
+		"year": year,
+		"month": month,
+		"day": day,
+	}
 
 
 func _is_today(year: int, month: int, day: int) -> bool:

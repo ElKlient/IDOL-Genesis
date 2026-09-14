@@ -1,6 +1,6 @@
 # Wspólny Kalendarz
 
-Osobna aplikacja Godot, startowo oparta wizualnie na kafelkowym kalendarzu z projektu "Kalendarz Kierowcy". Główny tryb jest ogólny, ale kalkulator kierowcy zostaje jako opcjonalny moduł dla konkretnego kalendarza/profilu.
+Osobna aplikacja Godot, startowo oparta wizualnie na kafelkowym kalendarzu mobilnym. Główny tryb jest ogólny: użytkownik sam tworzy oznaczenia i może rozłożyć powtarzalny schemat na wiele lat.
 
 ## Założenia
 
@@ -8,7 +8,7 @@ Osobna aplikacja Godot, startowo oparta wizualnie na kafelkowym kalendarzu z pro
 - 7 kafelków dni w rzędzie,
 - interaktywne dni,
 - użytkownik sam tworzy kategorie/oznaczenia,
-- opcjonalny system kierowcy może automatycznie oznaczać praca/dom/24h,
+- powtarzalny schemat może automatycznie oznaczać np. praca/praca/wolne,
 - profile po prawej stronie jako lista kalendarzy,
 - prywatne i grupowe kalendarze w tym samym UI,
 - kod udostępniania jako przygotowanie pod późniejsze połączenie kilku urządzeń.
@@ -19,7 +19,7 @@ Osobna aplikacja Godot, startowo oparta wizualnie na kafelkowym kalendarzu z pro
 - można przełączać kalendarze/profile,
 - można utworzyć prywatny albo grupowy kalendarz,
 - można dodać własną kategorię z kolorem,
-- można włączyć opcjonalny system kierowcy i ustawić start, dni pracy, dni domu oraz pauzę 24h,
+- można wpisać własny schemat po przecinku i zastosować go na kolejne lata,
 - kliknięcie dnia otwiera edycję oznaczeń i notatki,
 - nawigacja miesięcy działa tylko przyciskami.
 
