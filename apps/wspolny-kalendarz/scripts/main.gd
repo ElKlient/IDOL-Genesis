@@ -233,7 +233,7 @@ func _build_ui() -> void:
 	_prepare_large_dropdown(month_layout_option)
 	header.add_child(month_layout_option)
 
-	calendar_name_label = _make_label("Wspólny Kalendarz", 30, COLOR_TEXT)
+	calendar_name_label = _make_label("", 30, COLOR_TEXT)
 	calendar_name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	calendar_name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	header.add_child(calendar_name_label)
@@ -765,8 +765,7 @@ func _refresh_month_title() -> void:
 			_:
 				month_title_label.text = "%s %d" % [MONTH_NAMES[current_month - 1], current_year]
 	if calendar_name_label != null:
-		var calendar := _selected_calendar()
-		calendar_name_label.text = String(calendar.get("name", "Wspólny Kalendarz"))
+		calendar_name_label.text = ""
 
 
 func _refresh_month_layout_option() -> void:
