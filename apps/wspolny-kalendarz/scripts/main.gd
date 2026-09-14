@@ -125,6 +125,8 @@ var calendar_only_button: Button
 var system_days_expanded := false
 var sharing_expanded := false
 var calendar_only_mode := false
+var profile_panel_open := false
+var settings_loaded := false
 
 var day_dialog: AcceptDialog
 var day_dialog_title: Label
@@ -182,7 +184,19 @@ func _ready() -> void:
 
 	_build_ui()
 	_load_settings_from_disk()
+	settings_loaded = true
 	_refresh_all()
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_CLOSE_REQUEST or what == NOTIFICATION_APPLICATION_PAUSED or what == NOTIFICATION_APPLICATION_FOCUS_OUT:
+		_save_current_view_state()
+
+
+func _save_current_view_state() -> void:
+	if not settings_loaded:
+		return
+	_save_settings_to_disk()
 
 
 func _force_portrait() -> void:
@@ -1250,6 +1264,8 @@ func _apply_main_view_mode() -> void:
 		month_layout_option.visible = true
 	if profile_overlay != null:
 		profile_overlay.visible = not calendar_only_mode
+	if profile_panel != null:
+		profile_panel.visible = profile_panel_open and not calendar_only_mode
 	if today_button != null:
 		today_button.visible = true
 	if calendar_only_button != null:
@@ -2496,6 +2512,7 @@ func _save_settings_to_disk() -> void:
 	config.set_value("ui", "system_days_expanded", system_days_expanded)
 	config.set_value("ui", "sharing_expanded", sharing_expanded)
 	config.set_value("ui", "calendar_only_mode", calendar_only_mode)
+	config.set_value("ui", "profile_panel_open", profile_panel_open)
 	config.set_value("data", "calendars", calendars.duplicate(true))
 
 	var error := config.save(SETTINGS_PATH)
@@ -2516,6 +2533,7 @@ func _load_settings_from_disk() -> void:
 	system_days_expanded = bool(config.get_value("ui", "system_days_expanded", system_days_expanded))
 	sharing_expanded = bool(config.get_value("ui", "sharing_expanded", sharing_expanded))
 	calendar_only_mode = bool(config.get_value("ui", "calendar_only_mode", calendar_only_mode))
+	profile_panel_open = bool(config.get_value("ui", "profile_panel_open", profile_panel_open))
 
 	calendars.clear()
 	var loaded: Variant = config.get_value("data", "calendars", [])
@@ -2877,12 +2895,14 @@ func _style_main_scrollbar() -> void:
 
 
 func _set_profile_panel_visible(visible: bool) -> void:
+	profile_panel_open = visible
 	if profile_panel != null:
-		profile_panel.visible = visible
+		profile_panel.visible = visible and not calendar_only_mode
 
 
 func _toggle_profile_panel() -> void:
-	_set_profile_panel_visible(profile_panel == null or not profile_panel.visible)
+	_set_profile_panel_visible(not profile_panel_open)
+	_save_settings_to_disk()
 
 
 func _make_section_label(text: String) -> Label:
