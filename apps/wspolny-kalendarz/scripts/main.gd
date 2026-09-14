@@ -38,6 +38,7 @@ const COLOR_TEXT := Color(0.94, 0.955, 0.925)
 const COLOR_TEXT_MUTED := Color(0.76, 0.80, 0.77)
 const COLOR_TEXT_DIM := Color(0.54, 0.58, 0.55)
 const COLOR_TODAY := Color(0.92, 0.72, 0.38)
+const COLOR_HOLIDAY := Color(0.45, 0.80, 0.90, 0.78)
 const CATEGORY_COLOR_NAMES := [
 	"Czerwony",
 	"Zielony",
@@ -53,6 +54,35 @@ const CATEGORY_COLOR_VALUES := [
 	Color(0.34, 0.46, 0.58, 0.88),
 	Color(0.46, 0.35, 0.58, 0.88),
 	Color(0.42, 0.46, 0.45, 0.88),
+]
+const FIXED_POLISH_HOLIDAYS := [
+	{"month": 1, "day": 1, "name": "Nowy Rok"},
+	{"month": 1, "day": 6, "name": "Święto Trzech Króli / Objawienie Pańskie"},
+	{"month": 1, "day": 21, "name": "Dzień Babci"},
+	{"month": 1, "day": 22, "name": "Dzień Dziadka"},
+	{"month": 2, "day": 2, "name": "Ofiarowanie Pańskie / Matki Boskiej Gromnicznej"},
+	{"month": 2, "day": 14, "name": "Walentynki"},
+	{"month": 3, "day": 8, "name": "Dzień Kobiet"},
+	{"month": 4, "day": 14, "name": "Święto Chrztu Polski"},
+	{"month": 5, "day": 1, "name": "Święto Pracy"},
+	{"month": 5, "day": 2, "name": "Dzień Flagi RP"},
+	{"month": 5, "day": 3, "name": "Święto Konstytucji 3 Maja"},
+	{"month": 5, "day": 26, "name": "Dzień Matki"},
+	{"month": 6, "day": 1, "name": "Dzień Dziecka"},
+	{"month": 6, "day": 23, "name": "Dzień Ojca"},
+	{"month": 8, "day": 15, "name": "Wniebowzięcie NMP / Święto Wojska Polskiego"},
+	{"month": 9, "day": 30, "name": "Dzień Chłopaka"},
+	{"month": 10, "day": 14, "name": "Dzień Edukacji Narodowej"},
+	{"month": 11, "day": 1, "name": "Wszystkich Świętych"},
+	{"month": 11, "day": 2, "name": "Zaduszki"},
+	{"month": 11, "day": 11, "name": "Narodowe Święto Niepodległości"},
+	{"month": 11, "day": 30, "name": "Andrzejki"},
+	{"month": 12, "day": 6, "name": "Mikołajki"},
+	{"month": 12, "day": 24, "name": "Wigilia Bożego Narodzenia"},
+	{"month": 12, "day": 25, "name": "Boże Narodzenie - pierwszy dzień"},
+	{"month": 12, "day": 26, "name": "Boże Narodzenie - drugi dzień"},
+	{"month": 12, "day": 27, "name": "Narodowy Dzień Zwycięskiego Powstania Wielkopolskiego"},
+	{"month": 12, "day": 31, "name": "Sylwester"},
 ]
 
 var current_year: int
@@ -124,6 +154,7 @@ var system_day_category_ids: Array[String] = []
 var system_days_start_key_value := ""
 var pending_system_scheme_delete_id := ""
 var system_scheme_event_ids_by_day: Dictionary = {}
+var holiday_cache_by_year: Dictionary = {}
 
 var selected_day_key := ""
 var selected_day_year := 0
@@ -764,6 +795,7 @@ func _make_day_cell(year: int, month: int, day: int, compact: bool, year_overvie
 	var detail_events := _event_details_for_day(key)
 	var has_note := _notes().has(key) and String(_notes()[key]).strip_edges() != ""
 	var is_today := _is_today(year, month, day)
+	var has_holiday := not _holiday_names_for_day(year, month, day).is_empty()
 	var color := _color_for_day(event_ids)
 
 	var button := Button.new()
@@ -772,10 +804,10 @@ func _make_day_cell(year: int, month: int, day: int, compact: bool, year_overvie
 	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	button.clip_text = true
 	button.focus_mode = Control.FOCUS_NONE
-	button.add_theme_stylebox_override("normal", _tile_style(color, is_today, not event_ids.is_empty() or not detail_events.is_empty() or has_note))
-	button.add_theme_stylebox_override("hover", _tile_style(color.lightened(0.06), is_today, true))
-	button.add_theme_stylebox_override("pressed", _tile_style(color.darkened(0.08), is_today, true))
-	button.add_theme_stylebox_override("focus", _tile_style(color, true, true))
+	button.add_theme_stylebox_override("normal", _tile_style(color, is_today, not event_ids.is_empty() or not detail_events.is_empty() or has_note, has_holiday))
+	button.add_theme_stylebox_override("hover", _tile_style(color.lightened(0.06), is_today, true, has_holiday))
+	button.add_theme_stylebox_override("pressed", _tile_style(color.darkened(0.08), is_today, true, has_holiday))
+	button.add_theme_stylebox_override("focus", _tile_style(color, true, true, has_holiday))
 	_fill_day_tile(button, year, month, day, event_ids, detail_events, has_note, compact, year_overview)
 	if compact or year_overview:
 		_connect_tap(button, Callable(self, "_open_single_month_from_overview").bind(year, month))
@@ -982,6 +1014,8 @@ func _refresh_day_event_list() -> void:
 
 	var event_ids := _event_ids_for_day(selected_day_key)
 	var lines: Array[String] = []
+	for holiday_name in _holiday_names_for_day(selected_day_year, selected_day_month, selected_day_number):
+		lines.append("Święto: %s" % holiday_name)
 	for event_id in event_ids:
 		var category: Dictionary = _category_by_id(String(event_id))
 		if not category.is_empty():
@@ -2225,6 +2259,98 @@ func _date_from_string(value: String) -> Dictionary:
 	}
 
 
+func _holiday_names_for_day(year: int, month: int, day: int) -> Array[String]:
+	var key := _date_key(year, month, day)
+	var holidays := _polish_holidays_for_year(year)
+	var names: Array[String] = []
+	if not holidays.has(key) or not (holidays[key] is Array):
+		return names
+
+	for item in holidays[key]:
+		var name := String(item).strip_edges()
+		if name != "":
+			names.append(name)
+	return names
+
+
+func _polish_holidays_for_year(year: int) -> Dictionary:
+	if holiday_cache_by_year.has(year) and holiday_cache_by_year[year] is Dictionary:
+		return holiday_cache_by_year[year]
+
+	var holidays: Dictionary = {}
+	for item in FIXED_POLISH_HOLIDAYS:
+		if not (item is Dictionary):
+			continue
+		var holiday: Dictionary = item as Dictionary
+		_add_holiday(holidays, _date_key(year, int(holiday.get("month", 1)), int(holiday.get("day", 1))), String(holiday.get("name", "")))
+
+	var easter := _easter_date(year)
+	if not easter.is_empty():
+		var easter_month := int(easter.get("month", 1))
+		var easter_day := int(easter.get("day", 1))
+		_add_relative_holiday(holidays, year, easter_month, easter_day, -52, "Tłusty Czwartek")
+		_add_relative_holiday(holidays, year, easter_month, easter_day, -46, "Środa Popielcowa")
+		_add_relative_holiday(holidays, year, easter_month, easter_day, -7, "Niedziela Palmowa")
+		_add_relative_holiday(holidays, year, easter_month, easter_day, -3, "Wielki Czwartek")
+		_add_relative_holiday(holidays, year, easter_month, easter_day, -2, "Wielki Piątek")
+		_add_relative_holiday(holidays, year, easter_month, easter_day, -1, "Wielka Sobota")
+		_add_relative_holiday(holidays, year, easter_month, easter_day, 0, "Niedziela Wielkanocna")
+		_add_relative_holiday(holidays, year, easter_month, easter_day, 1, "Poniedziałek Wielkanocny")
+		_add_relative_holiday(holidays, year, easter_month, easter_day, 7, "Święto Miłosierdzia Bożego")
+		_add_relative_holiday(holidays, year, easter_month, easter_day, 42, "Wniebowstąpienie Pańskie")
+		_add_relative_holiday(holidays, year, easter_month, easter_day, 49, "Zesłanie Ducha Świętego / Zielone Świątki")
+		_add_relative_holiday(holidays, year, easter_month, easter_day, 60, "Boże Ciało")
+
+	holiday_cache_by_year[year] = holidays
+	return holidays
+
+
+func _add_relative_holiday(holidays: Dictionary, year: int, month: int, day: int, day_offset: int, name: String) -> void:
+	_add_holiday(holidays, _date_key_with_day_offset(year, month, day, day_offset), name)
+
+
+func _add_holiday(holidays: Dictionary, key: String, name: String) -> void:
+	var clean_name := name.strip_edges()
+	if key == "" or clean_name == "":
+		return
+
+	var names: Array = []
+	if holidays.has(key) and holidays[key] is Array:
+		names = holidays[key]
+	if not names.has(clean_name):
+		names.append(clean_name)
+	holidays[key] = names
+
+
+func _date_key_with_day_offset(year: int, month: int, day: int, day_offset: int) -> String:
+	var unix_time := _unix_from_date(year, month, day) + day_offset * 86400
+	var date := Time.get_datetime_dict_from_unix_time(unix_time)
+	return _date_key(int(date["year"]), int(date["month"]), int(date["day"]))
+
+
+func _easter_date(year: int) -> Dictionary:
+	var a := year % 19
+	var b := int(year / 100)
+	var c := year % 100
+	var d := int(b / 4)
+	var e := b % 4
+	var f := int((b + 8) / 25)
+	var g := int((b - f + 1) / 3)
+	var h := (19 * a + b - d - g + 15) % 30
+	var i := int(c / 4)
+	var k := c % 4
+	var l := (32 + 2 * e + 2 * i - h - k) % 7
+	var m := int((a + 11 * h + 22 * l) / 451)
+	var value := h + l - 7 * m + 114
+	var month := int(value / 31)
+	var day := value % 31 + 1
+	return {
+		"year": year,
+		"month": month,
+		"day": day,
+	}
+
+
 func _is_today(year: int, month: int, day: int) -> bool:
 	var now := Time.get_datetime_dict_from_system()
 	return year == int(now["year"]) and month == int(now["month"]) and day == int(now["day"])
@@ -2498,13 +2624,15 @@ func _panel_box(panel: PanelContainer, margin_size: int = 14) -> VBoxContainer:
 	return box
 
 
-func _tile_style(color: Color, is_today: bool, has_items: bool) -> StyleBoxFlat:
+func _tile_style(color: Color, is_today: bool, has_items: bool, has_holiday: bool = false) -> StyleBoxFlat:
 	var style := StyleBoxFlat.new()
 	style.bg_color = color
 	style.set_corner_radius_all(18)
-	style.set_border_width_all(3 if is_today else 1)
+	style.set_border_width_all(3 if is_today else (2 if has_holiday else 1))
 	if is_today:
 		style.border_color = COLOR_TODAY
+	elif has_holiday:
+		style.border_color = COLOR_HOLIDAY
 	elif has_items:
 		style.border_color = Color(1.0, 1.0, 1.0, 0.28)
 	else:
