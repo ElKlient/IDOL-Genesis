@@ -1,6 +1,6 @@
 # Wspólny Kalendarz
 
-Osobna aplikacja Godot, startowo oparta wizualnie na kafelkowym kalendarzu mobilnym. Główny tryb jest ogólny: użytkownik sam tworzy oznaczenia i może rozłożyć powtarzalny schemat na wiele lat.
+Osobna aplikacja Godot, startowo oparta wizualnie na kafelkowym kalendarzu mobilnym. Główny tryb jest ogólny: użytkownik sam tworzy oznaczenia i może rozłożyć schemat cykliczny na wiele lat.
 
 ## Założenia
 
@@ -8,7 +8,7 @@ Osobna aplikacja Godot, startowo oparta wizualnie na kafelkowym kalendarzu mobil
 - 7 kafelków dni w rzędzie,
 - interaktywne dni,
 - użytkownik sam tworzy kategorie/oznaczenia,
-- powtarzalny schemat może automatycznie oznaczać np. praca/praca/wolne,
+- schemat cykliczny może automatycznie oznaczać np. praca/praca/wolne,
 - profile po prawej stronie jako lista kalendarzy,
 - prywatne i grupowe kalendarze w tym samym UI,
 - kod udostępniania jako przygotowanie pod późniejsze połączenie kilku urządzeń.
@@ -18,8 +18,8 @@ Osobna aplikacja Godot, startowo oparta wizualnie na kafelkowym kalendarzu mobil
 - dane zapisują się lokalnie w `user://shared_calendar.cfg`,
 - można przełączać kalendarze/profile,
 - można utworzyć prywatny albo grupowy kalendarz,
-- można dodać własną kategorię z kolorem,
-- można wpisać własny schemat po przecinku i zastosować go na kolejne lata,
+- można dodać własne oznaczenie z kolorem z okna dnia,
+- schemat cykliczny jest pod jednym przyciskiem i dopisuje oznaczenia bez kasowania istniejących wpisów,
 - kliknięcie dnia otwiera edycję oznaczeń i notatki,
 - nawigacja miesięcy działa tylko przyciskami.
 

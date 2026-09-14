@@ -67,23 +67,26 @@ var profile_button: Button
 var profile_panel: PanelContainer
 var calendar_option: OptionButton
 var calendar_status_label: Label
-var category_option: OptionButton
-var category_name_input: LineEdit
-var category_color_option: OptionButton
-var category_delete_button: Button
 var share_code_label: Label
 var join_code_input: LineEdit
 var share_status_label: Label
+var pattern_button: Button
+var pattern_dialog: AcceptDialog
 var pattern_start_input: LineEdit
 var pattern_sequence_input: LineEdit
 var pattern_years_spin: SpinBox
-var pattern_overwrite_toggle: CheckButton
 var pattern_status_label: Label
 
 var day_dialog: AcceptDialog
 var day_dialog_title: Label
 var day_category_option: OptionButton
+var day_category_ids: Array[String] = []
 var day_add_marker_button: Button
+var day_new_category_button: Button
+var day_category_create_box: VBoxContainer
+var day_category_name_input: LineEdit
+var day_category_color_option: OptionButton
+var day_create_category_button: Button
 var day_event_list_label: Label
 var day_note_edit: TextEdit
 var day_save_note_button: Button
@@ -176,6 +179,12 @@ func _build_ui() -> void:
 	_connect_tap(next_button, Callable(self, "_next_month"))
 	nav.add_child(next_button)
 
+	pattern_button = Button.new()
+	pattern_button.text = "Schemat cykliczny"
+	_prepare_control(pattern_button, 18, 52)
+	_connect_tap(pattern_button, Callable(self, "_open_pattern_dialog"))
+	screen_root.add_child(pattern_button)
+
 	main_scroll = ScrollContainer.new()
 	main_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	main_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
@@ -203,11 +212,10 @@ func _build_ui() -> void:
 	months_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	calendar_root.add_child(months_box)
 
-	content_root.add_child(_build_categories_panel())
-	content_root.add_child(_build_pattern_panel())
 	content_root.add_child(_build_sharing_panel())
 	_style_main_scrollbar()
 	_build_day_dialog()
+	_build_pattern_dialog()
 	_sync_content_width()
 
 
@@ -283,51 +291,17 @@ func _build_profile_panel() -> PanelContainer:
 	return panel
 
 
-func _build_categories_panel() -> PanelContainer:
-	var panel := _panel()
-	var box := _panel_box(panel)
-	box.add_child(_make_section_label("Twoje oznaczenia"))
+func _build_pattern_dialog() -> void:
+	pattern_dialog = AcceptDialog.new()
+	pattern_dialog.title = "Schemat cykliczny"
+	pattern_dialog.min_size = Vector2i(620, 500)
+	add_child(pattern_dialog)
 
-	category_option = OptionButton.new()
-	_prepare_control(category_option, 18, 54)
-	_prepare_large_dropdown(category_option)
-	box.add_child(category_option)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 11)
+	pattern_dialog.add_child(box)
 
-	category_name_input = LineEdit.new()
-	category_name_input.placeholder_text = "Nazwa nowej opcji, np. lekarz, trening, urlop"
-	_prepare_control(category_name_input, 18, 54)
-	box.add_child(category_name_input)
-
-	category_color_option = OptionButton.new()
-	for color_name in CATEGORY_COLOR_NAMES:
-		category_color_option.add_item(color_name)
-	category_color_option.select(0)
-	_prepare_control(category_color_option, 18, 54)
-	box.add_child(category_color_option)
-
-	var buttons := HBoxContainer.new()
-	buttons.add_theme_constant_override("separation", 8)
-	box.add_child(buttons)
-
-	var add_button := Button.new()
-	add_button.text = "Dodaj opcję"
-	_prepare_control(add_button, 18, 54)
-	_connect_tap(add_button, Callable(self, "_add_category"))
-	buttons.add_child(add_button)
-
-	category_delete_button = Button.new()
-	category_delete_button.text = "Usuń opcję"
-	_prepare_control(category_delete_button, 18, 54)
-	_connect_tap(category_delete_button, Callable(self, "_delete_category"))
-	buttons.add_child(category_delete_button)
-
-	return panel
-
-
-func _build_pattern_panel() -> PanelContainer:
-	var panel := _panel()
-	var box := _panel_box(panel)
-	box.add_child(_make_section_label("Powtarzalny schemat"))
+	box.add_child(_make_section_label("Schemat cykliczny"))
 
 	pattern_start_input = LineEdit.new()
 	pattern_start_input.placeholder_text = "Pierwszy dzień cyklu, np. 2026-09-14"
@@ -349,11 +323,9 @@ func _build_pattern_panel() -> PanelContainer:
 	pattern_years_spin.allow_greater = false
 	options_grid.add_child(_field_stack("Lata do przodu", pattern_years_spin))
 
-	pattern_overwrite_toggle = CheckButton.new()
-	pattern_overwrite_toggle.text = "Nadpisz dni w zakresie"
-	pattern_overwrite_toggle.button_pressed = true
-	_prepare_control(pattern_overwrite_toggle, 17, 54)
-	options_grid.add_child(pattern_overwrite_toggle)
+	var info := _make_label("Schemat dopisuje oznaczenia do dni. Nie kasuje wpisanych wydarzeń ani notatek.", 14, COLOR_TEXT_MUTED)
+	info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	options_grid.add_child(info)
 
 	var apply_button := Button.new()
 	apply_button.text = "Zastosuj schemat"
@@ -364,8 +336,6 @@ func _build_pattern_panel() -> PanelContainer:
 	pattern_status_label = _make_label("Wpisz cykl po przecinku. Dni zapiszą się jak zwykłe oznaczenia do udostępniania.", 14, COLOR_TEXT_MUTED)
 	pattern_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	box.add_child(pattern_status_label)
-
-	return panel
 
 
 func _build_sharing_panel() -> PanelContainer:
@@ -404,7 +374,7 @@ func _build_sharing_panel() -> PanelContainer:
 func _build_day_dialog() -> void:
 	day_dialog = AcceptDialog.new()
 	day_dialog.title = "Dzień"
-	day_dialog.min_size = Vector2i(620, 680)
+	day_dialog.min_size = Vector2i(620, 760)
 	add_child(day_dialog)
 
 	var box := VBoxContainer.new()
@@ -415,10 +385,42 @@ func _build_day_dialog() -> void:
 	day_dialog_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(day_dialog_title)
 
+	var category_row := HBoxContainer.new()
+	category_row.add_theme_constant_override("separation", 8)
+	box.add_child(category_row)
+
 	day_category_option = OptionButton.new()
 	_prepare_control(day_category_option, 18, 52)
 	_prepare_large_dropdown(day_category_option)
-	box.add_child(day_category_option)
+	category_row.add_child(day_category_option)
+
+	day_new_category_button = Button.new()
+	day_new_category_button.text = "+"
+	day_new_category_button.tooltip_text = "Dodaj nowe oznaczenie"
+	_prepare_control(day_new_category_button, 24, 52)
+	day_new_category_button.custom_minimum_size.x = 58
+	day_new_category_button.size_flags_horizontal = Control.SIZE_SHRINK_END
+	_connect_tap(day_new_category_button, Callable(self, "_toggle_day_category_creator"))
+	category_row.add_child(day_new_category_button)
+
+	day_category_create_box = VBoxContainer.new()
+	day_category_create_box.visible = false
+	day_category_create_box.add_theme_constant_override("separation", 8)
+	box.add_child(day_category_create_box)
+
+	day_category_name_input = LineEdit.new()
+	day_category_name_input.placeholder_text = "Nowe oznaczenie, np. dzień wolny"
+	_prepare_control(day_category_name_input, 18, 52)
+	day_category_create_box.add_child(day_category_name_input)
+
+	day_category_color_option = _make_category_color_option()
+	day_category_create_box.add_child(day_category_color_option)
+
+	day_create_category_button = Button.new()
+	day_create_category_button.text = "Zapisz opcję i dodaj do dnia"
+	_prepare_control(day_create_category_button, 18, 52)
+	_connect_tap(day_create_category_button, Callable(self, "_add_category_from_day_dialog"))
+	day_category_create_box.add_child(day_create_category_button)
 
 	day_add_marker_button = Button.new()
 	day_add_marker_button.text = "Dodaj do dnia"
@@ -581,7 +583,7 @@ func _open_day_dialog(year: int, month: int, day: int) -> void:
 	selected_day_number = day
 	selected_day_key = _date_key(year, month, day)
 	_refresh_day_dialog()
-	day_dialog.popup_centered(Vector2i(620, 680))
+	day_dialog.popup_centered(Vector2i(620, 760))
 
 
 func _refresh_day_dialog() -> void:
@@ -594,19 +596,30 @@ func _refresh_day_dialog() -> void:
 	_refresh_day_event_list()
 
 
-func _refresh_day_category_option() -> void:
+func _refresh_day_category_option(selected_id: String = "") -> void:
 	if day_category_option == null:
 		return
 
 	day_category_option.clear()
+	day_category_ids.clear()
 	var categories := _categories()
-	for category in categories:
+	var selected_index := 0
+	for item in categories:
+		if not (item is Dictionary):
+			continue
+		var category: Dictionary = item as Dictionary
+		var category_id := String(category.get("id", ""))
+		if category_id == "":
+			continue
+		if selected_id != "" and category_id == selected_id:
+			selected_index = day_category_ids.size()
+		day_category_ids.append(category_id)
 		day_category_option.add_item(String(category.get("name", "")))
-	if categories.is_empty():
+	if day_category_ids.is_empty():
 		day_category_option.add_item("Najpierw dodaj opcję")
 		day_add_marker_button.disabled = true
 	else:
-		day_category_option.select(0)
+		day_category_option.select(clampi(selected_index, 0, day_category_ids.size() - 1))
 		day_add_marker_button.disabled = false
 
 
@@ -624,23 +637,11 @@ func _refresh_day_event_list() -> void:
 
 
 func _add_marker_to_selected_day() -> void:
-	var categories := _categories()
-	if categories.is_empty() or selected_day_key == "":
+	if day_category_ids.is_empty() or selected_day_key == "":
 		return
 
-	var index := clampi(day_category_option.selected, 0, categories.size() - 1)
-	var category: Dictionary = categories[index] as Dictionary
-	var category_id := String(category.get("id", ""))
-	if category_id == "":
-		return
-
-	var events := _events()
-	var event_ids: Array = []
-	if events.has(selected_day_key) and events[selected_day_key] is Array:
-		event_ids = events[selected_day_key]
-	if not event_ids.has(category_id):
-		event_ids.append(category_id)
-	events[selected_day_key] = event_ids
+	var index := clampi(day_category_option.selected, 0, day_category_ids.size() - 1)
+	_add_category_id_to_day(selected_day_key, day_category_ids[index])
 	_save_settings_to_disk()
 	_rebuild_calendar()
 	_refresh_day_event_list()
@@ -672,38 +673,46 @@ func _clear_selected_day() -> void:
 	_refresh_day_event_list()
 
 
-func _add_category() -> void:
-	var name := category_name_input.text.strip_edges()
+func _toggle_day_category_creator() -> void:
+	if day_category_create_box == null:
+		return
+	day_category_create_box.visible = not day_category_create_box.visible
+
+
+func _add_category_from_day_dialog() -> void:
+	if day_category_name_input == null:
+		return
+
+	var name := day_category_name_input.text.strip_edges()
 	if name == "":
 		return
 
-	var categories := _categories()
-	categories.append({
-		"id": _new_id("cat"),
-		"name": name,
-		"color": clampi(category_color_option.selected, 0, CATEGORY_COLOR_VALUES.size() - 1),
-	})
-	category_name_input.text = ""
+	var color_index := clampi(day_category_color_option.selected, 0, CATEGORY_COLOR_VALUES.size() - 1)
+	var category_id := _category_id_for_name_with_color(name, color_index)
+	day_category_name_input.text = ""
+	day_category_create_box.visible = false
+	_add_category_id_to_day(selected_day_key, category_id)
 	_save_settings_to_disk()
-	_refresh_category_ui()
 	_rebuild_calendar()
+	_refresh_day_category_option(category_id)
+	_refresh_day_event_list()
 
 
-func _delete_category() -> void:
-	var categories := _categories()
-	if categories.is_empty():
-		return
+func _add_category_id_to_day(day_key: String, category_id: String) -> bool:
+	if day_key == "" or category_id == "":
+		return false
 
-	var index := clampi(category_option.selected, 0, categories.size() - 1)
-	var category: Dictionary = categories[index] as Dictionary
-	var category_id := String(category.get("id", ""))
-	categories.remove_at(index)
-	_remove_category_from_events(category_id)
-	_save_settings_to_disk()
-	_refresh_category_ui()
-	_rebuild_calendar()
-	if day_dialog != null and day_dialog.visible:
-		_refresh_day_dialog()
+	var events := _events()
+	var event_ids: Array = []
+	if events.has(day_key) and events[day_key] is Array:
+		var existing_ids: Array = events[day_key]
+		event_ids = existing_ids.duplicate()
+	if not event_ids.has(category_id):
+		event_ids.append(category_id)
+		events[day_key] = event_ids
+		return true
+	events[day_key] = event_ids
+	return false
 
 
 func _remove_category_from_events(category_id: String) -> void:
@@ -725,21 +734,7 @@ func _remove_category_from_events(category_id: String) -> void:
 
 
 func _refresh_category_ui() -> void:
-	if category_option == null:
-		return
-
-	category_option.clear()
-	var categories := _categories()
-	for category in categories:
-		category_option.add_item(String(category.get("name", "")))
-	if categories.is_empty():
-		category_option.add_item("Brak opcji - dodaj pierwszą")
-		category_delete_button.disabled = true
-	else:
-		category_option.select(0)
-		category_delete_button.disabled = false
-
-	if day_dialog != null and day_dialog.visible:
+	if day_category_option != null:
 		_refresh_day_category_option()
 
 
@@ -751,10 +746,22 @@ func _refresh_pattern_ui() -> void:
 	pattern_start_input.text = String(pattern.get("start_date", ""))
 	pattern_sequence_input.text = String(pattern.get("sequence", ""))
 	pattern_years_spin.set_value_no_signal(float(pattern.get("years", 5)))
-	pattern_overwrite_toggle.set_pressed_no_signal(bool(pattern.get("overwrite", true)))
 
 	if pattern_status_label != null:
 		pattern_status_label.text = "Wpisz cykl po przecinku. Dni zapiszą się jak zwykłe oznaczenia do udostępniania."
+
+
+func _open_pattern_dialog() -> void:
+	if pattern_dialog == null:
+		return
+
+	_refresh_pattern_ui()
+	if pattern_start_input.text.strip_edges() == "":
+		if selected_day_key != "":
+			pattern_start_input.text = selected_day_key
+		else:
+			pattern_start_input.text = _date_key(current_year, current_month, 1)
+	pattern_dialog.popup_centered(Vector2i(620, 500))
 
 
 func _apply_pattern_from_ui() -> void:
@@ -777,7 +784,6 @@ func _apply_pattern_from_ui() -> void:
 	pattern["start_date"] = start_text
 	pattern["sequence"] = pattern_sequence_input.text.strip_edges()
 	pattern["years"] = years
-	pattern["overwrite"] = pattern_overwrite_toggle.button_pressed
 
 	var category_ids: Array[String] = []
 	for index in range(steps.size()):
@@ -794,17 +800,12 @@ func _apply_pattern_from_ui() -> void:
 		pattern_status_label.text = "Zakres dat jest pusty."
 		return
 
-	var events := _events()
 	var changed_days := 0
 	for offset in range(total_days):
 		var date := Time.get_datetime_dict_from_unix_time(start_unix + offset * 86400)
 		var key := _date_key(int(date["year"]), int(date["month"]), int(date["day"]))
-		if not pattern_overwrite_toggle.button_pressed and events.has(key) and events[key] is Array:
-			var existing_ids: Array = events[key]
-			if not existing_ids.is_empty():
-				continue
-		events[key] = [category_ids[offset % category_ids.size()]]
-		changed_days += 1
+		if _add_category_id_to_day(key, category_ids[offset % category_ids.size()]):
+			changed_days += 1
 
 	_save_settings_to_disk()
 	_refresh_category_ui()
@@ -823,6 +824,10 @@ func _parse_pattern_steps(value: String) -> Array[String]:
 
 
 func _category_id_for_name(name: String, color_offset: int) -> String:
+	return _category_id_for_name_with_color(name, _category_color_index_for_name(name, color_offset))
+
+
+func _category_id_for_name_with_color(name: String, color_index: int) -> String:
 	var categories := _categories()
 	var wanted := _category_name_key(name)
 	for item in categories:
@@ -837,7 +842,7 @@ func _category_id_for_name(name: String, color_offset: int) -> String:
 	var category: Dictionary = {
 		"id": _new_id("cat"),
 		"name": name,
-		"color": _category_color_index_for_name(name, color_offset),
+		"color": clampi(color_index, 0, CATEGORY_COLOR_VALUES.size() - 1),
 	}
 	categories.append(category)
 	return String(category["id"])
@@ -1075,7 +1080,6 @@ func _default_pattern_settings() -> Dictionary:
 		"start_date": "",
 		"sequence": "",
 		"years": 5,
-		"overwrite": true,
 	}
 
 
@@ -1087,7 +1091,10 @@ func _event_ids_for_day(key: String) -> Array:
 
 
 func _category_by_id(category_id: String) -> Dictionary:
-	for category in _categories():
+	for item in _categories():
+		if not (item is Dictionary):
+			continue
+		var category: Dictionary = item as Dictionary
 		if String(category.get("id", "")) == category_id:
 			return category
 	return {}
@@ -1292,6 +1299,16 @@ func _prepare_control(control: Control, font_size: int, min_height: int) -> void
 		control.add_theme_color_override("font_pressed_color", COLOR_TEXT)
 		control.add_theme_color_override("font_focus_color", COLOR_TEXT)
 		control.add_theme_color_override("font_placeholder_color", COLOR_TEXT_DIM)
+
+
+func _make_category_color_option() -> OptionButton:
+	var option := OptionButton.new()
+	for color_name in CATEGORY_COLOR_NAMES:
+		option.add_item(color_name)
+	option.select(0)
+	_prepare_control(option, 18, 52)
+	_prepare_large_dropdown(option)
+	return option
 
 
 func _prepare_large_dropdown(option: OptionButton) -> void:
