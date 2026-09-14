@@ -1119,7 +1119,7 @@ func _apply_main_view_mode() -> void:
 	if profile_overlay != null:
 		profile_overlay.visible = not calendar_only_mode
 	if today_button != null:
-		today_button.visible = not calendar_only_mode
+		today_button.visible = true
 	if calendar_only_button != null:
 		calendar_only_button.text = "Pokaż opcje" if calendar_only_mode else "Pokaż tylko kalendarz"
 	_refresh_collapsible_panels()
