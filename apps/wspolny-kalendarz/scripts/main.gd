@@ -73,7 +73,7 @@ var share_status_label: Label
 
 var day_dialog: AcceptDialog
 var day_dialog_title: Label
-var day_quick_buttons_grid: GridContainer
+var day_quick_buttons_grid: VBoxContainer
 var day_event_form_box: VBoxContainer
 var day_event_name_input: LineEdit
 var day_event_time_input: LineEdit
@@ -89,16 +89,17 @@ var day_fixed_delete_option: OptionButton
 var day_fixed_delete_ids: Array[String] = []
 var day_fixed_status_label: Label
 var day_event_list_label: Label
+var day_note_form_box: VBoxContainer
 var day_note_edit: TextEdit
 var day_save_note_button: Button
 var day_clear_button: Button
 
 var system_days_body: VBoxContainer
-var system_days_button_grid: GridContainer
 var system_days_start_label: Label
 var system_days_steps_label: Label
 var system_days_status_label: Label
 var system_day_category_ids: Array[String] = []
+var system_days_start_key_value := ""
 
 var selected_day_key := ""
 var selected_day_year := 0
@@ -295,27 +296,15 @@ func _build_system_days_panel() -> PanelContainer:
 	var panel := _panel()
 	var box := _panel_box(panel)
 
-	var toggle_button := Button.new()
-	toggle_button.text = "Dodaj dni systemowe"
-	_prepare_control(toggle_button, 18, 54)
-	_connect_tap(toggle_button, Callable(self, "_toggle_system_days_panel"))
-	box.add_child(toggle_button)
-
 	system_days_body = VBoxContainer.new()
-	system_days_body.visible = false
 	system_days_body.add_theme_constant_override("separation", 10)
 	box.add_child(system_days_body)
+
+	system_days_body.add_child(_make_section_label("Schemat cykliczny"))
 
 	system_days_start_label = _make_label("", 15, COLOR_TEXT_MUTED)
 	system_days_start_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	system_days_body.add_child(system_days_start_label)
-
-	system_days_button_grid = GridContainer.new()
-	system_days_button_grid.columns = 2
-	system_days_button_grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	system_days_button_grid.add_theme_constant_override("h_separation", 8)
-	system_days_button_grid.add_theme_constant_override("v_separation", 8)
-	system_days_body.add_child(system_days_button_grid)
 
 	system_days_steps_label = _make_label("", 16, COLOR_TEXT)
 	system_days_steps_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -338,7 +327,7 @@ func _build_system_days_panel() -> PanelContainer:
 	edit_row.add_child(clear_button)
 
 	var apply_button := Button.new()
-	apply_button.text = "Zapisz system i zastosuj do roku"
+	apply_button.text = "Zastosuj jako schemat cykliczny"
 	_prepare_control(apply_button, 18, 54)
 	_connect_tap(apply_button, Callable(self, "_apply_system_days_to_year"))
 	system_days_body.add_child(apply_button)
@@ -401,30 +390,16 @@ func _build_day_dialog() -> void:
 	day_dialog_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(day_dialog_title)
 
-	box.add_child(_make_section_label("Szybkie przyciski"))
-
-	day_quick_buttons_grid = GridContainer.new()
-	day_quick_buttons_grid.columns = 2
+	day_quick_buttons_grid = VBoxContainer.new()
 	day_quick_buttons_grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	day_quick_buttons_grid.add_theme_constant_override("h_separation", 8)
-	day_quick_buttons_grid.add_theme_constant_override("v_separation", 8)
+	day_quick_buttons_grid.add_theme_constant_override("separation", 8)
 	box.add_child(day_quick_buttons_grid)
 
-	var action_row := HBoxContainer.new()
-	action_row.add_theme_constant_override("separation", 8)
-	box.add_child(action_row)
-
-	var event_button := Button.new()
-	event_button.text = "Dodaj wydarzenie"
-	_prepare_control(event_button, 18, 52)
-	_connect_tap(event_button, Callable(self, "_toggle_day_event_form"))
-	action_row.add_child(event_button)
-
-	var fixed_button := Button.new()
-	fixed_button.text = "Dodaj stały przycisk"
-	_prepare_control(fixed_button, 18, 52)
-	_connect_tap(fixed_button, Callable(self, "_toggle_day_fixed_button_form"))
-	action_row.add_child(fixed_button)
+	var add_fixed_button := Button.new()
+	add_fixed_button.text = "+"
+	_prepare_control(add_fixed_button, 30, 58)
+	_connect_tap(add_fixed_button, Callable(self, "_toggle_day_fixed_button_form"))
+	box.add_child(add_fixed_button)
 
 	day_event_form_box = VBoxContainer.new()
 	day_event_form_box.visible = false
@@ -480,27 +455,10 @@ func _build_day_dialog() -> void:
 	day_fixed_button_form_box.add_child(day_fixed_color_palette)
 
 	var save_fixed_button := Button.new()
-	save_fixed_button.text = "Zapisz przycisk i dodaj do dnia"
+	save_fixed_button.text = "Zapisz i ustaw ten dzień"
 	_prepare_control(save_fixed_button, 18, 52)
 	_connect_tap(save_fixed_button, Callable(self, "_save_fixed_button"))
 	day_fixed_button_form_box.add_child(save_fixed_button)
-
-	var delete_fixed_row := HBoxContainer.new()
-	delete_fixed_row.add_theme_constant_override("separation", 8)
-	day_fixed_button_form_box.add_child(delete_fixed_row)
-
-	day_fixed_delete_option = OptionButton.new()
-	_prepare_control(day_fixed_delete_option, 16, 48)
-	_prepare_large_dropdown(day_fixed_delete_option)
-	delete_fixed_row.add_child(day_fixed_delete_option)
-
-	var delete_fixed_button := Button.new()
-	delete_fixed_button.text = "Usuń"
-	_prepare_control(delete_fixed_button, 16, 48)
-	delete_fixed_button.custom_minimum_size.x = 110
-	delete_fixed_button.size_flags_horizontal = Control.SIZE_SHRINK_END
-	_connect_tap(delete_fixed_button, Callable(self, "_delete_fixed_button"))
-	delete_fixed_row.add_child(delete_fixed_button)
 
 	day_fixed_status_label = _make_label("", 14, COLOR_TEXT_MUTED)
 	day_fixed_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -510,7 +468,24 @@ func _build_day_dialog() -> void:
 	day_event_list_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	box.add_child(day_event_list_label)
 
-	box.add_child(_make_label("Notatka / opis", 14, COLOR_TEXT_MUTED))
+	day_clear_button = Button.new()
+	day_clear_button.text = "Wyczyść ten dzień"
+	_prepare_control(day_clear_button, 18, 52)
+	_connect_tap(day_clear_button, Callable(self, "_clear_selected_day"))
+	box.add_child(day_clear_button)
+
+	var note_button := Button.new()
+	note_button.text = "Dodaj notatkę"
+	_prepare_control(note_button, 18, 52)
+	_connect_tap(note_button, Callable(self, "_toggle_day_note_form"))
+	box.add_child(note_button)
+
+	day_note_form_box = VBoxContainer.new()
+	day_note_form_box.visible = false
+	day_note_form_box.add_theme_constant_override("separation", 8)
+	box.add_child(day_note_form_box)
+
+	day_note_form_box.add_child(_make_label("Notatka / opis", 14, COLOR_TEXT_MUTED))
 
 	day_note_edit = TextEdit.new()
 	day_note_edit.custom_minimum_size.y = 90
@@ -519,23 +494,19 @@ func _build_day_dialog() -> void:
 	day_note_edit.add_theme_color_override("font_color", COLOR_TEXT)
 	day_note_edit.add_theme_color_override("font_placeholder_color", COLOR_TEXT_DIM)
 	day_note_edit.add_theme_stylebox_override("normal", _control_style(Color(0.90, 0.94, 0.90, 0.10)))
-	box.add_child(day_note_edit)
-
-	var note_buttons := HBoxContainer.new()
-	note_buttons.add_theme_constant_override("separation", 8)
-	box.add_child(note_buttons)
+	day_note_form_box.add_child(day_note_edit)
 
 	day_save_note_button = Button.new()
 	day_save_note_button.text = "Zapisz notatkę"
 	_prepare_control(day_save_note_button, 18, 52)
 	_connect_tap(day_save_note_button, Callable(self, "_save_selected_day_note"))
-	note_buttons.add_child(day_save_note_button)
+	day_note_form_box.add_child(day_save_note_button)
 
-	day_clear_button = Button.new()
-	day_clear_button.text = "Wyczyść dzień"
-	_prepare_control(day_clear_button, 18, 52)
-	_connect_tap(day_clear_button, Callable(self, "_clear_selected_day"))
-	note_buttons.add_child(day_clear_button)
+	var close_day_button := Button.new()
+	close_day_button.text = "Zamknij"
+	_prepare_control(close_day_button, 18, 52)
+	_connect_tap(close_day_button, Callable(self, "_close_day_dialog"))
+	box.add_child(close_day_button)
 
 
 func _refresh_all() -> void:
@@ -707,6 +678,8 @@ func _reset_day_dialog_forms() -> void:
 		day_event_form_box.visible = false
 	if day_fixed_button_form_box != null:
 		day_fixed_button_form_box.visible = false
+	if day_note_form_box != null:
+		day_note_form_box.visible = false
 	day_event_color_index = 0
 	day_fixed_color_index = 0
 	_refresh_color_palettes()
@@ -733,12 +706,26 @@ func _refresh_day_quick_buttons() -> void:
 		var category_id := String(category.get("id", ""))
 		if category_id == "" or _is_category_hidden(category):
 			continue
+
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 8)
+		day_quick_buttons_grid.add_child(row)
+
 		var quick_button := Button.new()
-		quick_button.text = String(category.get("name", ""))
-		_prepare_control(quick_button, 16, 48)
+		quick_button.text = "Ten dzień = %s" % String(category.get("name", ""))
+		_prepare_control(quick_button, 18, 58)
 		_style_category_button(quick_button, int(category.get("color", 0)))
 		_connect_tap(quick_button, Callable(self, "_add_quick_category_to_selected_day").bind(category_id))
-		day_quick_buttons_grid.add_child(quick_button)
+		row.add_child(quick_button)
+
+		var delete_button := Button.new()
+		delete_button.text = "Kosz"
+		_prepare_control(delete_button, 14, 58)
+		delete_button.custom_minimum_size.x = 76
+		delete_button.size_flags_horizontal = Control.SIZE_SHRINK_END
+		_connect_tap(delete_button, Callable(self, "_delete_fixed_button_by_id").bind(category_id))
+		row.add_child(delete_button)
+
 		has_buttons = true
 
 	if not has_buttons:
@@ -784,19 +771,10 @@ func _add_quick_category_to_selected_day(category_id: String) -> void:
 		return
 
 	_add_category_id_to_day(selected_day_key, category_id)
+	_append_category_to_system_from_selected_day(category_id)
 	_save_settings_to_disk()
 	_rebuild_calendar()
 	_refresh_day_event_list()
-
-
-func _toggle_system_days_panel() -> void:
-	if system_days_body == null:
-		return
-
-	system_days_body.visible = not system_days_body.visible
-	if system_days_status_label != null:
-		system_days_status_label.text = ""
-	_refresh_system_days_ui()
 
 
 func _refresh_system_days_ui() -> void:
@@ -804,56 +782,29 @@ func _refresh_system_days_ui() -> void:
 		return
 
 	if system_days_start_label != null:
-		system_days_start_label.text = "Start systemu: %s. Kliknij dzień w kalendarzu, żeby zmienić start." % _system_days_start_key()
-	_refresh_system_days_button_grid()
+		if system_day_category_ids.is_empty():
+			system_days_start_label.text = "Start systemu ustawi się po pierwszym wyborze w oknie dnia."
+		else:
+			system_days_start_label.text = "Start systemu: %s. Wyczyść system, żeby ustawić nowy start." % _system_days_start_key()
 	_refresh_system_days_steps_label()
 
 
-func _refresh_system_days_button_grid() -> void:
-	if system_days_button_grid == null:
+func _append_category_to_system_from_selected_day(category_id: String) -> void:
+	if category_id == "" or selected_day_key == "":
 		return
 
-	for child in system_days_button_grid.get_children():
-		system_days_button_grid.remove_child(child)
-		child.queue_free()
-
-	var has_buttons := false
-	for item in _categories():
-		if not (item is Dictionary):
-			continue
-		var category: Dictionary = item as Dictionary
-		var category_id := String(category.get("id", ""))
-		if category_id == "" or _is_category_hidden(category):
-			continue
-
-		var button := Button.new()
-		button.text = String(category.get("name", ""))
-		_prepare_control(button, 16, 48)
-		_style_category_button(button, int(category.get("color", 0)))
-		_connect_tap(button, Callable(self, "_add_category_to_system_days").bind(category_id))
-		system_days_button_grid.add_child(button)
-		has_buttons = true
-
-	if not has_buttons:
-		var empty_label := _make_label("Najpierw dodaj stały przycisk w oknie dnia.", 15, COLOR_TEXT_MUTED)
-		empty_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		empty_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		system_days_button_grid.add_child(empty_label)
-
-
-func _add_category_to_system_days(category_id: String) -> void:
-	if category_id == "":
-		return
-
+	if system_day_category_ids.is_empty():
+		system_days_start_key_value = selected_day_key
 	system_day_category_ids.append(category_id)
 	_save_system_days_to_calendar()
-	_save_settings_to_disk()
 	_refresh_system_days_ui()
 
 
 func _undo_system_day_step() -> void:
 	if not system_day_category_ids.is_empty():
 		system_day_category_ids.remove_at(system_day_category_ids.size() - 1)
+	if system_day_category_ids.is_empty():
+		system_days_start_key_value = ""
 	_save_system_days_to_calendar()
 	_save_settings_to_disk()
 	_refresh_system_days_ui()
@@ -861,6 +812,7 @@ func _undo_system_day_step() -> void:
 
 func _clear_system_days() -> void:
 	system_day_category_ids.clear()
+	system_days_start_key_value = ""
 	_save_system_days_to_calendar()
 	_save_settings_to_disk()
 	_refresh_system_days_ui()
@@ -878,7 +830,7 @@ func _refresh_system_days_steps_label() -> void:
 		names.append(String(category.get("name", "")))
 
 	if names.is_empty():
-		system_days_steps_label.text = "System: jeszcze pusty"
+		system_days_steps_label.text = "System: kliknij dzień i wybierz przyciski w kolejności cyklu."
 	else:
 		system_days_steps_label.text = "System: %s" % " -> ".join(names)
 
@@ -924,24 +876,28 @@ func _apply_system_days_to_year() -> void:
 
 
 func _system_days_start_key() -> String:
-	if selected_day_key != "":
-		return selected_day_key
+	if system_days_start_key_value != "":
+		return system_days_start_key_value
 	return _date_key(current_year, current_month, 1)
 
 
 func _load_system_days_from_calendar() -> void:
 	system_day_category_ids.clear()
+	system_days_start_key_value = String(_selected_calendar().get("system_days_start", ""))
 	for item in _system_days():
 		var category_id := String(item)
 		var category: Dictionary = _category_by_id(category_id)
 		if category_id == "" or category.is_empty() or _is_category_hidden(category):
 			continue
 		system_day_category_ids.append(category_id)
+	if system_day_category_ids.is_empty():
+		system_days_start_key_value = ""
 
 
 func _save_system_days_to_calendar() -> void:
 	var calendar := _selected_calendar()
 	calendar["system_days"] = system_day_category_ids.duplicate()
+	calendar["system_days_start"] = system_days_start_key_value
 
 
 func _remove_category_from_system_days(category_id: String) -> void:
@@ -953,6 +909,8 @@ func _remove_category_from_system_days(category_id: String) -> void:
 		if String(existing_id) != category_id:
 			clean_ids.append(String(existing_id))
 	system_day_category_ids = clean_ids
+	if system_day_category_ids.is_empty():
+		system_days_start_key_value = ""
 	_save_system_days_to_calendar()
 
 
@@ -964,6 +922,8 @@ func _toggle_day_event_form() -> void:
 	day_event_form_box.visible = show_form
 	if day_fixed_button_form_box != null and show_form:
 		day_fixed_button_form_box.visible = false
+	if day_note_form_box != null and show_form:
+		day_note_form_box.visible = false
 	if day_event_status_label != null:
 		day_event_status_label.text = ""
 	if show_form and day_event_name_input != null:
@@ -978,11 +938,25 @@ func _toggle_day_fixed_button_form() -> void:
 	day_fixed_button_form_box.visible = show_form
 	if day_event_form_box != null and show_form:
 		day_event_form_box.visible = false
+	if day_note_form_box != null and show_form:
+		day_note_form_box.visible = false
 	if day_fixed_status_label != null:
 		day_fixed_status_label.text = ""
 	_refresh_fixed_delete_option()
 	if show_form and day_fixed_name_input != null:
 		day_fixed_name_input.grab_focus()
+
+
+func _toggle_day_note_form() -> void:
+	if day_note_form_box == null:
+		return
+
+	var show_form := not day_note_form_box.visible
+	day_note_form_box.visible = show_form
+	if day_event_form_box != null and show_form:
+		day_event_form_box.visible = false
+	if day_fixed_button_form_box != null and show_form:
+		day_fixed_button_form_box.visible = false
 
 
 func _save_day_event() -> void:
@@ -1031,6 +1005,7 @@ func _save_fixed_button() -> void:
 	var color_index := clampi(day_fixed_color_index, 0, CATEGORY_COLOR_VALUES.size() - 1)
 	var category_id := _category_id_for_name_with_color(name, color_index)
 	_add_category_id_to_day(selected_day_key, category_id)
+	_append_category_to_system_from_selected_day(category_id)
 	day_fixed_name_input.text = ""
 	day_fixed_button_form_box.visible = false
 	_save_settings_to_disk()
@@ -1069,11 +1044,18 @@ func _refresh_fixed_delete_option(selected_id: String = "") -> void:
 
 
 func _delete_fixed_button() -> void:
-	if day_fixed_delete_ids.is_empty():
+	if day_fixed_delete_option == null or day_fixed_delete_ids.is_empty():
 		return
 
 	var selected_index := clampi(day_fixed_delete_option.selected, 0, day_fixed_delete_ids.size() - 1)
 	var category_id: String = day_fixed_delete_ids[selected_index]
+	_delete_fixed_button_by_id(category_id)
+
+
+func _delete_fixed_button_by_id(category_id: String) -> void:
+	if category_id == "":
+		return
+
 	var categories := _categories()
 	var removed_name := ""
 	for index in range(categories.size()):
@@ -1109,6 +1091,8 @@ func _save_selected_day_note() -> void:
 		_notes().erase(selected_day_key)
 	else:
 		_notes()[selected_day_key] = text
+	if day_note_form_box != null:
+		day_note_form_box.visible = false
 	_save_settings_to_disk()
 	_rebuild_calendar()
 	_refresh_day_event_list()
@@ -1122,6 +1106,8 @@ func _clear_selected_day() -> void:
 	_event_details().erase(selected_day_key)
 	_notes().erase(selected_day_key)
 	day_note_edit.text = ""
+	if day_note_form_box != null:
+		day_note_form_box.visible = false
 	_save_settings_to_disk()
 	_rebuild_calendar()
 	_refresh_day_event_list()
@@ -1326,6 +1312,7 @@ func _join_calendar_by_code() -> void:
 		"event_details": {},
 		"notes": {},
 		"system_days": [],
+		"system_days_start": "",
 	})
 	selected_calendar_index = calendars.size() - 1
 	join_code_input.text = ""
@@ -1381,6 +1368,7 @@ func _make_calendar(name: String, kind: String) -> Dictionary:
 		"event_details": {},
 		"notes": {},
 		"system_days": [],
+		"system_days_start": "",
 	}
 
 
@@ -1526,6 +1514,8 @@ func _sanitize_calendar(value: Dictionary) -> Dictionary:
 		calendar["notes"] = {}
 	if not calendar.has("system_days") or not (calendar["system_days"] is Array):
 		calendar["system_days"] = []
+	if not calendar.has("system_days_start"):
+		calendar["system_days_start"] = ""
 	calendar.erase("pattern")
 	return calendar
 
