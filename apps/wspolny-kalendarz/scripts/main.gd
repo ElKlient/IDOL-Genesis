@@ -110,6 +110,8 @@ var join_code_input: LineEdit
 var share_status_label: Label
 var system_days_panel: PanelContainer
 var system_days_toggle_button: Button
+var system_record_button: Button
+var system_record_status_label: Label
 var system_scheme_box: VBoxContainer
 var system_scheme_list_box: VBoxContainer
 var sharing_panel: PanelContainer
@@ -151,7 +153,9 @@ var system_scheme_delete_label: Label
 
 var system_days_body: VBoxContainer
 var system_day_category_ids: Array[String] = []
+var system_day_steps: Array[Dictionary] = []
 var system_days_start_key_value := ""
+var system_days_recording_active := false
 var pending_system_scheme_delete_id := ""
 var system_scheme_event_ids_by_day: Dictionary = {}
 var holiday_cache_by_year: Dictionary = {}
@@ -382,6 +386,16 @@ func _build_system_days_panel() -> PanelContainer:
 	system_days_body.visible = system_days_expanded
 	system_days_body.add_theme_constant_override("separation", 10)
 	box.add_child(system_days_body)
+
+	system_record_button = Button.new()
+	system_record_button.text = "Wprowadzanie systemu cyklicznego"
+	_prepare_control(system_record_button, 18, 54)
+	_connect_tap(system_record_button, Callable(self, "_toggle_system_days_recording"))
+	system_days_body.add_child(system_record_button)
+
+	system_record_status_label = _make_label("", 14, COLOR_TEXT_MUTED)
+	system_record_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	system_days_body.add_child(system_record_status_label)
 
 	var edit_row := HBoxContainer.new()
 	edit_row.add_theme_constant_override("separation", 8)
@@ -924,6 +938,8 @@ func _open_day_dialog(year: int, month: int, day: int) -> void:
 	selected_day_month = month
 	selected_day_number = day
 	selected_day_key = _date_key(year, month, day)
+	if system_days_recording_active:
+		_record_selected_day_for_system()
 	_reset_day_dialog_forms()
 	_refresh_day_dialog()
 	_refresh_system_days_ui()
@@ -1055,6 +1071,10 @@ func _add_quick_category_to_selected_day(category_id: String) -> void:
 func _refresh_system_days_ui() -> void:
 	if system_days_body == null:
 		return
+	if system_record_button != null:
+		system_record_button.text = "Zakończ dodawanie i zastosuj" if system_days_recording_active else "Wprowadzanie systemu cyklicznego"
+	if system_record_status_label != null:
+		system_record_status_label.text = _system_recording_status_text()
 	_refresh_applied_system_scheme_ui()
 	_refresh_collapsible_panels()
 
@@ -1199,21 +1219,68 @@ func _open_single_month_from_overview(year: int, month: int) -> void:
 	_save_settings_to_disk()
 
 
-func _append_category_to_system_from_selected_day(category_id: String) -> void:
-	if category_id == "" or selected_day_key == "":
+func _toggle_system_days_recording() -> void:
+	if system_days_recording_active:
+		_finish_system_days_recording()
 		return
 
-	if system_day_category_ids.is_empty():
-		system_days_start_key_value = selected_day_key
-	system_day_category_ids.append(category_id)
+	system_days_recording_active = true
+	system_day_steps.clear()
+	system_day_category_ids.clear()
+	system_days_start_key_value = ""
 	_save_system_days_to_calendar()
+	_save_settings_to_disk()
+	_refresh_system_days_ui()
+
+
+func _finish_system_days_recording() -> void:
+	if system_day_steps.is_empty():
+		system_days_recording_active = false
+		_save_settings_to_disk()
+		_refresh_system_days_ui()
+		return
+
+	system_days_recording_active = false
+	_apply_system_days_to_year()
+
+
+func _append_category_to_system_from_selected_day(_category_id: String) -> void:
+	if not system_days_recording_active or selected_day_key == "":
+		return
+
+	_record_selected_day_for_system()
+
+
+func _record_selected_day_for_system() -> void:
+	if selected_day_key == "":
+		return
+
+	var step := {
+		"key": selected_day_key,
+		"category_ids": _manual_category_ids_for_day(selected_day_key),
+	}
+	var updated := false
+	for index in range(system_day_steps.size()):
+		if String(system_day_steps[index].get("key", "")) == selected_day_key:
+			system_day_steps[index] = step
+			updated = true
+			break
+	if not updated:
+		system_day_steps.append(step)
+
+	if system_day_steps.size() == 1:
+		system_days_start_key_value = selected_day_key
+	_rebuild_legacy_system_day_ids()
+	_save_system_days_to_calendar()
+	_save_settings_to_disk()
 	_refresh_system_days_ui()
 
 
 func _undo_system_day_step() -> void:
-	if not system_day_category_ids.is_empty():
-		system_day_category_ids.remove_at(system_day_category_ids.size() - 1)
-	if system_day_category_ids.is_empty():
+	if not system_day_steps.is_empty():
+		system_day_steps.remove_at(system_day_steps.size() - 1)
+	_rebuild_legacy_system_day_ids()
+	if system_day_steps.is_empty():
 		system_days_start_key_value = ""
 	_save_system_days_to_calendar()
 	_save_settings_to_disk()
@@ -1229,7 +1296,9 @@ func _clear_system_days() -> void:
 	calendar["applied_system_scheme"] = {}
 	system_scheme_event_ids_by_day.clear()
 	system_day_category_ids.clear()
+	system_day_steps.clear()
 	system_days_start_key_value = ""
+	system_days_recording_active = false
 	_save_system_days_to_calendar()
 	_save_settings_to_disk()
 	_rebuild_calendar()
@@ -1238,12 +1307,13 @@ func _clear_system_days() -> void:
 
 
 func _apply_system_days_to_year() -> void:
-	if system_day_category_ids.is_empty():
+	if system_day_steps.is_empty():
 		return
 
 	var start_date := _date_from_string(_system_days_start_key())
 	if start_date.is_empty():
 		return
+	system_days_recording_active = false
 
 	if system_scheme_name_input != null:
 		system_scheme_name_input.text = ""
@@ -1257,7 +1327,7 @@ func _apply_system_days_to_year() -> void:
 
 
 func _save_named_system_scheme() -> void:
-	if system_day_category_ids.is_empty():
+	if system_day_steps.is_empty():
 		return
 
 	var scheme_name := ""
@@ -1276,6 +1346,9 @@ func _apply_system_days_with_name(scheme_name: String) -> void:
 	var start_date := _date_from_string(_system_days_start_key())
 	if start_date.is_empty():
 		return
+	var pattern_steps := _normalized_current_system_steps()
+	if pattern_steps.is_empty():
+		return
 
 	var start_year := int(start_date["year"])
 	var start_month := int(start_date["month"])
@@ -1289,17 +1362,18 @@ func _apply_system_days_with_name(scheme_name: String) -> void:
 
 	var applied_days: Array[Dictionary] = []
 	for offset in range(total_days):
-		var category_id: String = system_day_category_ids[offset % system_day_category_ids.size()]
-		var category: Dictionary = _category_by_id(category_id)
-		if category.is_empty() or _is_category_hidden(category):
-			continue
+		var pattern_step: Dictionary = pattern_steps[offset % pattern_steps.size()]
+		var category_ids := _category_ids_from_system_step(pattern_step)
 		var date := Time.get_datetime_dict_from_unix_time(start_unix + offset * 86400)
 		var key := _date_key(int(date["year"]), int(date["month"]), int(date["day"]))
-		_remove_category_id_from_day(key, category_id)
-		applied_days.append({
-			"key": key,
-			"category_id": category_id,
-		})
+		for category_id in category_ids:
+			var category: Dictionary = _category_by_id(category_id)
+			if category.is_empty() or _is_category_hidden(category):
+				continue
+			applied_days.append({
+				"key": key,
+				"category_ids": [category_id],
+			})
 
 	var calendar := _selected_calendar()
 	var scheme: Dictionary = {
@@ -1308,7 +1382,7 @@ func _apply_system_days_with_name(scheme_name: String) -> void:
 		"visible": true,
 		"start": _system_days_start_key(),
 		"end": _date_key(end_year, 12, 31),
-		"system_days": system_day_category_ids.duplicate(),
+		"system_days": pattern_steps.duplicate(true),
 		"days": applied_days,
 	}
 	var schemes: Array = _applied_system_schemes()
@@ -1316,7 +1390,9 @@ func _apply_system_days_with_name(scheme_name: String) -> void:
 	calendar["applied_system_schemes"] = schemes
 	calendar["applied_system_scheme"] = {}
 	system_day_category_ids.clear()
+	system_day_steps.clear()
 	system_days_start_key_value = ""
+	system_days_recording_active = false
 	_save_system_days_to_calendar()
 	_save_settings_to_disk()
 	_rebuild_calendar()
@@ -1395,6 +1471,7 @@ func _remove_applied_system_scheme_by_id(scheme_id: String, clear_current_steps:
 	calendar["applied_system_scheme"] = {}
 	if clear_current_steps:
 		system_day_category_ids.clear()
+		system_day_steps.clear()
 		system_days_start_key_value = ""
 		_save_system_days_to_calendar()
 	_save_settings_to_disk()
@@ -1413,25 +1490,47 @@ func _system_scheme_display_name(scheme: Dictionary, number: int) -> String:
 func _system_days_start_key() -> String:
 	if system_days_start_key_value != "":
 		return system_days_start_key_value
+	if not system_day_steps.is_empty():
+		var first_step: Dictionary = system_day_steps[0]
+		var first_key := String(first_step.get("key", ""))
+		if first_key != "":
+			return first_key
 	return _date_key(current_year, current_month, 1)
 
 
 func _load_system_days_from_calendar() -> void:
 	system_day_category_ids.clear()
+	system_day_steps.clear()
+	system_days_recording_active = false
 	system_days_start_key_value = String(_selected_calendar().get("system_days_start", ""))
+	var legacy_offset := 0
 	for item in _system_days():
+		if item is Dictionary:
+			var step := _normalize_system_day_step(item as Dictionary)
+			if not step.is_empty():
+				system_day_steps.append(step)
+			continue
 		var category_id := String(item)
 		var category: Dictionary = _category_by_id(category_id)
 		if category_id == "" or category.is_empty() or _is_category_hidden(category):
 			continue
-		system_day_category_ids.append(category_id)
-	if system_day_category_ids.is_empty():
+		var legacy_key := ""
+		var start_date := _date_from_string(system_days_start_key_value)
+		if not start_date.is_empty():
+			legacy_key = _date_key_with_day_offset(int(start_date["year"]), int(start_date["month"]), int(start_date["day"]), legacy_offset)
+		system_day_steps.append({
+			"key": legacy_key,
+			"category_ids": [category_id],
+		})
+		legacy_offset += 1
+	_rebuild_legacy_system_day_ids()
+	if system_day_steps.is_empty():
 		system_days_start_key_value = ""
 
 
 func _save_system_days_to_calendar() -> void:
 	var calendar := _selected_calendar()
-	calendar["system_days"] = system_day_category_ids.duplicate()
+	calendar["system_days"] = system_day_steps.duplicate(true)
 	calendar["system_days_start"] = system_days_start_key_value
 
 
@@ -1439,14 +1538,112 @@ func _remove_category_from_system_days(category_id: String) -> void:
 	if category_id == "":
 		return
 
-	var clean_ids: Array[String] = []
-	for existing_id in system_day_category_ids:
-		if String(existing_id) != category_id:
-			clean_ids.append(String(existing_id))
-	system_day_category_ids = clean_ids
-	if system_day_category_ids.is_empty():
+	var clean_steps: Array[Dictionary] = []
+	for item in system_day_steps:
+		var step := _normalize_system_day_step(item)
+		if step.is_empty():
+			continue
+		var ids := _category_ids_from_system_step(step)
+		ids.erase(category_id)
+		step["category_ids"] = ids
+		clean_steps.append(step)
+	system_day_steps = clean_steps
+	_rebuild_legacy_system_day_ids()
+	if system_day_steps.is_empty():
 		system_days_start_key_value = ""
 	_save_system_days_to_calendar()
+
+
+func _system_recording_status_text() -> String:
+	if system_day_steps.is_empty():
+		if system_days_recording_active:
+			return "Nagrywanie aktywne. Klikaj dni po kolei i ustawiaj ich oznaczenia."
+		return "Kliknij wprowadzanie systemu cyklicznego, potem dodawaj dni po kolei."
+
+	var parts: Array[String] = []
+	var max_items := mini(system_day_steps.size(), 10)
+	for index in range(max_items):
+		var step := _normalize_system_day_step(system_day_steps[index])
+		var key := String(step.get("key", ""))
+		var label := key.substr(8, 2) if key.length() >= 10 else "krok %d" % (index + 1)
+		var names := _category_names_for_ids(_category_ids_from_system_step(step))
+		if names == "":
+			names = "pusto"
+		parts.append("%s: %s" % [label, names])
+	if system_day_steps.size() > max_items:
+		parts.append("...")
+
+	var prefix := "Nagrywanie aktywne. " if system_days_recording_active else ""
+	return "%sWzór (%d dni): %s" % [prefix, system_day_steps.size(), " | ".join(parts)]
+
+
+func _normalized_current_system_steps() -> Array[Dictionary]:
+	var steps: Array[Dictionary] = []
+	for item in system_day_steps:
+		var step := _normalize_system_day_step(item)
+		if not step.is_empty():
+			steps.append(step)
+	return steps
+
+
+func _normalize_system_day_step(value: Dictionary) -> Dictionary:
+	var key := String(value.get("key", ""))
+	var category_ids := _category_ids_from_system_step(value)
+	if key == "" and category_ids.is_empty():
+		return {}
+	return {
+		"key": key,
+		"category_ids": category_ids,
+	}
+
+
+func _category_ids_from_system_step(step: Dictionary) -> Array[String]:
+	var ids: Array[String] = []
+	if step.has("category_ids") and step["category_ids"] is Array:
+		for item in step["category_ids"]:
+			var category_id := String(item)
+			if category_id != "" and not ids.has(category_id):
+				ids.append(category_id)
+	elif step.has("category_id"):
+		var category_id := String(step.get("category_id", ""))
+		if category_id != "":
+			ids.append(category_id)
+	return ids
+
+
+func _manual_category_ids_for_day(day_key: String) -> Array[String]:
+	var ids: Array[String] = []
+	var events := _events()
+	if day_key == "" or not events.has(day_key) or not (events[day_key] is Array):
+		return ids
+
+	for event_id in events[day_key]:
+		var category_id := String(event_id)
+		var category: Dictionary = _category_by_id(category_id)
+		if category_id != "" and not category.is_empty() and not _is_category_hidden(category) and not ids.has(category_id):
+			ids.append(category_id)
+	return ids
+
+
+func _rebuild_legacy_system_day_ids() -> void:
+	system_day_category_ids.clear()
+	for item in system_day_steps:
+		var ids := _category_ids_from_system_step(item)
+		if ids.is_empty():
+			continue
+		system_day_category_ids.append(String(ids[0]))
+
+
+func _category_names_for_ids(category_ids: Array) -> String:
+	var names: Array[String] = []
+	for category_id in category_ids:
+		var category: Dictionary = _category_by_id(String(category_id))
+		if category.is_empty() or _is_category_hidden(category):
+			continue
+		var name := String(category.get("name", "")).strip_edges()
+		if name != "":
+			names.append(name)
+	return ", ".join(names)
 
 
 func _toggle_day_event_form() -> void:
@@ -1645,6 +1842,8 @@ func _clear_selected_day() -> void:
 	day_note_edit.text = ""
 	if day_note_form_box != null:
 		day_note_form_box.visible = false
+	if system_days_recording_active:
+		_record_selected_day_for_system()
 	_save_settings_to_disk()
 	_rebuild_calendar()
 	_refresh_day_event_list()
@@ -2016,11 +2215,11 @@ func _normalize_applied_system_scheme(value: Dictionary) -> Dictionary:
 				continue
 			var day: Dictionary = item as Dictionary
 			var key := String(day.get("key", ""))
-			var category_id := String(day.get("category_id", ""))
-			if key != "" and category_id != "":
+			var category_ids := _category_ids_from_system_step(day)
+			if key != "" and not category_ids.is_empty():
 				days.append({
 					"key": key,
-					"category_id": category_id,
+					"category_ids": category_ids,
 				})
 	if days.is_empty():
 		return {}
@@ -2028,9 +2227,17 @@ func _normalize_applied_system_scheme(value: Dictionary) -> Dictionary:
 	var system_days: Array = []
 	if value.has("system_days") and value["system_days"] is Array:
 		for item in value["system_days"]:
+			if item is Dictionary:
+				var step := _normalize_system_day_step(item as Dictionary)
+				if not step.is_empty():
+					system_days.append(step)
+				continue
 			var category_id := String(item)
 			if category_id != "":
-				system_days.append(category_id)
+				system_days.append({
+					"key": "",
+					"category_ids": [category_id],
+				})
 
 	var name := String(value.get("name", "")).strip_edges()
 	if name == "":
@@ -2064,41 +2271,22 @@ func _rebuild_system_scheme_event_cache() -> void:
 				continue
 			var day: Dictionary = day_item as Dictionary
 			var key := String(day.get("key", ""))
-			var category_id := String(day.get("category_id", ""))
-			var category: Dictionary = _category_by_id(category_id)
-			if key == "" or category_id == "" or category.is_empty() or _is_category_hidden(category):
+			if key == "":
 				continue
 			var ids: Array = []
 			if system_scheme_event_ids_by_day.has(key) and system_scheme_event_ids_by_day[key] is Array:
 				ids = system_scheme_event_ids_by_day[key]
-			if not ids.has(category_id):
-				ids.append(category_id)
+			for category_id in _category_ids_from_system_step(day):
+				var category: Dictionary = _category_by_id(category_id)
+				if category_id == "" or category.is_empty() or _is_category_hidden(category):
+					continue
+				if not ids.has(category_id):
+					ids.append(category_id)
 			system_scheme_event_ids_by_day[key] = ids
 
 
-func _remove_scheme_marks_from_calendar_events(calendar: Dictionary, scheme: Dictionary) -> void:
-	if not calendar.has("events") or not (calendar["events"] is Dictionary):
-		return
-	if not scheme.has("days") or not (scheme["days"] is Array):
-		return
-
-	var events: Dictionary = calendar["events"]
-	for item in scheme["days"]:
-		if not (item is Dictionary):
-			continue
-		var day: Dictionary = item as Dictionary
-		var key := String(day.get("key", ""))
-		var category_id := String(day.get("category_id", ""))
-		if key == "" or category_id == "" or not events.has(key) or not (events[key] is Array):
-			continue
-		var clean: Array = []
-		for event_id in events[key]:
-			if String(event_id) != category_id:
-				clean.append(event_id)
-		if clean.is_empty():
-			events.erase(key)
-		else:
-			events[key] = clean
+func _remove_scheme_marks_from_calendar_events(_calendar: Dictionary, _scheme: Dictionary) -> void:
+	return
 
 
 func _event_ids_for_day(key: String) -> Array:
