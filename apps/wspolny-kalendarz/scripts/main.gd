@@ -81,8 +81,7 @@ var share_status_label: Label
 var system_days_panel: PanelContainer
 var system_days_toggle_button: Button
 var system_scheme_box: VBoxContainer
-var system_scheme_label: Label
-var system_scheme_delete_button: Button
+var system_scheme_list_box: VBoxContainer
 var sharing_panel: PanelContainer
 var sharing_toggle_button: Button
 var sharing_body: VBoxContainer
@@ -123,6 +122,8 @@ var system_scheme_delete_label: Label
 var system_days_body: VBoxContainer
 var system_day_category_ids: Array[String] = []
 var system_days_start_key_value := ""
+var pending_system_scheme_delete_id := ""
+var system_scheme_event_ids_by_day: Dictionary = {}
 
 var selected_day_key := ""
 var selected_day_year := 0
@@ -362,7 +363,7 @@ func _build_system_days_panel() -> PanelContainer:
 	edit_row.add_child(undo_button)
 
 	var clear_button := Button.new()
-	clear_button.text = "Wyczyść system"
+	clear_button.text = "Wyczyść schematy"
 	_prepare_control(clear_button, 16, 48)
 	_connect_tap(clear_button, Callable(self, "_clear_system_days"))
 	edit_row.add_child(clear_button)
@@ -378,15 +379,9 @@ func _build_system_days_panel() -> PanelContainer:
 	system_scheme_box.add_theme_constant_override("separation", 8)
 	system_days_body.add_child(system_scheme_box)
 
-	system_scheme_label = _make_label("", 17, COLOR_TEXT)
-	system_scheme_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	system_scheme_box.add_child(system_scheme_label)
-
-	system_scheme_delete_button = Button.new()
-	system_scheme_delete_button.text = "Usuń cały schemat"
-	_prepare_control(system_scheme_delete_button, 18, 54)
-	_connect_tap(system_scheme_delete_button, Callable(self, "_confirm_delete_applied_system_scheme"))
-	system_scheme_box.add_child(system_scheme_delete_button)
+	system_scheme_list_box = VBoxContainer.new()
+	system_scheme_list_box.add_theme_constant_override("separation", 8)
+	system_scheme_box.add_child(system_scheme_list_box)
 
 	return panel
 
@@ -682,6 +677,7 @@ func _rebuild_calendar() -> void:
 	if months_box == null:
 		return
 
+	_rebuild_system_scheme_event_cache()
 	for child in months_box.get_children():
 		child.queue_free()
 
@@ -1030,17 +1026,57 @@ func _refresh_system_days_ui() -> void:
 
 
 func _refresh_applied_system_scheme_ui() -> void:
-	if system_scheme_box == null or system_scheme_label == null:
+	if system_scheme_box == null or system_scheme_list_box == null:
 		return
 
-	var scheme := _applied_system_scheme()
-	var scheme_name := String(scheme.get("name", "")).strip_edges()
-	system_scheme_box.visible = scheme_name != ""
-	if scheme_name == "":
-		system_scheme_label.text = ""
+	for child in system_scheme_list_box.get_children():
+		child.queue_free()
+
+	var schemes: Array = _applied_system_schemes()
+	system_scheme_box.visible = not schemes.is_empty()
+	if schemes.is_empty():
 		return
 
-	system_scheme_label.text = "Zapisany schemat: %s" % scheme_name
+	var title := _make_label("Dodane schematy", 16, COLOR_TEXT_MUTED)
+	title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	system_scheme_list_box.add_child(title)
+	for index in range(schemes.size()):
+		if not (schemes[index] is Dictionary):
+			continue
+		_add_system_scheme_row(system_scheme_list_box, schemes[index] as Dictionary, index + 1)
+
+
+func _add_system_scheme_row(parent: VBoxContainer, scheme: Dictionary, number: int) -> void:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 7)
+	parent.add_child(row)
+
+	var scheme_id := String(scheme.get("id", ""))
+	var label := _make_label(_system_scheme_display_name(scheme, number), 15, COLOR_TEXT)
+	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(label)
+
+	var show_check := CheckBox.new()
+	show_check.text = "Pokaż"
+	show_check.button_pressed = bool(scheme.get("visible", true))
+	show_check.custom_minimum_size = Vector2(112, 48)
+	show_check.size_flags_horizontal = Control.SIZE_SHRINK_END
+	show_check.focus_mode = Control.FOCUS_NONE
+	show_check.add_theme_font_size_override("font_size", 15)
+	show_check.add_theme_color_override("font_color", COLOR_TEXT)
+	show_check.add_theme_color_override("font_pressed_color", COLOR_TEXT)
+	show_check.add_theme_color_override("font_hover_color", COLOR_TEXT)
+	show_check.toggled.connect(Callable(self, "_set_applied_system_scheme_visible").bind(scheme_id))
+	row.add_child(show_check)
+
+	var delete_button := Button.new()
+	delete_button.text = "Usuń"
+	_prepare_control(delete_button, 15, 48)
+	delete_button.custom_minimum_size.x = 86
+	delete_button.size_flags_horizontal = Control.SIZE_SHRINK_END
+	_connect_tap(delete_button, Callable(self, "_confirm_delete_applied_system_scheme").bind(scheme_id))
+	row.add_child(delete_button)
 
 
 func _refresh_collapsible_panels() -> void:
@@ -1151,10 +1187,19 @@ func _undo_system_day_step() -> void:
 
 
 func _clear_system_days() -> void:
+	var calendar := _selected_calendar()
+	for item in _applied_system_schemes():
+		if item is Dictionary:
+			_remove_scheme_marks_from_calendar_events(calendar, item as Dictionary)
+	calendar["applied_system_schemes"] = []
+	calendar["applied_system_scheme"] = {}
+	system_scheme_event_ids_by_day.clear()
 	system_day_category_ids.clear()
 	system_days_start_key_value = ""
 	_save_system_days_to_calendar()
 	_save_settings_to_disk()
+	_rebuild_calendar()
+	_refresh_day_event_list()
 	_refresh_system_days_ui()
 
 
@@ -1166,9 +1211,9 @@ func _apply_system_days_to_year() -> void:
 	if start_date.is_empty():
 		return
 
-	var existing_name := String(_applied_system_scheme().get("name", "")).strip_edges()
 	if system_scheme_name_input != null:
-		system_scheme_name_input.text = existing_name
+		system_scheme_name_input.text = ""
+		system_scheme_name_input.placeholder_text = "Np. Schemat %d" % (_applied_system_schemes().size() + 1)
 	if system_scheme_name_status_label != null:
 		system_scheme_name_status_label.text = ""
 	if system_scheme_name_dialog != null:
@@ -1208,7 +1253,6 @@ func _apply_system_days_with_name(scheme_name: String) -> void:
 	if total_days <= 0:
 		return
 
-	_remove_applied_system_scheme(false)
 	var applied_days: Array[Dictionary] = []
 	for offset in range(total_days):
 		var category_id: String = system_day_category_ids[offset % system_day_category_ids.size()]
@@ -1217,41 +1261,26 @@ func _apply_system_days_with_name(scheme_name: String) -> void:
 			continue
 		var date := Time.get_datetime_dict_from_unix_time(start_unix + offset * 86400)
 		var key := _date_key(int(date["year"]), int(date["month"]), int(date["day"]))
-		_add_category_id_to_day(key, category_id, true)
+		_remove_category_id_from_day(key, category_id)
 		applied_days.append({
 			"key": key,
 			"category_id": category_id,
 		})
 
 	var calendar := _selected_calendar()
-	calendar["applied_system_scheme"] = {
+	var scheme: Dictionary = {
+		"id": _new_id("scheme"),
 		"name": scheme_name,
+		"visible": true,
 		"start": _system_days_start_key(),
 		"end": _date_key(end_year, 12, 31),
 		"system_days": system_day_category_ids.duplicate(),
 		"days": applied_days,
 	}
-	_save_system_days_to_calendar()
-	_save_settings_to_disk()
-	_rebuild_calendar()
-	_refresh_day_event_list()
-	_refresh_system_days_ui()
-
-
-func _confirm_delete_applied_system_scheme() -> void:
-	var scheme := _applied_system_scheme()
-	var scheme_name := String(scheme.get("name", "")).strip_edges()
-	if scheme_name == "":
-		return
-
-	if system_scheme_delete_label != null:
-		system_scheme_delete_label.text = "Czy na pewno usunąć cały schemat \"%s\" z kalendarza?" % scheme_name
-	if system_scheme_delete_dialog != null:
-		system_scheme_delete_dialog.popup_centered(Vector2i(560, 300))
-
-
-func _delete_applied_system_scheme_confirmed() -> void:
-	_remove_applied_system_scheme(false)
+	var schemes: Array = _applied_system_schemes()
+	schemes.append(scheme)
+	calendar["applied_system_schemes"] = schemes
+	calendar["applied_system_scheme"] = {}
 	system_day_category_ids.clear()
 	system_days_start_key_value = ""
 	_save_system_days_to_calendar()
@@ -1259,31 +1288,92 @@ func _delete_applied_system_scheme_confirmed() -> void:
 	_rebuild_calendar()
 	_refresh_day_event_list()
 	_refresh_system_days_ui()
+
+
+func _confirm_delete_applied_system_scheme(scheme_id: String = "") -> void:
+	var scheme: Dictionary = _find_applied_system_scheme(scheme_id)
+	var scheme_name := String(scheme.get("name", "")).strip_edges()
+	if scheme_name == "":
+		return
+
+	pending_system_scheme_delete_id = scheme_id
+	if system_scheme_delete_label != null:
+		system_scheme_delete_label.text = "Czy na pewno usunąć cały schemat \"%s\" z kalendarza?" % scheme_name
+	if system_scheme_delete_dialog != null:
+		system_scheme_delete_dialog.popup_centered(Vector2i(560, 300))
+
+
+func _delete_applied_system_scheme_confirmed() -> void:
+	_remove_applied_system_scheme_by_id(pending_system_scheme_delete_id, false)
+	pending_system_scheme_delete_id = ""
 	_close_system_scheme_delete_dialog()
 
 
-func _remove_applied_system_scheme(should_save: bool = true) -> void:
-	var calendar := _selected_calendar()
-	var scheme: Dictionary = _applied_system_scheme()
-	if scheme.is_empty():
-		calendar["applied_system_scheme"] = {}
-		return
-
-	var days: Array = []
-	if scheme.has("days") and scheme["days"] is Array:
-		days = scheme["days"]
-	for item in days:
-		if not (item is Dictionary):
+func _set_applied_system_scheme_visible(visible: bool, scheme_id: String) -> void:
+	var schemes: Array = _applied_system_schemes()
+	for index in range(schemes.size()):
+		if not (schemes[index] is Dictionary):
 			continue
-		var day: Dictionary = item as Dictionary
-		_remove_category_id_from_day(String(day.get("key", "")), String(day.get("category_id", "")))
-
-	calendar["applied_system_scheme"] = {}
-	if should_save:
+		var scheme: Dictionary = schemes[index] as Dictionary
+		if String(scheme.get("id", "")) != scheme_id:
+			continue
+		scheme["visible"] = visible
+		schemes[index] = scheme
 		_save_settings_to_disk()
 		_rebuild_calendar()
 		_refresh_day_event_list()
 		_refresh_system_days_ui()
+		return
+
+
+func _find_applied_system_scheme(scheme_id: String) -> Dictionary:
+	for item in _applied_system_schemes():
+		if not (item is Dictionary):
+			continue
+		var scheme: Dictionary = item as Dictionary
+		if String(scheme.get("id", "")) == scheme_id:
+			return scheme
+	return {}
+
+
+func _remove_applied_system_scheme_by_id(scheme_id: String, clear_current_steps: bool = false) -> void:
+	if scheme_id == "":
+		return
+
+	var calendar := _selected_calendar()
+	var schemes: Array = _applied_system_schemes()
+	var clean_schemes: Array = []
+	var removed := false
+	for item in schemes:
+		if not (item is Dictionary):
+			continue
+		var scheme: Dictionary = item as Dictionary
+		if String(scheme.get("id", "")) == scheme_id:
+			_remove_scheme_marks_from_calendar_events(calendar, scheme)
+			removed = true
+		else:
+			clean_schemes.append(scheme)
+
+	if not removed:
+		return
+
+	calendar["applied_system_schemes"] = clean_schemes
+	calendar["applied_system_scheme"] = {}
+	if clear_current_steps:
+		system_day_category_ids.clear()
+		system_days_start_key_value = ""
+		_save_system_days_to_calendar()
+	_save_settings_to_disk()
+	_rebuild_calendar()
+	_refresh_day_event_list()
+	_refresh_system_days_ui()
+
+
+func _system_scheme_display_name(scheme: Dictionary, number: int) -> String:
+	var scheme_name := String(scheme.get("name", "")).strip_edges()
+	if scheme_name == "":
+		scheme_name = "Schemat %d" % number
+	return "%d. %s" % [number, scheme_name]
 
 
 func _system_days_start_key() -> String:
@@ -1745,6 +1835,7 @@ func _join_calendar_by_code() -> void:
 		"system_days": [],
 		"system_days_start": "",
 		"applied_system_scheme": {},
+		"applied_system_schemes": [],
 	})
 	selected_calendar_index = calendars.size() - 1
 	join_code_input.text = ""
@@ -1810,6 +1901,7 @@ func _make_calendar(name: String, kind: String) -> Dictionary:
 		"system_days": [],
 		"system_days_start": "",
 		"applied_system_scheme": {},
+		"applied_system_schemes": [],
 	}
 
 
@@ -1854,18 +1946,141 @@ func _system_days() -> Array:
 	return calendar["system_days"]
 
 
-func _applied_system_scheme() -> Dictionary:
+func _applied_system_schemes() -> Array:
 	var calendar := _selected_calendar()
-	if not calendar.has("applied_system_scheme") or not (calendar["applied_system_scheme"] is Dictionary):
-		calendar["applied_system_scheme"] = {}
-	return calendar["applied_system_scheme"]
+	_ensure_applied_system_schemes(calendar)
+	return calendar["applied_system_schemes"]
+
+
+func _ensure_applied_system_schemes(calendar: Dictionary) -> void:
+	if not calendar.has("applied_system_schemes") or not (calendar["applied_system_schemes"] is Array):
+		calendar["applied_system_schemes"] = []
+
+	var clean_schemes: Array = []
+	for item in calendar["applied_system_schemes"]:
+		if not (item is Dictionary):
+			continue
+		var scheme: Dictionary = _normalize_applied_system_scheme(item as Dictionary)
+		if not scheme.is_empty():
+			clean_schemes.append(scheme)
+	calendar["applied_system_schemes"] = clean_schemes
+
+	if calendar.has("applied_system_scheme") and calendar["applied_system_scheme"] is Dictionary:
+		var legacy_scheme: Dictionary = _normalize_applied_system_scheme(calendar["applied_system_scheme"] as Dictionary)
+		if not legacy_scheme.is_empty():
+			clean_schemes.append(legacy_scheme)
+			_remove_scheme_marks_from_calendar_events(calendar, legacy_scheme)
+			calendar["applied_system_schemes"] = clean_schemes
+	calendar["applied_system_scheme"] = {}
+
+
+func _normalize_applied_system_scheme(value: Dictionary) -> Dictionary:
+	var days: Array = []
+	if value.has("days") and value["days"] is Array:
+		for item in value["days"]:
+			if not (item is Dictionary):
+				continue
+			var day: Dictionary = item as Dictionary
+			var key := String(day.get("key", ""))
+			var category_id := String(day.get("category_id", ""))
+			if key != "" and category_id != "":
+				days.append({
+					"key": key,
+					"category_id": category_id,
+				})
+	if days.is_empty():
+		return {}
+
+	var system_days: Array = []
+	if value.has("system_days") and value["system_days"] is Array:
+		for item in value["system_days"]:
+			var category_id := String(item)
+			if category_id != "":
+				system_days.append(category_id)
+
+	var name := String(value.get("name", "")).strip_edges()
+	if name == "":
+		name = "Schemat"
+	var scheme_id := String(value.get("id", ""))
+	if scheme_id == "":
+		scheme_id = _new_id("scheme")
+	return {
+		"id": scheme_id,
+		"name": name,
+		"visible": bool(value.get("visible", true)),
+		"start": String(value.get("start", "")),
+		"end": String(value.get("end", "")),
+		"system_days": system_days,
+		"days": days,
+	}
+
+
+func _rebuild_system_scheme_event_cache() -> void:
+	system_scheme_event_ids_by_day.clear()
+	for item in _applied_system_schemes():
+		if not (item is Dictionary):
+			continue
+		var scheme: Dictionary = item as Dictionary
+		if not bool(scheme.get("visible", true)):
+			continue
+		if not scheme.has("days") or not (scheme["days"] is Array):
+			continue
+		for day_item in scheme["days"]:
+			if not (day_item is Dictionary):
+				continue
+			var day: Dictionary = day_item as Dictionary
+			var key := String(day.get("key", ""))
+			var category_id := String(day.get("category_id", ""))
+			var category: Dictionary = _category_by_id(category_id)
+			if key == "" or category_id == "" or category.is_empty() or _is_category_hidden(category):
+				continue
+			var ids: Array = []
+			if system_scheme_event_ids_by_day.has(key) and system_scheme_event_ids_by_day[key] is Array:
+				ids = system_scheme_event_ids_by_day[key]
+			if not ids.has(category_id):
+				ids.append(category_id)
+			system_scheme_event_ids_by_day[key] = ids
+
+
+func _remove_scheme_marks_from_calendar_events(calendar: Dictionary, scheme: Dictionary) -> void:
+	if not calendar.has("events") or not (calendar["events"] is Dictionary):
+		return
+	if not scheme.has("days") or not (scheme["days"] is Array):
+		return
+
+	var events: Dictionary = calendar["events"]
+	for item in scheme["days"]:
+		if not (item is Dictionary):
+			continue
+		var day: Dictionary = item as Dictionary
+		var key := String(day.get("key", ""))
+		var category_id := String(day.get("category_id", ""))
+		if key == "" or category_id == "" or not events.has(key) or not (events[key] is Array):
+			continue
+		var clean: Array = []
+		for event_id in events[key]:
+			if String(event_id) != category_id:
+				clean.append(event_id)
+		if clean.is_empty():
+			events.erase(key)
+		else:
+			events[key] = clean
 
 
 func _event_ids_for_day(key: String) -> Array:
+	var result: Array = []
 	var events := _events()
-	if not events.has(key) or not (events[key] is Array):
-		return []
-	return events[key]
+	if events.has(key) and events[key] is Array:
+		for event_id in events[key]:
+			var category_id := String(event_id)
+			if category_id != "" and not result.has(category_id):
+				result.append(category_id)
+	if system_scheme_event_ids_by_day.has(key) and system_scheme_event_ids_by_day[key] is Array:
+		for event_id in system_scheme_event_ids_by_day[key]:
+			var category_id := String(event_id)
+			if category_id != "" and not result.has(category_id):
+				result.append(category_id)
+	return result
 
 
 func _event_details_for_day(key: String) -> Array:
@@ -1969,6 +2184,9 @@ func _sanitize_calendar(value: Dictionary) -> Dictionary:
 		calendar["system_days_start"] = ""
 	if not calendar.has("applied_system_scheme") or not (calendar["applied_system_scheme"] is Dictionary):
 		calendar["applied_system_scheme"] = {}
+	if not calendar.has("applied_system_schemes") or not (calendar["applied_system_schemes"] is Array):
+		calendar["applied_system_schemes"] = []
+	_ensure_applied_system_schemes(calendar)
 	calendar.erase("pattern")
 	return calendar
 
