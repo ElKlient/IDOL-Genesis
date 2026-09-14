@@ -27,6 +27,8 @@ const PROFILE_BUTTON_HEIGHT := 50
 const PROFILE_PANEL_WIDTH := 282
 const PROFILE_PANEL_HEIGHT := 410
 const SYSTEM_REPEAT_YEARS_AHEAD := 5
+const DEFAULT_EVENT_COLOR_INDEX := 2
+const MAX_EVENT_DOTS_ON_TILE := 5
 
 const COLOR_PANEL := Color(0.070, 0.085, 0.087, 0.82)
 const COLOR_PANEL_SOFT := Color(0.105, 0.120, 0.116, 0.76)
@@ -80,7 +82,7 @@ var day_event_name_input: LineEdit
 var day_event_time_input: LineEdit
 var day_event_description_input: TextEdit
 var day_event_color_palette: GridContainer
-var day_event_color_index := 0
+var day_event_color_index := DEFAULT_EVENT_COLOR_INDEX
 var day_event_status_label: Label
 var day_fixed_button_form_box: VBoxContainer
 var day_fixed_name_input: LineEdit
@@ -379,6 +381,12 @@ func _build_day_dialog() -> void:
 	day_quick_buttons_grid.add_theme_constant_override("separation", 8)
 	box.add_child(day_quick_buttons_grid)
 
+	var add_event_button := Button.new()
+	add_event_button.text = "Dodaj wydarzenie"
+	_prepare_control(add_event_button, 18, 54)
+	_connect_tap(add_event_button, Callable(self, "_toggle_day_event_form"))
+	box.add_child(add_event_button)
+
 	var add_fixed_button := Button.new()
 	add_fixed_button.text = "+"
 	_prepare_control(add_fixed_button, 30, 58)
@@ -552,7 +560,7 @@ func _make_day_cell(year: int, month: int, day: int) -> Button:
 	var detail_events := _event_details_for_day(key)
 	var has_note := _notes().has(key) and String(_notes()[key]).strip_edges() != ""
 	var is_today := _is_today(year, month, day)
-	var color := _color_for_day(key, event_ids)
+	var color := _color_for_day(event_ids)
 
 	var button := Button.new()
 	button.text = ""
@@ -564,7 +572,7 @@ func _make_day_cell(year: int, month: int, day: int) -> Button:
 	button.add_theme_stylebox_override("hover", _tile_style(color.lightened(0.06), is_today, true))
 	button.add_theme_stylebox_override("pressed", _tile_style(color.darkened(0.08), is_today, true))
 	button.add_theme_stylebox_override("focus", _tile_style(color, true, true))
-	_fill_day_tile(button, year, month, day, event_ids, has_note)
+	_fill_day_tile(button, year, month, day, event_ids, detail_events, has_note)
 	_connect_tap(button, Callable(self, "_open_day_dialog").bind(year, month, day))
 	return button
 
@@ -577,7 +585,7 @@ func _make_day_spacer() -> Control:
 	return spacer
 
 
-func _fill_day_tile(button: Button, year: int, month: int, day: int, event_ids: Array, has_note: bool) -> void:
+func _fill_day_tile(button: Button, year: int, month: int, day: int, event_ids: Array, detail_events: Array, has_note: bool) -> void:
 	var margin := MarginContainer.new()
 	margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	margin.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -599,35 +607,55 @@ func _fill_day_tile(button: Button, year: int, month: int, day: int, event_ids: 
 	var weekday_label := _tile_label(WEEKDAY_SHORT_TILE[_weekday_monday_index(year, month, day)], 13, COLOR_TEXT_MUTED)
 	box.add_child(weekday_label)
 
-	var marker_text := _marker_text(_date_key(year, month, day), event_ids, has_note)
+	var marker_text := _marker_text(event_ids, has_note)
 	if marker_text != "":
 		box.add_child(_tile_label(marker_text, 10, COLOR_TEXT))
 
+	_add_event_dots_to_tile(box, detail_events)
 
-func _marker_text(day_key: String, event_ids: Array, has_note: bool) -> String:
+
+func _marker_text(event_ids: Array, has_note: bool) -> String:
 	var parts: Array[String] = []
 	for event_id in event_ids:
 		var category: Dictionary = _category_by_id(String(event_id))
 		if category.is_empty():
 			continue
 		parts.append(String(category.get("name", "")))
-	for item in _event_details_for_day(day_key):
+	if has_note:
+		parts.append("notatka")
+	if parts.is_empty():
+		return ""
+	return ", ".join(parts).left(18)
+
+
+func _add_event_dots_to_tile(box: VBoxContainer, detail_events: Array) -> void:
+	var colors: Array[int] = []
+	for item in detail_events:
 		if not (item is Dictionary):
 			continue
 		var detail: Dictionary = item as Dictionary
 		var name := String(detail.get("name", "")).strip_edges()
 		if name == "":
 			continue
-		var start_time := String(detail.get("time", "")).strip_edges()
-		var detail_label := name
-		if start_time != "":
-			detail_label = "%s %s" % [start_time, name]
-		parts.append(detail_label)
-	if has_note:
-		parts.append("notatka")
-	if parts.is_empty():
-		return ""
-	return ", ".join(parts).left(18)
+		colors.append(int(detail.get("color", DEFAULT_EVENT_COLOR_INDEX)))
+		if colors.size() >= MAX_EVENT_DOTS_ON_TILE:
+			break
+
+	if colors.is_empty():
+		return
+
+	var dots := HBoxContainer.new()
+	dots.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	dots.alignment = BoxContainer.ALIGNMENT_CENTER
+	dots.add_theme_constant_override("separation", 3)
+	box.add_child(dots)
+
+	for color_index in colors:
+		var dot := Panel.new()
+		dot.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		dot.custom_minimum_size = Vector2(9, 9)
+		dot.add_theme_stylebox_override("panel", _event_dot_style(_category_color(color_index)))
+		dots.add_child(dot)
 
 
 func _open_day_dialog(year: int, month: int, day: int) -> void:
@@ -664,7 +692,7 @@ func _reset_day_dialog_forms() -> void:
 		day_fixed_button_form_box.visible = false
 	if day_note_form_box != null:
 		day_note_form_box.visible = false
-	day_event_color_index = 0
+	day_event_color_index = DEFAULT_EVENT_COLOR_INDEX
 	day_fixed_color_index = 0
 	_refresh_color_palettes()
 	if day_event_status_label != null:
@@ -940,6 +968,8 @@ func _save_day_event() -> void:
 	day_event_name_input.text = ""
 	day_event_time_input.text = ""
 	day_event_description_input.text = ""
+	day_event_color_index = DEFAULT_EVENT_COLOR_INDEX
+	_refresh_color_palettes()
 	day_event_form_box.visible = false
 	_save_settings_to_disk()
 	_rebuild_calendar()
@@ -1390,16 +1420,11 @@ func _category_by_id(category_id: String) -> Dictionary:
 	return {}
 
 
-func _color_for_day(day_key: String, event_ids: Array) -> Color:
+func _color_for_day(event_ids: Array) -> Color:
 	if not event_ids.is_empty():
 		var category: Dictionary = _category_by_id(String(event_ids[0]))
 		if not category.is_empty():
 			return _category_color(int(category.get("color", 0)))
-	for item in _event_details_for_day(day_key):
-		if not (item is Dictionary):
-			continue
-		var detail: Dictionary = item as Dictionary
-		return _category_color(int(detail.get("color", 0)))
 
 	return COLOR_TILE_EMPTY
 
@@ -1790,6 +1815,18 @@ func _tile_style(color: Color, is_today: bool, has_items: bool) -> StyleBoxFlat:
 	style.content_margin_right = 8
 	style.content_margin_top = 10
 	style.content_margin_bottom = 8
+	return style
+
+
+func _event_dot_style(color: Color) -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = color.lightened(0.20)
+	style.set_corner_radius_all(8)
+	style.set_border_width_all(1)
+	style.border_color = Color(1.0, 1.0, 1.0, 0.60)
+	style.shadow_color = Color(color.r, color.g, color.b, 0.78)
+	style.shadow_size = 7
+	style.shadow_offset = Vector2.ZERO
 	return style
 
 
