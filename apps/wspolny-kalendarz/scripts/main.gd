@@ -157,15 +157,13 @@ func _build_ui() -> void:
 	calendar_name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	header.add_child(calendar_name_label)
 
-	var today_button := Button.new()
-	today_button.text = "Dzisiaj"
-	_prepare_control(today_button, 16, 50)
-	today_button.custom_minimum_size.x = 120
-	today_button.size_flags_horizontal = Control.SIZE_SHRINK_END
-	_connect_tap(today_button, Callable(self, "_return_to_today"))
-	header.add_child(today_button)
-
 	_add_profile_overlay()
+
+	var today_button := Button.new()
+	today_button.text = "Wróć do aktualnej daty"
+	_prepare_control(today_button, 18, 52)
+	_connect_tap(today_button, Callable(self, "_return_to_today"))
+	screen_root.add_child(today_button)
 
 	var nav := HBoxContainer.new()
 	nav.add_theme_constant_override("separation", 8)
