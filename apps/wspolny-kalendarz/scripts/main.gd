@@ -1217,12 +1217,10 @@ func _apply_system_days_with_name(scheme_name: String) -> void:
 			continue
 		var date := Time.get_datetime_dict_from_unix_time(start_unix + offset * 86400)
 		var key := _date_key(int(date["year"]), int(date["month"]), int(date["day"]))
-		var existed_before := _event_ids_for_day(key).has(category_id)
 		_add_category_id_to_day(key, category_id, true)
 		applied_days.append({
 			"key": key,
 			"category_id": category_id,
-			"added": not existed_before,
 		})
 
 	var calendar := _selected_calendar()
@@ -1278,8 +1276,6 @@ func _remove_applied_system_scheme(should_save: bool = true) -> void:
 		if not (item is Dictionary):
 			continue
 		var day: Dictionary = item as Dictionary
-		if not bool(day.get("added", true)):
-			continue
 		_remove_category_id_from_day(String(day.get("key", "")), String(day.get("category_id", "")))
 
 	calendar["applied_system_scheme"] = {}
