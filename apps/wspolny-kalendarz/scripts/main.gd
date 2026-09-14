@@ -26,6 +26,7 @@ const PROFILE_BUTTON_WIDTH := 148
 const PROFILE_BUTTON_HEIGHT := 50
 const PROFILE_PANEL_WIDTH := 282
 const PROFILE_PANEL_HEIGHT := 410
+const SYSTEM_REPEAT_YEARS_AHEAD := 5
 
 const COLOR_PANEL := Color(0.070, 0.085, 0.087, 0.82)
 const COLOR_PANEL_SOFT := Color(0.105, 0.120, 0.116, 0.76)
@@ -95,9 +96,6 @@ var day_save_note_button: Button
 var day_clear_button: Button
 
 var system_days_body: VBoxContainer
-var system_days_start_label: Label
-var system_days_steps_label: Label
-var system_days_status_label: Label
 var system_day_category_ids: Array[String] = []
 var system_days_start_key_value := ""
 
@@ -300,16 +298,6 @@ func _build_system_days_panel() -> PanelContainer:
 	system_days_body.add_theme_constant_override("separation", 10)
 	box.add_child(system_days_body)
 
-	system_days_body.add_child(_make_section_label("Schemat cykliczny"))
-
-	system_days_start_label = _make_label("", 15, COLOR_TEXT_MUTED)
-	system_days_start_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	system_days_body.add_child(system_days_start_label)
-
-	system_days_steps_label = _make_label("", 16, COLOR_TEXT)
-	system_days_steps_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	system_days_body.add_child(system_days_steps_label)
-
 	var edit_row := HBoxContainer.new()
 	edit_row.add_theme_constant_override("separation", 8)
 	system_days_body.add_child(edit_row)
@@ -331,10 +319,6 @@ func _build_system_days_panel() -> PanelContainer:
 	_prepare_control(apply_button, 18, 54)
 	_connect_tap(apply_button, Callable(self, "_apply_system_days_to_year"))
 	system_days_body.add_child(apply_button)
-
-	system_days_status_label = _make_label("", 14, COLOR_TEXT_MUTED)
-	system_days_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	system_days_body.add_child(system_days_status_label)
 
 	return panel
 
@@ -781,13 +765,6 @@ func _refresh_system_days_ui() -> void:
 	if system_days_body == null:
 		return
 
-	if system_days_start_label != null:
-		if system_day_category_ids.is_empty():
-			system_days_start_label.text = "Start systemu ustawi się po pierwszym wyborze w oknie dnia."
-		else:
-			system_days_start_label.text = "Start systemu: %s. Wyczyść system, żeby ustawić nowy start." % _system_days_start_key()
-	_refresh_system_days_steps_label()
-
 
 func _append_category_to_system_from_selected_day(category_id: String) -> void:
 	if category_id == "" or selected_day_key == "":
@@ -818,46 +795,24 @@ func _clear_system_days() -> void:
 	_refresh_system_days_ui()
 
 
-func _refresh_system_days_steps_label() -> void:
-	if system_days_steps_label == null:
-		return
-
-	var names: Array[String] = []
-	for category_id in system_day_category_ids:
-		var category: Dictionary = _category_by_id(String(category_id))
-		if category.is_empty() or _is_category_hidden(category):
-			continue
-		names.append(String(category.get("name", "")))
-
-	if names.is_empty():
-		system_days_steps_label.text = "System: kliknij dzień i wybierz przyciski w kolejności cyklu."
-	else:
-		system_days_steps_label.text = "System: %s" % " -> ".join(names)
-
-
 func _apply_system_days_to_year() -> void:
-	if system_days_status_label == null:
-		return
 	if system_day_category_ids.is_empty():
-		system_days_status_label.text = "Kliknij guziki dni systemowych w kolejności cyklu."
 		return
 
 	var start_date := _date_from_string(_system_days_start_key())
 	if start_date.is_empty():
-		system_days_status_label.text = "Najpierw wybierz poprawny dzień startu."
 		return
 
 	var start_year := int(start_date["year"])
 	var start_month := int(start_date["month"])
 	var start_day := int(start_date["day"])
 	var start_unix := _unix_from_date(start_year, start_month, start_day)
-	var end_unix := _unix_from_date(start_year, 12, 31)
+	var end_year := start_year + SYSTEM_REPEAT_YEARS_AHEAD
+	var end_unix := _unix_from_date(end_year, 12, 31)
 	var total_days := int((end_unix - start_unix) / 86400) + 1
 	if total_days <= 0:
-		system_days_status_label.text = "Ten system nie ma gdzie się zastosować w tym roku."
 		return
 
-	var changed_days := 0
 	for offset in range(total_days):
 		var category_id: String = system_day_category_ids[offset % system_day_category_ids.size()]
 		var category: Dictionary = _category_by_id(category_id)
@@ -865,14 +820,12 @@ func _apply_system_days_to_year() -> void:
 			continue
 		var date := Time.get_datetime_dict_from_unix_time(start_unix + offset * 86400)
 		var key := _date_key(int(date["year"]), int(date["month"]), int(date["day"]))
-		if _add_category_id_to_day(key, category_id, true):
-			changed_days += 1
+		_add_category_id_to_day(key, category_id, true)
 
 	_save_system_days_to_calendar()
 	_save_settings_to_disk()
 	_rebuild_calendar()
 	_refresh_day_event_list()
-	system_days_status_label.text = "Zastosowano od %s do %d-12-31. Dopisano lub ustawiono %d dni." % [_system_days_start_key(), start_year, changed_days]
 
 
 func _system_days_start_key() -> String:
