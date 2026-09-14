@@ -123,6 +123,11 @@ var calendar_option: OptionButton
 var calendar_status_label: Label
 var calendar_delete_dialog: AcceptDialog
 var calendar_delete_label: Label
+var calendar_clear_panel: PanelContainer
+var calendar_clear_toggle_button: Button
+var calendar_clear_body: VBoxContainer
+var calendar_clear_confirm_dialog: AcceptDialog
+var calendar_clear_confirm_label: Label
 var share_code_label: Label
 var join_code_input: LineEdit
 var share_status_label: Label
@@ -138,6 +143,7 @@ var sharing_body: VBoxContainer
 var calendar_only_button: Button
 var system_days_expanded := false
 var sharing_expanded := false
+var calendar_clear_expanded := false
 var calendar_only_mode := false
 var profile_panel_open := false
 var settings_loaded := false
@@ -327,6 +333,9 @@ func _build_ui() -> void:
 	sharing_panel = _build_sharing_panel()
 	content_root.add_child(sharing_panel)
 
+	calendar_clear_panel = _build_calendar_clear_panel()
+	content_root.add_child(calendar_clear_panel)
+
 	calendar_only_button = Button.new()
 	calendar_only_button.text = "Pokaż tylko kalendarz"
 	_prepare_control(calendar_only_button, 18, 56)
@@ -338,6 +347,7 @@ func _build_ui() -> void:
 	_build_system_scheme_name_dialog()
 	_build_system_scheme_delete_dialog()
 	_build_calendar_delete_dialog()
+	_build_calendar_clear_confirm_dialog()
 	_sync_content_width()
 
 
@@ -541,6 +551,31 @@ func _build_sharing_panel() -> PanelContainer:
 	return panel
 
 
+func _build_calendar_clear_panel() -> PanelContainer:
+	var panel := _panel()
+	var box := _panel_box(panel)
+
+	calendar_clear_toggle_button = _make_panel_toggle_button("Czyszczenie kalendarza", Callable(self, "_toggle_calendar_clear_panel"))
+	box.add_child(calendar_clear_toggle_button)
+
+	calendar_clear_body = VBoxContainer.new()
+	calendar_clear_body.visible = calendar_clear_expanded
+	calendar_clear_body.add_theme_constant_override("separation", 10)
+	box.add_child(calendar_clear_body)
+
+	var info_label := _make_label("Czyści ręczne wpisy aktualnego profilu. Święta zostają.", 14, COLOR_TEXT_MUTED)
+	info_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	calendar_clear_body.add_child(info_label)
+
+	var clear_button := Button.new()
+	clear_button.text = "Wyczyść cały kalendarz"
+	_prepare_danger_button(clear_button, 18, 56)
+	_connect_tap(clear_button, Callable(self, "_confirm_clear_selected_calendar"))
+	calendar_clear_body.add_child(clear_button)
+
+	return panel
+
+
 func _build_system_scheme_name_dialog() -> void:
 	system_scheme_name_dialog = AcceptDialog.new()
 	system_scheme_name_dialog.title = ""
@@ -634,6 +669,37 @@ func _build_calendar_delete_dialog() -> void:
 	cancel_button.text = "Anuluj"
 	_prepare_control(cancel_button, 18, 54)
 	_connect_tap(cancel_button, Callable(self, "_close_calendar_delete_dialog"))
+	box.add_child(cancel_button)
+
+
+func _build_calendar_clear_confirm_dialog() -> void:
+	calendar_clear_confirm_dialog = AcceptDialog.new()
+	calendar_clear_confirm_dialog.title = ""
+	calendar_clear_confirm_dialog.borderless = true
+	calendar_clear_confirm_dialog.min_size = Vector2i(580, 330)
+	add_child(calendar_clear_confirm_dialog)
+	calendar_clear_confirm_dialog.get_ok_button().visible = false
+
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 12)
+	calendar_clear_confirm_dialog.add_child(box)
+
+	_add_dialog_header(box, "Wyczyść kalendarz", Callable(self, "_close_calendar_clear_confirm_dialog"))
+
+	calendar_clear_confirm_label = _make_label("", 18, COLOR_TEXT)
+	calendar_clear_confirm_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	box.add_child(calendar_clear_confirm_label)
+
+	var clear_button := Button.new()
+	clear_button.text = "Tak, wyczyść kalendarz"
+	_prepare_danger_button(clear_button, 18, 56)
+	_connect_tap(clear_button, Callable(self, "_clear_selected_calendar_confirmed"))
+	box.add_child(clear_button)
+
+	var cancel_button := Button.new()
+	cancel_button.text = "Anuluj"
+	_prepare_control(cancel_button, 18, 54)
+	_connect_tap(cancel_button, Callable(self, "_close_calendar_clear_confirm_dialog"))
 	box.add_child(cancel_button)
 
 
@@ -1265,11 +1331,15 @@ func _refresh_collapsible_panels() -> void:
 		system_days_body.visible = system_days_expanded and not calendar_only_mode
 	if sharing_body != null:
 		sharing_body.visible = sharing_expanded and not calendar_only_mode
+	if calendar_clear_body != null:
+		calendar_clear_body.visible = calendar_clear_expanded and not calendar_only_mode
 
 	if system_days_toggle_button != null:
 		system_days_toggle_button.text = "Schematy cykliczne - schowaj" if system_days_expanded else "Schematy cykliczne - otwórz"
 	if sharing_toggle_button != null:
 		sharing_toggle_button.text = "Udostępnij kalendarz - schowaj" if sharing_expanded else "Udostępnij kalendarz - otwórz"
+	if calendar_clear_toggle_button != null:
+		calendar_clear_toggle_button.text = "Czyszczenie kalendarza - schowaj" if calendar_clear_expanded else "Czyszczenie kalendarza - otwórz"
 
 
 func _toggle_system_days_panel() -> void:
@@ -1280,6 +1350,12 @@ func _toggle_system_days_panel() -> void:
 
 func _toggle_sharing_panel() -> void:
 	sharing_expanded = not sharing_expanded
+	_refresh_collapsible_panels()
+	_save_settings_to_disk()
+
+
+func _toggle_calendar_clear_panel() -> void:
+	calendar_clear_expanded = not calendar_clear_expanded
 	_refresh_collapsible_panels()
 	_save_settings_to_disk()
 
@@ -1295,6 +1371,8 @@ func _apply_main_view_mode() -> void:
 		system_days_panel.visible = not calendar_only_mode
 	if sharing_panel != null:
 		sharing_panel.visible = not calendar_only_mode
+	if calendar_clear_panel != null:
+		calendar_clear_panel.visible = not calendar_only_mode
 	if month_layout_option != null:
 		month_layout_option.visible = true
 	if profile_overlay != null:
@@ -1340,6 +1418,11 @@ func _close_calendar_delete_dialog() -> void:
 	pending_calendar_delete_id = ""
 	if calendar_delete_dialog != null:
 		calendar_delete_dialog.hide()
+
+
+func _close_calendar_clear_confirm_dialog() -> void:
+	if calendar_clear_confirm_dialog != null:
+		calendar_clear_confirm_dialog.hide()
 
 
 func _open_single_month_from_overview(year: int, month: int) -> void:
@@ -1503,7 +1586,7 @@ func _apply_system_days_with_name(scheme_name: String) -> void:
 		var key := _date_key(int(date["year"]), int(date["month"]), int(date["day"]))
 		for category_id in category_ids:
 			var category: Dictionary = _category_by_id(category_id)
-			if category.is_empty() or _is_category_hidden(category):
+			if category.is_empty():
 				continue
 			applied_days.append({
 				"key": key,
@@ -1647,7 +1730,7 @@ func _load_system_days_from_calendar() -> void:
 			continue
 		var category_id := String(item)
 		var category: Dictionary = _category_by_id(category_id)
-		if category_id == "" or category.is_empty() or _is_category_hidden(category):
+		if category_id == "" or category.is_empty():
 			continue
 		var legacy_key := ""
 		var start_date := _date_from_string(system_days_start_key_value)
@@ -1755,7 +1838,7 @@ func _manual_category_ids_for_day(day_key: String) -> Array[String]:
 	for event_id in events[day_key]:
 		var category_id := String(event_id)
 		var category: Dictionary = _category_by_id(category_id)
-		if category_id != "" and not category.is_empty() and not _is_category_hidden(category) and not ids.has(category_id):
+		if category_id != "" and not category.is_empty() and not ids.has(category_id):
 			ids.append(category_id)
 	return ids
 
@@ -1773,7 +1856,7 @@ func _category_names_for_ids(category_ids: Array) -> String:
 	var names: Array[String] = []
 	for category_id in category_ids:
 		var category: Dictionary = _category_by_id(String(category_id))
-		if category.is_empty() or _is_category_hidden(category):
+		if category.is_empty():
 			continue
 		var name := String(category.get("name", "")).strip_edges()
 		if name != "":
@@ -1937,7 +2020,6 @@ func _delete_fixed_button_by_id(category_id: String) -> void:
 			categories[index] = category
 			break
 
-	_remove_category_from_system_days(category_id)
 	_save_settings_to_disk()
 	_refresh_day_quick_buttons()
 	_refresh_fixed_delete_option()
@@ -2210,6 +2292,58 @@ func _delete_calendar_by_id(calendar_id: String) -> void:
 	_refresh_all()
 
 
+func _confirm_clear_selected_calendar() -> void:
+	var calendar := _selected_calendar()
+	var calendar_name := String(calendar.get("name", "Kalendarz"))
+	if calendar_clear_confirm_label != null:
+		calendar_clear_confirm_label.text = "Na pewno wyczyścić cały kalendarz \"%s\"?\nUsunięte zostaną ręczne oznaczenia dni, wydarzenia, notatki, własne przyciski i schematy. Święta zostaną." % calendar_name
+	if calendar_clear_confirm_dialog != null:
+		calendar_clear_confirm_dialog.popup_centered(Vector2i(580, 330))
+
+
+func _clear_selected_calendar_confirmed() -> void:
+	var calendar := _selected_calendar()
+	calendar["categories"] = []
+	calendar["events"] = {}
+	calendar["event_details"] = {}
+	calendar["notes"] = {}
+	calendar["system_days"] = []
+	calendar["system_days_start"] = ""
+	calendar["applied_system_scheme"] = {}
+	calendar["applied_system_schemes"] = []
+
+	system_day_category_ids.clear()
+	system_day_steps.clear()
+	system_days_start_key_value = ""
+	system_days_recording_active = false
+	system_scheme_event_ids_by_day.clear()
+	day_fixed_delete_ids.clear()
+
+	if day_event_name_input != null:
+		day_event_name_input.text = ""
+	if day_event_time_input != null:
+		day_event_time_input.text = ""
+	if day_event_description_input != null:
+		day_event_description_input.text = ""
+	if day_event_form_box != null:
+		day_event_form_box.visible = false
+	if day_fixed_name_input != null:
+		day_fixed_name_input.text = ""
+	if day_fixed_button_form_box != null:
+		day_fixed_button_form_box.visible = false
+	if day_fixed_status_label != null:
+		day_fixed_status_label.text = ""
+	if day_note_edit != null:
+		day_note_edit.text = ""
+	if day_note_form_box != null:
+		day_note_form_box.visible = false
+
+	_close_calendar_clear_confirm_dialog()
+	_save_settings_to_disk()
+	_refresh_all()
+	_refresh_day_event_list()
+
+
 func _generate_share_code() -> void:
 	var calendar := _selected_calendar()
 	calendar["kind"] = "group"
@@ -2473,7 +2607,7 @@ func _rebuild_system_scheme_event_cache() -> void:
 				ids = system_scheme_event_ids_by_day[key]
 			for category_id in _category_ids_from_system_step(day):
 				var category: Dictionary = _category_by_id(category_id)
-				if category_id == "" or category.is_empty() or _is_category_hidden(category):
+				if category_id == "" or category.is_empty():
 					continue
 				if not ids.has(category_id):
 					ids.append(category_id)
@@ -2546,6 +2680,7 @@ func _save_settings_to_disk() -> void:
 	config.set_value("ui", "month_layout_count", month_layout_count)
 	config.set_value("ui", "system_days_expanded", system_days_expanded)
 	config.set_value("ui", "sharing_expanded", sharing_expanded)
+	config.set_value("ui", "calendar_clear_expanded", calendar_clear_expanded)
 	config.set_value("ui", "calendar_only_mode", calendar_only_mode)
 	config.set_value("ui", "profile_panel_open", profile_panel_open)
 	config.set_value("data", "calendars", calendars.duplicate(true))
@@ -2567,6 +2702,7 @@ func _load_settings_from_disk() -> void:
 	month_layout_count = _normalized_month_layout_count(int(config.get_value("ui", "month_layout_count", month_layout_count)))
 	system_days_expanded = bool(config.get_value("ui", "system_days_expanded", system_days_expanded))
 	sharing_expanded = bool(config.get_value("ui", "sharing_expanded", sharing_expanded))
+	calendar_clear_expanded = bool(config.get_value("ui", "calendar_clear_expanded", calendar_clear_expanded))
 	calendar_only_mode = bool(config.get_value("ui", "calendar_only_mode", calendar_only_mode))
 	profile_panel_open = bool(config.get_value("ui", "profile_panel_open", profile_panel_open))
 
@@ -2817,6 +2953,18 @@ func _prepare_control(control: Control, font_size: int, min_height: int) -> void
 		control.add_theme_color_override("font_pressed_color", COLOR_TEXT)
 		control.add_theme_color_override("font_focus_color", COLOR_TEXT)
 		control.add_theme_color_override("font_placeholder_color", COLOR_TEXT_DIM)
+
+
+func _prepare_danger_button(button: Button, font_size: int, min_height: int) -> void:
+	_prepare_control(button, font_size, min_height)
+	button.add_theme_stylebox_override("normal", _control_style(Color(0.58, 0.12, 0.15, 0.92)))
+	button.add_theme_stylebox_override("hover", _control_style(Color(0.68, 0.16, 0.18, 0.96)))
+	button.add_theme_stylebox_override("pressed", _control_style(Color(0.42, 0.08, 0.10, 0.96)))
+	button.add_theme_stylebox_override("focus", _control_style(Color(0.70, 0.16, 0.18, 0.92), true))
+	button.add_theme_color_override("font_color", COLOR_TEXT)
+	button.add_theme_color_override("font_hover_color", COLOR_TEXT)
+	button.add_theme_color_override("font_pressed_color", COLOR_TEXT)
+	button.add_theme_color_override("font_focus_color", COLOR_TEXT)
 
 
 func _make_color_palette(context: String) -> GridContainer:
