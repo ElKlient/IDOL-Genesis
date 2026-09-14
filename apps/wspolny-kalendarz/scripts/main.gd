@@ -967,7 +967,7 @@ func _apply_main_view_mode() -> void:
 	if sharing_panel != null:
 		sharing_panel.visible = not calendar_only_mode
 	if month_layout_option != null:
-		month_layout_option.visible = not calendar_only_mode
+		month_layout_option.visible = true
 	if profile_overlay != null:
 		profile_overlay.visible = not calendar_only_mode
 	if today_button != null:
