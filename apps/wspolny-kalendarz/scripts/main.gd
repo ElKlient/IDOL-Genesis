@@ -22,10 +22,12 @@ const PORTRAIT_WIDTH := 640
 const TILE_COLUMNS := 7
 const SCROLLBAR_TOUCH_WIDTH := 28
 const PROFILE_BUTTON_TOP := 18
-const PROFILE_BUTTON_WIDTH := 148
-const PROFILE_BUTTON_HEIGHT := 50
+const PROFILE_BUTTON_WIDTH := 164
+const PROFILE_BUTTON_HEIGHT := 54
 const PROFILE_PANEL_WIDTH := 282
 const PROFILE_PANEL_HEIGHT := 410
+const PROFILE_PANEL_LEFT_MARGIN := 18.0
+const PROFILE_PANEL_RIGHT_MARGIN := 34.0
 const SYSTEM_REPEAT_YEARS_AHEAD := 5
 const DEFAULT_EVENT_COLOR_INDEX := 2
 const MAX_EVENT_DOTS_ON_TILE := 5
@@ -105,6 +107,8 @@ var today_button: Button
 var nav_box: HBoxContainer
 var calendar_option: OptionButton
 var calendar_status_label: Label
+var calendar_delete_dialog: AcceptDialog
+var calendar_delete_label: Label
 var share_code_label: Label
 var join_code_input: LineEdit
 var share_status_label: Label
@@ -157,6 +161,7 @@ var system_day_category_ids: Array[String] = []
 var system_day_steps: Array[Dictionary] = []
 var system_days_start_key_value := ""
 var system_days_recording_active := false
+var pending_calendar_delete_id := ""
 var pending_system_scheme_delete_id := ""
 var system_scheme_event_ids_by_day: Dictionary = {}
 var holiday_cache_by_year: Dictionary = {}
@@ -301,6 +306,7 @@ func _build_ui() -> void:
 	_build_day_dialog()
 	_build_system_scheme_name_dialog()
 	_build_system_scheme_delete_dialog()
+	_build_calendar_delete_dialog()
 	_sync_content_width()
 
 
@@ -310,10 +316,6 @@ func _add_profile_overlay() -> void:
 	profile_overlay.anchor_right = 1.0
 	profile_overlay.anchor_top = 0.0
 	profile_overlay.anchor_bottom = 0.0
-	profile_overlay.offset_left = -PROFILE_PANEL_WIDTH - 18.0
-	profile_overlay.offset_right = -18.0
-	profile_overlay.offset_top = PROFILE_BUTTON_TOP
-	profile_overlay.offset_bottom = PROFILE_BUTTON_TOP + PROFILE_BUTTON_HEIGHT + PROFILE_PANEL_HEIGHT
 	profile_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	profile_overlay.z_index = 30
 	profile_overlay.add_theme_constant_override("separation", 7)
@@ -329,7 +331,25 @@ func _add_profile_overlay() -> void:
 
 	profile_panel = _build_profile_panel()
 	profile_overlay.add_child(profile_panel)
+	_sync_profile_overlay_bounds()
+	resized.connect(_sync_profile_overlay_bounds)
 	_set_profile_panel_visible(false)
+
+
+func _sync_profile_overlay_bounds() -> void:
+	if profile_overlay == null:
+		return
+
+	var viewport_width := get_viewport_rect().size.x
+	var available_width: float = maxf(240.0, viewport_width - PROFILE_PANEL_LEFT_MARGIN - PROFILE_PANEL_RIGHT_MARGIN)
+	var panel_width: float = minf(float(PROFILE_PANEL_WIDTH), available_width)
+
+	profile_overlay.offset_left = -panel_width - PROFILE_PANEL_RIGHT_MARGIN
+	profile_overlay.offset_right = -PROFILE_PANEL_RIGHT_MARGIN
+	profile_overlay.offset_top = PROFILE_BUTTON_TOP
+	profile_overlay.offset_bottom = PROFILE_BUTTON_TOP + PROFILE_BUTTON_HEIGHT + PROFILE_PANEL_HEIGHT
+	if profile_panel != null:
+		profile_panel.custom_minimum_size.x = panel_width
 
 
 func _build_profile_panel() -> PanelContainer:
@@ -364,9 +384,9 @@ func _build_profile_panel() -> PanelContainer:
 	box.add_child(rename_button)
 
 	var delete_button := Button.new()
-	delete_button.text = "Usuń kalendarz"
+	delete_button.text = "Usuń wybrany profil"
 	_prepare_control(delete_button, 16, 46)
-	_connect_tap(delete_button, Callable(self, "_delete_selected_calendar"))
+	_connect_tap(delete_button, Callable(self, "_confirm_delete_selected_calendar"))
 	box.add_child(delete_button)
 
 	calendar_status_label = _make_label("", 14, COLOR_TEXT_MUTED)
@@ -534,6 +554,37 @@ func _build_system_scheme_delete_dialog() -> void:
 	cancel_button.text = "Anuluj"
 	_prepare_control(cancel_button, 18, 54)
 	_connect_tap(cancel_button, Callable(self, "_close_system_scheme_delete_dialog"))
+	box.add_child(cancel_button)
+
+
+func _build_calendar_delete_dialog() -> void:
+	calendar_delete_dialog = AcceptDialog.new()
+	calendar_delete_dialog.title = ""
+	calendar_delete_dialog.borderless = true
+	calendar_delete_dialog.min_size = Vector2i(560, 310)
+	add_child(calendar_delete_dialog)
+	calendar_delete_dialog.get_ok_button().visible = false
+
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 12)
+	calendar_delete_dialog.add_child(box)
+
+	_add_dialog_header(box, "Usuń profil", Callable(self, "_close_calendar_delete_dialog"))
+
+	calendar_delete_label = _make_label("", 18, COLOR_TEXT)
+	calendar_delete_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	box.add_child(calendar_delete_label)
+
+	var delete_button := Button.new()
+	delete_button.text = "Tak, usuń profil"
+	_prepare_control(delete_button, 18, 56)
+	_connect_tap(delete_button, Callable(self, "_delete_selected_calendar_confirmed"))
+	box.add_child(delete_button)
+
+	var cancel_button := Button.new()
+	cancel_button.text = "Anuluj"
+	_prepare_control(cancel_button, 18, 54)
+	_connect_tap(cancel_button, Callable(self, "_close_calendar_delete_dialog"))
 	box.add_child(cancel_button)
 
 
@@ -1233,6 +1284,12 @@ func _close_system_scheme_name_dialog() -> void:
 func _close_system_scheme_delete_dialog() -> void:
 	if system_scheme_delete_dialog != null:
 		system_scheme_delete_dialog.hide()
+
+
+func _close_calendar_delete_dialog() -> void:
+	pending_calendar_delete_id = ""
+	if calendar_delete_dialog != null:
+		calendar_delete_dialog.hide()
 
 
 func _open_single_month_from_overview(year: int, month: int) -> void:
@@ -1992,7 +2049,9 @@ func _refresh_profile_ui() -> void:
 	var calendar := _selected_calendar()
 	var share_code := String(calendar.get("share_code", ""))
 	var kind_label := "grupowy" if String(calendar.get("kind", "private")) == "group" else "prywatny"
-	if share_code == "":
+	if kind_label == "prywatny":
+		calendar_status_label.text = "Wybrany: prywatny. Ten profil nie jest udostępniany."
+	elif share_code == "":
 		calendar_status_label.text = "Wybrany: %s. Kod udostępniania nie jest jeszcze wygenerowany." % kind_label
 	else:
 		calendar_status_label.text = "Wybrany: %s. Kod: %s" % [kind_label, share_code]
@@ -2034,8 +2093,7 @@ func _create_group_calendar() -> void:
 
 
 func _create_calendar(kind: String) -> void:
-	var base_name := "Grupowy" if kind == "group" else "Prywatny"
-	calendars.append(_make_calendar("%s %d" % [base_name, calendars.size() + 1], kind))
+	calendars.append(_make_calendar(_next_calendar_name(kind), kind))
 	selected_calendar_index = calendars.size() - 1
 	_save_settings_to_disk()
 	_refresh_all()
@@ -2050,12 +2108,54 @@ func _rename_selected_calendar() -> void:
 	_refresh_all()
 
 
-func _delete_selected_calendar() -> void:
+func _confirm_delete_selected_calendar() -> void:
+	if calendars.size() <= 1:
+		if calendar_status_label != null:
+			calendar_status_label.text = "Nie można usunąć ostatniego profilu."
+		return
+
+	var calendar := _selected_calendar()
+	var calendar_name := String(calendar.get("name", "Kalendarz"))
+	var kind_label := "grupowy" if String(calendar.get("kind", "private")) == "group" else "prywatny"
+	pending_calendar_delete_id = String(calendar.get("id", ""))
+	if calendar_delete_label != null:
+		calendar_delete_label.text = "Na pewno usunąć profil \"%s\" (%s)?\nZnikną jego dni, wydarzenia, notatki i schematy." % [
+			calendar_name,
+			kind_label,
+		]
+	if calendar_delete_dialog != null:
+		calendar_delete_dialog.popup_centered(Vector2i(560, 310))
+
+
+func _delete_selected_calendar_confirmed() -> void:
+	if pending_calendar_delete_id == "":
+		_close_calendar_delete_dialog()
+		return
+
+	_delete_calendar_by_id(pending_calendar_delete_id)
+	pending_calendar_delete_id = ""
+	_close_calendar_delete_dialog()
+
+
+func _delete_calendar_by_id(calendar_id: String) -> void:
 	if calendars.size() <= 1:
 		return
 
-	calendars.remove_at(selected_calendar_index)
-	selected_calendar_index = clampi(selected_calendar_index, 0, calendars.size() - 1)
+	var was_deleted := false
+	for index in range(calendars.size()):
+		if not (calendars[index] is Dictionary):
+			continue
+		var calendar: Dictionary = calendars[index] as Dictionary
+		if String(calendar.get("id", "")) != calendar_id:
+			continue
+		calendars.remove_at(index)
+		selected_calendar_index = clampi(index, 0, calendars.size() - 1)
+		was_deleted = true
+		break
+
+	if not was_deleted:
+		return
+
 	_save_settings_to_disk()
 	_refresh_all()
 
@@ -2146,7 +2246,24 @@ func _return_to_today() -> void:
 
 func _ensure_calendar_exists() -> void:
 	if calendars.is_empty():
-		calendars.append(_make_calendar("Prywatny", "private"))
+		calendars.append(_make_calendar("Prywatny 1", "private"))
+		calendars.append(_make_calendar("Grupowy 1", "group"))
+
+
+func _next_calendar_name(kind: String) -> String:
+	var base_name := "Grupowy" if kind == "group" else "Prywatny"
+	var used_names := {}
+	for calendar in calendars:
+		if not (calendar is Dictionary):
+			continue
+		var calendar_name := String(calendar.get("name", "")).strip_edges()
+		if calendar_name != "":
+			used_names[calendar_name] = true
+
+	var number := 1
+	while used_names.has("%s %d" % [base_name, number]):
+		number += 1
+	return "%s %d" % [base_name, number]
 
 
 func _make_calendar(name: String, kind: String) -> Dictionary:
