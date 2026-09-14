@@ -661,7 +661,7 @@ func _add_marker_to_selected_day() -> void:
 		return
 
 	var index := clampi(day_category_option.selected, 0, categories.size() - 1)
-	var category := categories[index]
+	var category: Dictionary = categories[index] as Dictionary
 	var category_id := String(category.get("id", ""))
 	if category_id == "":
 		return
@@ -727,7 +727,8 @@ func _delete_category() -> void:
 		return
 
 	var index := clampi(category_option.selected, 0, categories.size() - 1)
-	var category_id := String(categories[index].get("id", ""))
+	var category: Dictionary = categories[index] as Dictionary
+	var category_id := String(category.get("id", ""))
 	categories.remove_at(index)
 	_remove_category_from_events(category_id)
 	_save_settings_to_disk()
