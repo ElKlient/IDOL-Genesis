@@ -141,13 +141,9 @@ var sharing_panel: PanelContainer
 var sharing_toggle_button: Button
 var sharing_body: VBoxContainer
 var calendar_only_button: Button
-var robert_panel: PanelContainer
-var robert_toggle_button: Button
-var robert_body: VBoxContainer
 var system_days_expanded := false
 var sharing_expanded := false
 var calendar_clear_expanded := false
-var robert_expanded := false
 var calendar_only_mode := false
 var profile_panel_open := false
 var settings_loaded := false
@@ -345,9 +341,6 @@ func _build_ui() -> void:
 	_prepare_control(calendar_only_button, 18, 56)
 	_connect_tap(calendar_only_button, Callable(self, "_toggle_calendar_only_mode"))
 	content_root.add_child(calendar_only_button)
-
-	robert_panel = _build_robert_panel()
-	content_root.add_child(robert_panel)
 
 	_style_main_scrollbar()
 	_build_day_dialog()
@@ -579,26 +572,6 @@ func _build_calendar_clear_panel() -> PanelContainer:
 	_prepare_danger_button(clear_button, 18, 56)
 	_connect_tap(clear_button, Callable(self, "_confirm_clear_selected_calendar"))
 	calendar_clear_body.add_child(clear_button)
-
-	return panel
-
-
-func _build_robert_panel() -> PanelContainer:
-	var panel := _panel()
-	var box := _panel_box(panel)
-
-	robert_toggle_button = _make_panel_toggle_button("Robert Dera jest zajebisty", Callable(self, "_toggle_robert_panel"))
-	box.add_child(robert_toggle_button)
-
-	robert_body = VBoxContainer.new()
-	robert_body.visible = robert_expanded
-	robert_body.add_theme_constant_override("separation", 8)
-	box.add_child(robert_body)
-
-	var robert_label := _make_label("Robert Dera jest zajebisty, jeździ roadstarem 1.6.", 20, COLOR_TEXT)
-	robert_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	robert_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	robert_body.add_child(robert_label)
 
 	return panel
 
@@ -1360,8 +1333,6 @@ func _refresh_collapsible_panels() -> void:
 		sharing_body.visible = sharing_expanded and not calendar_only_mode
 	if calendar_clear_body != null:
 		calendar_clear_body.visible = calendar_clear_expanded and not calendar_only_mode
-	if robert_body != null:
-		robert_body.visible = robert_expanded
 
 	if system_days_toggle_button != null:
 		system_days_toggle_button.text = "Schematy cykliczne - schowaj" if system_days_expanded else "Schematy cykliczne - otwórz"
@@ -1385,12 +1356,6 @@ func _toggle_sharing_panel() -> void:
 
 func _toggle_calendar_clear_panel() -> void:
 	calendar_clear_expanded = not calendar_clear_expanded
-	_refresh_collapsible_panels()
-	_save_settings_to_disk()
-
-
-func _toggle_robert_panel() -> void:
-	robert_expanded = not robert_expanded
 	_refresh_collapsible_panels()
 	_save_settings_to_disk()
 
@@ -2716,7 +2681,6 @@ func _save_settings_to_disk() -> void:
 	config.set_value("ui", "system_days_expanded", system_days_expanded)
 	config.set_value("ui", "sharing_expanded", sharing_expanded)
 	config.set_value("ui", "calendar_clear_expanded", calendar_clear_expanded)
-	config.set_value("ui", "robert_expanded", robert_expanded)
 	config.set_value("ui", "calendar_only_mode", calendar_only_mode)
 	config.set_value("ui", "profile_panel_open", profile_panel_open)
 	config.set_value("data", "calendars", calendars.duplicate(true))
@@ -2739,7 +2703,6 @@ func _load_settings_from_disk() -> void:
 	system_days_expanded = bool(config.get_value("ui", "system_days_expanded", system_days_expanded))
 	sharing_expanded = bool(config.get_value("ui", "sharing_expanded", sharing_expanded))
 	calendar_clear_expanded = bool(config.get_value("ui", "calendar_clear_expanded", calendar_clear_expanded))
-	robert_expanded = bool(config.get_value("ui", "robert_expanded", robert_expanded))
 	calendar_only_mode = bool(config.get_value("ui", "calendar_only_mode", calendar_only_mode))
 	profile_panel_open = bool(config.get_value("ui", "profile_panel_open", profile_panel_open))
 
