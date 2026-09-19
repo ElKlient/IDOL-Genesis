@@ -141,9 +141,12 @@ var sharing_panel: PanelContainer
 var sharing_toggle_button: Button
 var sharing_body: VBoxContainer
 var calendar_only_button: Button
+var kebab_button: Button
+var kebab_note_label: Label
 var system_days_expanded := false
 var sharing_expanded := false
 var calendar_clear_expanded := false
+var kebab_note_expanded := false
 var calendar_only_mode := false
 var profile_panel_open := false
 var settings_loaded := false
@@ -341,6 +344,18 @@ func _build_ui() -> void:
 	_prepare_control(calendar_only_button, 18, 56)
 	_connect_tap(calendar_only_button, Callable(self, "_toggle_calendar_only_mode"))
 	content_root.add_child(calendar_only_button)
+
+	kebab_button = Button.new()
+	kebab_button.text = "Kebs"
+	_prepare_control(kebab_button, 18, 56)
+	_connect_tap(kebab_button, Callable(self, "_toggle_kebab_note"))
+	content_root.add_child(kebab_button)
+
+	kebab_note_label = _make_label("Dwóch debili pojechało po kebsa i przepłacili.", 20, COLOR_TEXT)
+	kebab_note_label.visible = kebab_note_expanded
+	kebab_note_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	kebab_note_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	content_root.add_child(kebab_note_label)
 
 	_style_main_scrollbar()
 	_build_day_dialog()
@@ -1333,6 +1348,8 @@ func _refresh_collapsible_panels() -> void:
 		sharing_body.visible = sharing_expanded and not calendar_only_mode
 	if calendar_clear_body != null:
 		calendar_clear_body.visible = calendar_clear_expanded and not calendar_only_mode
+	if kebab_note_label != null:
+		kebab_note_label.visible = kebab_note_expanded
 
 	if system_days_toggle_button != null:
 		system_days_toggle_button.text = "Schematy cykliczne - schowaj" if system_days_expanded else "Schematy cykliczne - otwórz"
@@ -1356,6 +1373,12 @@ func _toggle_sharing_panel() -> void:
 
 func _toggle_calendar_clear_panel() -> void:
 	calendar_clear_expanded = not calendar_clear_expanded
+	_refresh_collapsible_panels()
+	_save_settings_to_disk()
+
+
+func _toggle_kebab_note() -> void:
+	kebab_note_expanded = not kebab_note_expanded
 	_refresh_collapsible_panels()
 	_save_settings_to_disk()
 
@@ -2681,6 +2704,7 @@ func _save_settings_to_disk() -> void:
 	config.set_value("ui", "system_days_expanded", system_days_expanded)
 	config.set_value("ui", "sharing_expanded", sharing_expanded)
 	config.set_value("ui", "calendar_clear_expanded", calendar_clear_expanded)
+	config.set_value("ui", "kebab_note_expanded", kebab_note_expanded)
 	config.set_value("ui", "calendar_only_mode", calendar_only_mode)
 	config.set_value("ui", "profile_panel_open", profile_panel_open)
 	config.set_value("data", "calendars", calendars.duplicate(true))
@@ -2703,6 +2727,7 @@ func _load_settings_from_disk() -> void:
 	system_days_expanded = bool(config.get_value("ui", "system_days_expanded", system_days_expanded))
 	sharing_expanded = bool(config.get_value("ui", "sharing_expanded", sharing_expanded))
 	calendar_clear_expanded = bool(config.get_value("ui", "calendar_clear_expanded", calendar_clear_expanded))
+	kebab_note_expanded = bool(config.get_value("ui", "kebab_note_expanded", kebab_note_expanded))
 	calendar_only_mode = bool(config.get_value("ui", "calendar_only_mode", calendar_only_mode))
 	profile_panel_open = bool(config.get_value("ui", "profile_panel_open", profile_panel_open))
 
