@@ -389,7 +389,7 @@ func _build_ui() -> void:
 	options_root.add_child(settings_toggle_button)
 
 	settings_panel = _build_settings_panel()
-	options_root.add_child(settings_panel)
+	settings_panel.visible = false
 	day_tools_panel = _build_day_tools_panel()
 	options_root.add_child(day_tools_panel)
 
@@ -1136,11 +1136,7 @@ func _mark_cycle_pending() -> void:
 
 
 func _on_settings_primary_pressed() -> void:
-	if settings_panel != null and settings_panel.visible:
-		_save_settings_and_close()
-	else:
-		_capture_undo_state()
-		_set_settings_visible(true)
+	_save_settings_and_close()
 
 
 func _close_settings_panel() -> void:
@@ -1214,17 +1210,14 @@ func _toggle_settings_panel() -> void:
 	if main_view_saved or calendar_only_mode:
 		return
 
-	_set_settings_visible(settings_panel == null or not settings_panel.visible)
+	_save_settings_and_close()
 
 
-func _set_settings_visible(visible: bool) -> void:
-	if main_view_saved or calendar_only_mode:
-		visible = false
-
+func _set_settings_visible(_visible: bool) -> void:
 	if settings_panel != null:
-		settings_panel.visible = visible
+		settings_panel.visible = false
 	if settings_toggle_button != null:
-		settings_toggle_button.text = "Zastosuj" if visible else "Ustaw kalendarz"
+		settings_toggle_button.text = "Zastosuj"
 	if reset_settings_button != null:
 		reset_settings_button.visible = true
 	if save_close_button != null:
