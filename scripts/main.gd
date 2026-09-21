@@ -60,6 +60,19 @@ const PROFILE_BUTTON_WIDTH := 142
 const PROFILE_PANEL_WIDTH := 230
 const PROFILE_PANEL_HEIGHT := 350
 const DEFAULT_PROFILE_COUNT := 3
+const LEGACY_CYCLE_MENU_CLEANUP_MAX_CHECKS := 90
+const LEGACY_CYCLE_MENU_MARKERS := [
+	"Jakim systemem",
+	"Inne -",
+	"Dni pracy",
+	"Dni domu",
+	"Dzień pierwszy",
+	"Zawsze zaczynam",
+	"Pauza 24h co 6",
+	"Własny cykl",
+	"Długość powtarzalnego",
+	"Zamknij ustawienia",
+]
 
 var calculator := ScheduleCalculator.new()
 var current_year: int
@@ -168,6 +181,8 @@ var calendar_page_guard_ready := false
 var shield_touch_start_position := Vector2.ZERO
 var shield_touch_tracking := false
 var shield_touch_dragged := false
+var legacy_cycle_menu_removed := false
+var legacy_cycle_menu_cleanup_checks := 0
 
 
 func _ready() -> void:
@@ -180,9 +195,11 @@ func _ready() -> void:
 
 	_reset_custom_pattern(21)
 	_build_ui()
+	_remove_legacy_cycle_settings_menu()
 	_load_settings_from_disk()
 	_apply_settings()
 	_apply_main_view_mode(main_view_saved)
+	_remove_legacy_cycle_settings_menu()
 	_accept_calendar_page()
 
 
@@ -234,6 +251,7 @@ func _process(_delta: float) -> void:
 	_lock_horizontal_scroll()
 	_sync_calendar_touch_shield()
 	_restore_unapproved_calendar_page()
+	_remove_legacy_cycle_settings_menu()
 
 
 func _force_portrait() -> void:
@@ -456,6 +474,78 @@ func _build_custom_cycle_panel() -> PanelContainer:
 	var panel := PanelContainer.new()
 	panel.visible = false
 	return panel
+
+
+func _remove_legacy_cycle_settings_menu() -> void:
+	if legacy_cycle_menu_removed:
+		return
+	if legacy_cycle_menu_cleanup_checks >= LEGACY_CYCLE_MENU_CLEANUP_MAX_CHECKS:
+		return
+
+	legacy_cycle_menu_cleanup_checks += 1
+
+	var marker_node := _find_legacy_cycle_menu_node(self)
+	if marker_node == null:
+		return
+
+	var panel := _legacy_cycle_menu_panel_root(marker_node)
+	if panel == null:
+		return
+
+	panel.visible = false
+	var parent := panel.get_parent()
+	if parent != null:
+		parent.remove_child(panel)
+	panel.queue_free()
+	legacy_cycle_menu_removed = true
+
+
+func _find_legacy_cycle_menu_node(node: Node) -> Node:
+	if _node_has_legacy_cycle_menu_text(node):
+		return node
+
+	for child in node.get_children():
+		var found := _find_legacy_cycle_menu_node(child)
+		if found != null:
+			return found
+
+	return null
+
+
+func _node_has_legacy_cycle_menu_text(node: Node) -> bool:
+	var text_values: Array[String] = []
+	if node is Label:
+		text_values.append((node as Label).text)
+	elif node is Button:
+		text_values.append((node as Button).text)
+	elif node is LineEdit:
+		text_values.append((node as LineEdit).text)
+		text_values.append((node as LineEdit).placeholder_text)
+	elif node is CheckButton:
+		text_values.append((node as CheckButton).text)
+	elif node is OptionButton:
+		var option := node as OptionButton
+		for index in range(option.get_item_count()):
+			text_values.append(option.get_item_text(index))
+
+	for value in text_values:
+		for marker in LEGACY_CYCLE_MENU_MARKERS:
+			if value.find(marker) != -1:
+				return true
+
+	return false
+
+
+func _legacy_cycle_menu_panel_root(node: Node) -> Control:
+	var current := node
+	while current != null:
+		if current is PanelContainer:
+			return current as Control
+		if current == options_root:
+			return node as Control if node is Control else null
+		current = current.get_parent()
+
+	return node as Control if node is Control else null
 
 
 func _build_navigation_panel() -> PanelContainer:
