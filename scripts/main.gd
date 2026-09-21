@@ -866,7 +866,7 @@ func _finish_calendar_shield_touch(position: Vector2) -> void:
 	shield_touch_tracking = false
 	shield_touch_dragged = false
 
-	if was_dragged or calendar_only_mode:
+	if was_dragged:
 		_block_touch_drag_actions()
 		return
 
@@ -874,7 +874,12 @@ func _finish_calendar_shield_touch(position: Vector2) -> void:
 	if target.is_empty():
 		return
 
-	_open_day_actions(int(target["year"]), int(target["month"]), int(target["day"]))
+	if _range_months() > 1:
+		_open_month_from_overview(int(target["year"]), int(target["month"]))
+	elif calendar_only_mode:
+		_block_touch_drag_actions()
+	else:
+		_open_day_actions(int(target["year"]), int(target["month"]), int(target["day"]))
 
 
 func _sync_calendar_touch_shield() -> void:
@@ -2041,16 +2046,21 @@ func _rebuild_calendar() -> void:
 			calculator.cycle_label(),
 		]
 
-	if month_count == 12:
-		months_box.add_child(_make_year_overview_section(current_year))
-		_lock_horizontal_scroll_deferred()
-		call_deferred("_sync_calendar_touch_shield")
-		return
-
 	var year := current_year
-	var month := current_month
+	var month := 1 if month_count == 12 else current_month
+	var month_parent: Control = months_box
+	if month_count > 1:
+		var month_grid := GridContainer.new()
+		month_grid.columns = 2
+		month_grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		month_grid.add_theme_constant_override("h_separation", 10)
+		month_grid.add_theme_constant_override("v_separation", 18)
+		_prepare_calendar_drag_blocker(month_grid)
+		months_box.add_child(month_grid)
+		month_parent = month_grid
+
 	for _i in range(month_count):
-		months_box.add_child(_make_month_section(year, month))
+		month_parent.add_child(_make_month_section(year, month))
 		month += 1
 		if month > 12:
 			month = 1
@@ -2065,11 +2075,11 @@ func _make_month_section(year: int, month: int) -> VBoxContainer:
 	section.add_theme_constant_override("separation", 16)
 	_prepare_calendar_drag_blocker(section)
 
-	var title := _make_label("%s %d" % [MONTH_NAMES[month - 1], year], 33 if _range_months() == 1 else 28, COLOR_TEXT)
+	var title := _make_label("%s %d" % [MONTH_NAMES[month - 1], year], 33 if _range_months() == 1 else 20, COLOR_TEXT)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	section.add_child(title)
 
-	if year == current_year and month == current_month and _should_show_first_cycle_hint():
+	if _range_months() == 1 and year == current_year and month == current_month and _should_show_first_cycle_hint():
 		var hint := _make_label("Kliknij swój pierwszy dzień i wyznacz swój cykl.", 25, COLOR_TODAY)
 		hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -2193,7 +2203,10 @@ func _make_day_cell(year: int, month: int, day: int, day_index: int, state: int,
 	button.add_theme_stylebox_override("pressed", _tile_style(_state_color(state).darkened(0.09), is_today, is_vacation))
 	button.add_theme_stylebox_override("focus", _tile_style(_state_color(state), true, is_vacation))
 	_fill_day_tile(button, day, day_index, state, notes.has(key), is_today)
-	_connect_tap(button, Callable(self, "_open_day_actions").bind(year, month, day))
+	if _range_months() == 1:
+		_connect_tap(button, Callable(self, "_open_day_actions").bind(year, month, day))
+	else:
+		_connect_month_select_tap(button, year, month)
 	_prepare_calendar_drag_blocker(button)
 	_register_day_touch_target(button, year, month, day)
 	return button
@@ -2655,37 +2668,37 @@ func _range_months() -> int:
 
 func _day_cell_height() -> int:
 	match _range_months():
+		3, 6:
+			return 56
 		12:
 			return 56
-		3, 6:
-			return 70
 	return 84
 
 
 func _tile_day_font_size() -> int:
 	match _range_months():
+		3, 6:
+			return 17
 		12:
 			return 17
-		3, 6:
-			return 22
 	return 26
 
 
 func _tile_weekday_font_size() -> int:
 	match _range_months():
+		3, 6:
+			return 9
 		12:
 			return 9
-		3, 6:
-			return 12
 	return 14
 
 
 func _tile_badge_font_size() -> int:
 	match _range_months():
+		3, 6:
+			return 8
 		12:
 			return 8
-		3, 6:
-			return 10
 	return 11
 
 
@@ -2925,6 +2938,16 @@ func _connect_navigation_tap(button: BaseButton, action: Callable) -> void:
 	button.action_mode = BaseButton.ACTION_MODE_BUTTON_RELEASE
 	button.pressed.connect(func() -> void:
 		_run_navigation_button_action_for_button(button, action)
+	)
+
+
+func _connect_month_select_tap(button: BaseButton, year: int, month: int) -> void:
+	_register_scroll_safe_control(button)
+	button.action_mode = BaseButton.ACTION_MODE_BUTTON_RELEASE
+	button.pressed.connect(func() -> void:
+		if touch_drag_cancelled:
+			return
+		_open_month_from_overview(year, month)
 	)
 
 
@@ -3751,6 +3774,21 @@ func _button_return_to_today() -> void:
 	current_month = int(now["month"])
 	_accept_calendar_page()
 	_refresh_today_day_index()
+	_rebuild_calendar()
+	if main_scroll != null:
+		main_scroll.set_deferred("scroll_vertical", 0)
+	_save_settings_to_disk()
+
+
+func _open_month_from_overview(year: int, month: int) -> void:
+	_capture_undo_state()
+	current_year = year
+	current_month = clampi(month, 1, 12)
+	if range_option != null:
+		_set_option_selected(range_option, 0)
+	_sync_quick_range_option()
+	_set_month_picker_visible(false)
+	_accept_calendar_page()
 	_rebuild_calendar()
 	if main_scroll != null:
 		main_scroll.set_deferred("scroll_vertical", 0)
