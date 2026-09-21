@@ -39,9 +39,9 @@ const TILE_COLUMNS := 7
 const SETTINGS_PATH := "user://driver_calendar.cfg"
 const TOUCH_DRAG_CANCEL_DISTANCE := 8.0
 const TAP_BLOCK_AFTER_DRAG_MS := 450
-const NAVIGATION_TAP_MAX_MS := 300
-const NAVIGATION_TAP_MOVE_LIMIT := 6.0
-const NAVIGATION_TAP_SCROLL_LIMIT := 1.0
+const NAVIGATION_TAP_MAX_MS := 900
+const NAVIGATION_TAP_MOVE_LIMIT := 12.0
+const NAVIGATION_TAP_SCROLL_LIMIT := 10.0
 const NAVIGATION_BLOCK_AFTER_SCROLL_MS := 1600
 const TOUCH_SCROLL_DEADZONE_MENU := 18
 const RETURN_TODAY_BUTTON_TOP := 84
@@ -3001,7 +3001,7 @@ func _cancel_navigation_button_tap_if_moved(button: BaseButton, position: Vector
 
 
 func _navigation_button_tap_is_clean(button: BaseButton, position: Vector2) -> bool:
-	if _tap_is_blocked():
+	if touch_drag_cancelled:
 		return false
 	if not button.has_meta("nav_press_position"):
 		return false
@@ -3299,7 +3299,7 @@ func _allow_navigation_action_once() -> void:
 
 
 func _navigation_action_allowed() -> bool:
-	if _tap_is_blocked():
+	if touch_drag_cancelled:
 		navigation_action_unlock_msec = -10000
 		return false
 
@@ -3684,9 +3684,6 @@ func _button_previous_month() -> void:
 	if not _navigation_button_action_allowed():
 		return
 
-	if _tap_is_blocked():
-		return
-
 	_capture_undo_state()
 	var previous := _previous_month(current_year, current_month)
 	current_year = int(previous["year"])
@@ -3700,9 +3697,6 @@ func _button_previous_year() -> void:
 	if not _navigation_button_action_allowed():
 		return
 
-	if _tap_is_blocked():
-		return
-
 	_capture_undo_state()
 	current_year -= 1
 	_accept_calendar_page()
@@ -3712,9 +3706,6 @@ func _button_previous_year() -> void:
 
 func _button_next_month() -> void:
 	if not _navigation_button_action_allowed():
-		return
-
-	if _tap_is_blocked():
 		return
 
 	_capture_undo_state()
@@ -3728,9 +3719,6 @@ func _button_next_month() -> void:
 
 func _button_next_year() -> void:
 	if not _navigation_button_action_allowed():
-		return
-
-	if _tap_is_blocked():
 		return
 
 	_capture_undo_state()
