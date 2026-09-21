@@ -79,6 +79,7 @@ var current_year: int
 var current_month: int
 var today_day_index: int
 
+var calendar_scroll: ScrollContainer
 var main_scroll: ScrollContainer
 var calendar_root: VBoxContainer
 var options_root: VBoxContainer
@@ -247,6 +248,14 @@ func _on_main_scroll_gui_input(event: InputEvent) -> void:
 			_lock_horizontal_scroll_deferred()
 
 
+func _on_calendar_scroll_gui_input(event: InputEvent) -> void:
+	_track_scroll_touch(event)
+	if _consume_horizontal_drag(event, true):
+		return
+	if _event_is_drag_motion(event):
+		_lock_horizontal_scroll_deferred()
+
+
 func _process(_delta: float) -> void:
 	_lock_horizontal_scroll()
 	_sync_calendar_touch_shield()
@@ -286,10 +295,21 @@ func _build_ui() -> void:
 	screen_root.resized.connect(_sync_calendar_root_width)
 	safe_margin.add_child(screen_root)
 
+	calendar_scroll = ScrollContainer.new()
+	calendar_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	calendar_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	calendar_scroll.scroll_deadzone = TOUCH_SCROLL_DEADZONE_MENU
+	calendar_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	calendar_scroll.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	calendar_scroll.clip_contents = true
+	calendar_scroll.resized.connect(_sync_calendar_root_width)
+	calendar_scroll.gui_input.connect(_on_calendar_scroll_gui_input)
+	screen_root.add_child(calendar_scroll)
+
 	var calendar_center := CenterContainer.new()
 	calendar_center.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	calendar_center.clip_contents = true
-	screen_root.add_child(calendar_center)
+	calendar_scroll.add_child(calendar_center)
 
 	_add_return_today_overlay()
 	_add_reset_undo_overlay()
@@ -315,6 +335,7 @@ func _build_ui() -> void:
 	screen_root.add_child(main_scroll)
 	_lock_horizontal_scroll_deferred()
 	_style_main_scrollbar()
+	_style_calendar_scrollbar()
 
 	var options_center := CenterContainer.new()
 	options_center.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -885,6 +906,9 @@ func _finish_calendar_shield_touch(position: Vector2) -> void:
 func _sync_calendar_touch_shield() -> void:
 	if calendar_touch_shield == null:
 		return
+	if _range_months() > 1:
+		calendar_touch_shield.visible = false
+		return
 	if calendar_only_mode:
 		var viewport_rect := get_viewport_rect()
 		calendar_touch_shield.position = viewport_rect.position
@@ -1280,6 +1304,7 @@ func _apply_main_view_mode(saved: bool) -> void:
 	if not saved:
 		calendar_only_mode = false
 	_update_main_scroll_touch_mode()
+	_update_calendar_scroll_touch_mode()
 
 	if main_scroll != null:
 		main_scroll.visible = not calendar_only_mode
@@ -1335,12 +1360,29 @@ func _update_main_scroll_touch_mode() -> void:
 	_lock_horizontal_scroll_deferred()
 
 
+func _update_calendar_scroll_touch_mode() -> void:
+	if calendar_scroll == null:
+		return
+
+	var multi_month_view := _range_months() > 1
+	calendar_scroll.scroll_deadzone = TOUCH_SCROLL_DEADZONE_MENU
+	calendar_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	calendar_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO if multi_month_view else ScrollContainer.SCROLL_MODE_DISABLED
+	calendar_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL if multi_month_view else Control.SIZE_SHRINK_BEGIN
+	calendar_scroll.size_flags_stretch_ratio = 3.0 if multi_month_view else 1.0
+	if not multi_month_view:
+		calendar_scroll.scroll_vertical = 0
+	_lock_horizontal_scroll_deferred()
+
+
 func _sync_calendar_root_width() -> void:
 	if calendar_root == null and options_root == null:
 		return
 
 	var available_width := get_viewport_rect().size.x - 36.0 - SCROLLBAR_TOUCH_WIDTH
-	if main_scroll != null and main_scroll.size.x > 0.0:
+	if calendar_scroll != null and calendar_scroll.size.x > 0.0:
+		available_width = calendar_scroll.size.x - SCROLLBAR_TOUCH_WIDTH
+	elif main_scroll != null and main_scroll.size.x > 0.0:
 		available_width = main_scroll.size.x - SCROLLBAR_TOUCH_WIDTH
 	if available_width <= 0.0:
 		return
@@ -2028,6 +2070,7 @@ func _rebuild_calendar() -> void:
 		child.queue_free()
 
 	var month_count := _range_months()
+	_update_calendar_scroll_touch_mode()
 	var range_start_month := _visible_range_start_month()
 	var counts := _count_visible_months(current_year, range_start_month, month_count)
 
@@ -2069,17 +2112,37 @@ func _rebuild_calendar() -> void:
 	call_deferred("_sync_calendar_touch_shield")
 
 
-func _make_month_section(year: int, month: int) -> VBoxContainer:
+func _make_month_section(year: int, month: int) -> Control:
+	var multi_month_view := _range_months() > 1
+	var is_current_month := year == current_year and month == current_month
 	var section := VBoxContainer.new()
 	section.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	section.add_theme_constant_override("separation", 16)
+	section.add_theme_constant_override("separation", 10 if multi_month_view else 16)
 	_prepare_calendar_drag_blocker(section)
 
-	var title := _make_label("%s %d" % [MONTH_NAMES[month - 1], year], 33 if _range_months() == 1 else 20, COLOR_TEXT)
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	section.add_child(title)
+	if multi_month_view:
+		var title_button := Button.new()
+		title_button.text = "%s %d" % [MONTH_NAMES[month - 1], year]
+		title_button.clip_text = true
+		title_button.custom_minimum_size = Vector2(0, 40)
+		title_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		title_button.add_theme_font_size_override("font_size", 20)
+		title_button.add_theme_color_override("font_color", COLOR_TEXT)
+		title_button.add_theme_color_override("font_hover_color", COLOR_TEXT)
+		title_button.add_theme_color_override("font_pressed_color", COLOR_TEXT)
+		title_button.add_theme_stylebox_override("normal", _month_title_style(false))
+		title_button.add_theme_stylebox_override("hover", _month_title_style(true))
+		title_button.add_theme_stylebox_override("pressed", _month_title_style(false))
+		title_button.add_theme_stylebox_override("focus", _month_title_style(true))
+		_connect_month_select_tap(title_button, year, month)
+		_prepare_calendar_drag_blocker(title_button)
+		section.add_child(title_button)
+	else:
+		var title := _make_label("%s %d" % [MONTH_NAMES[month - 1], year], 33, COLOR_TEXT)
+		title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		section.add_child(title)
 
-	if _range_months() == 1 and year == current_year and month == current_month and _should_show_first_cycle_hint():
+	if not multi_month_view and year == current_year and month == current_month and _should_show_first_cycle_hint():
 		var hint := _make_label("Kliknij swój pierwszy dzień i wyznacz swój cykl.", 25, COLOR_TODAY)
 		hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -2108,6 +2171,14 @@ func _make_month_section(year: int, month: int) -> VBoxContainer:
 		var key := _date_key(year, month, day)
 		var state := _visual_state_for_day(day_index, key)
 		grid.add_child(_make_day_cell(year, month, day, day_index, state, day_index == today_day_index))
+
+	if multi_month_view:
+		var card := PanelContainer.new()
+		card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		card.add_theme_stylebox_override("panel", _month_section_style(is_current_month))
+		_prepare_calendar_drag_blocker(card)
+		card.add_child(section)
+		return card
 
 	return section
 
@@ -2981,13 +3052,10 @@ func _prepare_calendar_drag_blocker(control: Control) -> void:
 
 func _handle_calendar_area_input(event: InputEvent) -> void:
 	_track_scroll_touch(event)
-	if not _event_is_drag_motion(event):
+	if _consume_horizontal_drag(event, true):
 		return
-
-	_block_touch_drag_actions()
-	_lock_horizontal_scroll_deferred()
-	accept_event()
-	get_viewport().set_input_as_handled()
+	if _event_is_drag_motion(event):
+		_lock_horizontal_scroll_deferred()
 
 
 func _handle_navigation_button_input(event: InputEvent, button: BaseButton, action: Callable) -> void:
@@ -3252,6 +3320,9 @@ func _event_drag_delta(event: InputEvent) -> Vector2:
 
 
 func _block_calendar_touch_drag(event: InputEvent) -> bool:
+	if not _event_is_horizontal_drag(event):
+		return false
+
 	var position := Vector2.ZERO
 
 	if event is InputEventScreenDrag:
@@ -3486,6 +3557,35 @@ func _month_overview_style(color: Color, is_current_month: bool) -> StyleBoxFlat
 	return style
 
 
+func _month_section_style(is_current_month: bool) -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.045, 0.058, 0.058, 0.76)
+	style.set_corner_radius_all(10)
+	style.set_border_width_all(2 if is_current_month else 1)
+	style.border_color = COLOR_TODAY if is_current_month else Color(1.0, 1.0, 1.0, 0.22)
+	style.shadow_color = Color(0.0, 0.0, 0.0, 0.30)
+	style.shadow_size = 8
+	style.shadow_offset = Vector2(0, 4)
+	style.content_margin_left = 8
+	style.content_margin_right = 8
+	style.content_margin_top = 8
+	style.content_margin_bottom = 10
+	return style
+
+
+func _month_title_style(highlighted: bool) -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.90, 0.94, 0.90, 0.14 if highlighted else 0.08)
+	style.set_corner_radius_all(8)
+	style.set_border_width_all(1)
+	style.border_color = Color(1.0, 1.0, 1.0, 0.16)
+	style.content_margin_left = 8
+	style.content_margin_right = 8
+	style.content_margin_top = 5
+	style.content_margin_bottom = 5
+	return style
+
+
 func _style(color: Color, radius: int) -> StyleBoxFlat:
 	var style := StyleBoxFlat.new()
 	style.bg_color = color
@@ -3542,7 +3642,20 @@ func _style_main_scrollbar() -> void:
 	if main_scroll == null:
 		return
 
-	var scroll_bar := main_scroll.get_v_scroll_bar()
+	_style_scrollbar(main_scroll)
+	if not main_scroll.get_v_scroll_bar().value_changed.is_connected(_on_main_scroll_vertical_changed):
+		main_scroll.get_v_scroll_bar().value_changed.connect(_on_main_scroll_vertical_changed)
+
+
+func _style_calendar_scrollbar() -> void:
+	if calendar_scroll == null:
+		return
+
+	_style_scrollbar(calendar_scroll)
+
+
+func _style_scrollbar(scroll_container: ScrollContainer) -> void:
+	var scroll_bar := scroll_container.get_v_scroll_bar()
 	scroll_bar.custom_minimum_size.x = SCROLLBAR_TOUCH_WIDTH
 	scroll_bar.mouse_filter = Control.MOUSE_FILTER_STOP
 	scroll_bar.add_theme_stylebox_override("scroll", _scrollbar_track_style())
@@ -3550,10 +3663,8 @@ func _style_main_scrollbar() -> void:
 	scroll_bar.add_theme_stylebox_override("grabber", _scrollbar_grabber_style(0.48))
 	scroll_bar.add_theme_stylebox_override("grabber_highlight", _scrollbar_grabber_style(0.68))
 	scroll_bar.add_theme_stylebox_override("grabber_pressed", _scrollbar_grabber_style(0.82))
-	if not scroll_bar.value_changed.is_connected(_on_main_scroll_vertical_changed):
-		scroll_bar.value_changed.connect(_on_main_scroll_vertical_changed)
 
-	var horizontal_bar := main_scroll.get_h_scroll_bar()
+	var horizontal_bar := scroll_container.get_h_scroll_bar()
 	horizontal_bar.visible = false
 	horizontal_bar.custom_minimum_size.y = 0
 	horizontal_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -3571,21 +3682,29 @@ func _on_main_scroll_vertical_changed(_value: float) -> void:
 
 
 func _lock_horizontal_scroll_deferred() -> void:
-	if main_scroll == null:
-		return
-
 	_lock_horizontal_scroll()
-	main_scroll.set_deferred("scroll_horizontal", 0)
-	main_scroll.get_h_scroll_bar().set_deferred("value", 0)
+	if main_scroll != null:
+		main_scroll.set_deferred("scroll_horizontal", 0)
+		main_scroll.get_h_scroll_bar().set_deferred("value", 0)
+	if calendar_scroll != null:
+		calendar_scroll.set_deferred("scroll_horizontal", 0)
+		calendar_scroll.get_h_scroll_bar().set_deferred("value", 0)
 
 
 func _lock_horizontal_scroll() -> void:
-	if main_scroll == null:
+	if main_scroll != null:
+		_lock_horizontal_scroll_container(main_scroll)
+	if calendar_scroll != null:
+		_lock_horizontal_scroll_container(calendar_scroll)
+
+
+func _lock_horizontal_scroll_container(scroll_container: ScrollContainer) -> void:
+	if scroll_container == null:
 		return
 
-	var horizontal_bar := main_scroll.get_h_scroll_bar()
-	main_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	main_scroll.scroll_horizontal = 0
+	var horizontal_bar := scroll_container.get_h_scroll_bar()
+	scroll_container.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll_container.scroll_horizontal = 0
 	horizontal_bar.value = 0
 	horizontal_bar.visible = false
 	horizontal_bar.custom_minimum_size.y = 0
