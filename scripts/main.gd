@@ -406,101 +406,55 @@ func _build_ui() -> void:
 
 
 func _build_settings_panel() -> PanelContainer:
-	var panel := _panel()
-	var box := _panel_box(panel)
-
-	box.add_child(_make_section_label("Jakim systemem jeździsz?"))
+	var panel := PanelContainer.new()
+	panel.visible = false
 
 	schedule_option = OptionButton.new()
-	schedule_option.add_item("Wybierz system...")
-	schedule_option.add_item("2 na 1")
-	schedule_option.add_item("2 na 2")
-	schedule_option.add_item("3 na 1")
-	schedule_option.add_item("3 na 2")
-	schedule_option.add_item("4 na 1")
-	schedule_option.add_item("6 dni + 24h pauzy + 6 dni")
-	schedule_option.add_item("Inne - własny cykl")
+	for _index in range(8):
+		schedule_option.add_item("")
 	_set_option_selected(schedule_option, 0)
 	schedule_option.item_selected.connect(_on_schedule_selected)
-	_prepare_control(schedule_option, 23, 64)
-	box.add_child(schedule_option)
-
-	var cycle_grid := GridContainer.new()
-	cycle_grid.columns = 2
-	cycle_grid.add_theme_constant_override("h_separation", 10)
-	cycle_grid.add_theme_constant_override("v_separation", 8)
-	box.add_child(cycle_grid)
 
 	system_work_spin = _make_spin(1, 90, 14)
-	cycle_grid.add_child(_field_stack("Dni pracy", system_work_spin))
-
 	system_home_spin = _make_spin(1, 90, 7)
-	cycle_grid.add_child(_field_stack("Dni domu", system_home_spin))
-
-	box.add_child(_make_section_label("Dzień pierwszy pracy albo cyklu"))
 
 	start_input = LineEdit.new()
-	start_input.placeholder_text = "Kliknij dzień w kalendarzu albo wpisz RRRR-MM-DD"
 	start_input.text_submitted.connect(_on_start_date_submitted)
-	_prepare_control(start_input, 21, 62)
 	start_input.set_meta("last_text", start_input.text)
-	box.add_child(start_input)
 
 	fixed_start_toggle = CheckButton.new()
-	fixed_start_toggle.text = "Zawsze zaczynam pracę w ten sam dzień"
 	fixed_start_toggle.button_pressed = false
 	fixed_start_previous_pressed = fixed_start_toggle.button_pressed
 	fixed_start_toggle.toggled.connect(_on_fixed_start_toggled)
-	_prepare_control(fixed_start_toggle, 20, 56)
-	box.add_child(fixed_start_toggle)
 
 	fixed_start_option = OptionButton.new()
-	fixed_start_option.add_item("Wybierz dzień rozpoczęcia pracy")
+	fixed_start_option.add_item("")
 	for weekday_name in WEEKDAY_NAMES:
 		fixed_start_option.add_item(weekday_name)
 	_set_option_selected(fixed_start_option, 0)
 	fixed_start_option.item_selected.connect(_on_fixed_start_day_selected)
-	_prepare_control(fixed_start_option, 20, 58)
 	fixed_start_option.visible = false
-	box.add_child(fixed_start_option)
 
 	weekly_rest_toggle = CheckButton.new()
-	weekly_rest_toggle.text = "Pauza 24h co 6 dni pracy"
 	weekly_rest_toggle.button_pressed = true
 	weekly_rest_previous_pressed = weekly_rest_toggle.button_pressed
 	weekly_rest_toggle.toggled.connect(_on_weekly_rest_toggled)
-	_prepare_control(weekly_rest_toggle, 20, 56)
-	box.add_child(weekly_rest_toggle)
 
-	custom_panel = _build_custom_cycle_panel()
+	custom_panel = PanelContainer.new()
 	custom_panel.visible = false
-	box.add_child(custom_panel)
 
-	var close_settings_button := Button.new()
-	close_settings_button.text = "Zamknij ustawienia"
-	_connect_tap(close_settings_button, Callable(self, "_close_settings_panel"))
-	_prepare_control(close_settings_button, 22, 62)
-	box.add_child(close_settings_button)
+	custom_length_spin = _make_spin(1, 56, 21, false)
+	custom_length_spin.value_changed.connect(_on_custom_length_spin_changed)
 
-	error_label = _make_label("", 18, Color(0.95, 0.58, 0.52))
+	error_label = Label.new()
 	error_label.visible = false
-	error_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	box.add_child(error_label)
 
 	return panel
 
 
 func _build_custom_cycle_panel() -> PanelContainer:
 	var panel := PanelContainer.new()
-	panel.add_theme_stylebox_override("panel", _style(COLOR_PANEL_SOFT, 8))
-
-	var box := _panel_box(panel, 10)
-	box.add_child(_make_label("Własny cykl: wybierz długość, potem klikaj dni w kalendarzu.", 18, COLOR_TEXT))
-
-	custom_length_spin = _make_spin(1, 56, 21, false)
-	custom_length_spin.value_changed.connect(_on_custom_length_spin_changed)
-	box.add_child(_field_stack("Długość powtarzalnego cyklu", custom_length_spin))
-
+	panel.visible = false
 	return panel
 
 
