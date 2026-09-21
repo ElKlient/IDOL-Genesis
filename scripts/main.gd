@@ -19,7 +19,7 @@ const MONTH_NAMES := [
 ]
 const WEEKDAY_SHORT_TILE := ["pon", "wt", "śr", "czw", "pt", "sob", "nd"]
 const WEEKDAY_NAMES := ["Poniedziałek", "Wtorek", "Środa", "Czwartek", "Piątek", "Sobota", "Niedziela"]
-const RANGE_LABELS := ["Miesiąc"]
+const RANGE_LABELS := ["Miesiąc", "Kwartał", "Pół roku", "Rok"]
 
 const COLOR_PANEL := Color(0.070, 0.085, 0.087, 0.82)
 const COLOR_PANEL_SOFT := Color(0.105, 0.120, 0.116, 0.76)
@@ -2640,6 +2640,16 @@ func _selected_fixed_start_weekday() -> int:
 
 
 func _range_months() -> int:
+	if range_option == null:
+		return 1
+
+	match range_option.selected:
+		1:
+			return 3
+		2:
+			return 6
+		3:
+			return 12
 	return 1
 
 
@@ -2647,7 +2657,7 @@ func _day_cell_height() -> int:
 	match _range_months():
 		12:
 			return 56
-		3, 4:
+		3, 6:
 			return 70
 	return 84
 
@@ -2656,7 +2666,7 @@ func _tile_day_font_size() -> int:
 	match _range_months():
 		12:
 			return 17
-		3, 4:
+		3, 6:
 			return 22
 	return 26
 
@@ -2665,7 +2675,7 @@ func _tile_weekday_font_size() -> int:
 	match _range_months():
 		12:
 			return 9
-		3, 4:
+		3, 6:
 			return 12
 	return 14
 
@@ -2674,7 +2684,7 @@ func _tile_badge_font_size() -> int:
 	match _range_months():
 		12:
 			return 8
-		3, 4:
+		3, 6:
 			return 10
 	return 11
 
@@ -2862,7 +2872,7 @@ func _prepare_large_dropdown(option: OptionButton) -> void:
 
 
 func _option_change_was_scroll(option: OptionButton, index: int) -> bool:
-	if not _tap_is_blocked():
+	if not touch_drag_cancelled:
 		option.set_meta("last_selected", index)
 		return false
 
@@ -2916,7 +2926,6 @@ func _connect_navigation_tap(button: BaseButton, action: Callable) -> void:
 	button.pressed.connect(func() -> void:
 		_run_navigation_button_action_for_button(button, action)
 	)
-	button.gui_input.connect(_handle_navigation_button_input.bind(button, action))
 
 
 func _prepare_calendar_drag_blocker(control: Control) -> void:
@@ -3069,8 +3078,6 @@ func _run_navigation_button_action(action: Callable) -> void:
 
 
 func _run_navigation_button_action_for_button(button: BaseButton, action: Callable) -> void:
-	if touch_drag_cancelled:
-		return
 	if not is_instance_valid(button):
 		return
 
@@ -3317,20 +3324,12 @@ func _allow_navigation_action_once() -> void:
 
 
 func _navigation_action_allowed() -> bool:
-	if touch_drag_cancelled:
-		navigation_action_unlock_msec = -10000
-		return false
-
 	var elapsed_msec := int(Time.get_ticks_msec()) - navigation_action_unlock_msec
 	navigation_action_unlock_msec = -10000
 	return elapsed_msec >= 0 and elapsed_msec <= TAP_BLOCK_AFTER_DRAG_MS
 
 
 func _navigation_button_action_allowed() -> bool:
-	if calendar_only_mode:
-		navigation_action_unlock_msec = -10000
-		return false
-
 	if not navigation_button_action_active:
 		navigation_action_unlock_msec = -10000
 		return false
@@ -3703,9 +3702,7 @@ func _button_previous_month() -> void:
 		return
 
 	_capture_undo_state()
-	var previous := _previous_month(current_year, current_month)
-	current_year = int(previous["year"])
-	current_month = int(previous["month"])
+	_shift_current_month(-_navigation_step_months())
 	_accept_calendar_page()
 	_rebuild_calendar()
 	_save_settings_to_disk()
@@ -3727,9 +3724,7 @@ func _button_next_month() -> void:
 		return
 
 	_capture_undo_state()
-	var next := _next_month(current_year, current_month)
-	current_year = int(next["year"])
-	current_month = int(next["month"])
+	_shift_current_month(_navigation_step_months())
 	_accept_calendar_page()
 	_rebuild_calendar()
 	_save_settings_to_disk()
@@ -3760,6 +3755,23 @@ func _button_return_to_today() -> void:
 	if main_scroll != null:
 		main_scroll.set_deferred("scroll_vertical", 0)
 	_save_settings_to_disk()
+
+
+func _navigation_step_months() -> int:
+	var month_count := _range_months()
+	if month_count >= 12:
+		return 12
+	return maxi(month_count, 1)
+
+
+func _shift_current_month(month_delta: int) -> void:
+	current_month += month_delta
+	while current_month < 1:
+		current_month += 12
+		current_year -= 1
+	while current_month > 12:
+		current_month -= 12
+		current_year += 1
 
 
 func _previous_month(year: int, month: int) -> Dictionary:
