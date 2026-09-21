@@ -188,6 +188,8 @@ func _ready() -> void:
 
 func _input(event: InputEvent) -> void:
 	_track_scroll_touch(event)
+	if _consume_horizontal_drag(event):
+		return
 	if _consume_calendar_only_drag(event):
 		return
 	if _block_calendar_touch_drag(event):
@@ -198,6 +200,8 @@ func _input(event: InputEvent) -> void:
 
 func _gui_input(event: InputEvent) -> void:
 	_track_scroll_touch(event)
+	if _consume_horizontal_drag(event, true):
+		return
 	if _consume_calendar_only_drag(event):
 		accept_event()
 		return
@@ -214,6 +218,8 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _on_main_scroll_gui_input(event: InputEvent) -> void:
 	_track_scroll_touch(event)
+	if _consume_horizontal_drag(event, true):
+		return
 	if event is InputEventScreenDrag or event is InputEventPanGesture:
 		_block_touch_drag_actions()
 		_lock_horizontal_scroll_deferred()
@@ -257,12 +263,14 @@ func _build_ui() -> void:
 	var screen_root := VBoxContainer.new()
 	screen_root.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	screen_root.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	screen_root.clip_contents = true
 	screen_root.add_theme_constant_override("separation", 12)
 	screen_root.resized.connect(_sync_calendar_root_width)
 	safe_margin.add_child(screen_root)
 
 	var calendar_center := CenterContainer.new()
 	calendar_center.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	calendar_center.clip_contents = true
 	screen_root.add_child(calendar_center)
 
 	_add_return_today_overlay()
@@ -283,6 +291,7 @@ func _build_ui() -> void:
 	main_scroll.scroll_deadzone = TOUCH_SCROLL_DEADZONE_MENU
 	main_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	main_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	main_scroll.clip_contents = true
 	main_scroll.resized.connect(_sync_calendar_root_width)
 	main_scroll.gui_input.connect(_on_main_scroll_gui_input)
 	screen_root.add_child(main_scroll)
@@ -291,6 +300,7 @@ func _build_ui() -> void:
 
 	var options_center := CenterContainer.new()
 	options_center.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	options_center.clip_contents = true
 	main_scroll.add_child(options_center)
 
 	options_root = VBoxContainer.new()
@@ -3088,6 +3098,18 @@ func _consume_calendar_only_drag(event: InputEvent) -> bool:
 	return true
 
 
+func _consume_horizontal_drag(event: InputEvent, accept_gui_event: bool = false) -> bool:
+	if not _event_is_horizontal_drag(event):
+		return false
+
+	_block_touch_drag_actions()
+	_lock_horizontal_scroll_deferred()
+	if accept_gui_event:
+		accept_event()
+	get_viewport().set_input_as_handled()
+	return true
+
+
 func _event_is_drag_motion(event: InputEvent) -> bool:
 	if event is InputEventScreenDrag or event is InputEventPanGesture:
 		return true
@@ -3096,6 +3118,33 @@ func _event_is_drag_motion(event: InputEvent) -> bool:
 		return (mouse_motion.button_mask & MOUSE_BUTTON_MASK_LEFT) != 0
 
 	return false
+
+
+func _event_is_horizontal_drag(event: InputEvent) -> bool:
+	if not _event_is_drag_motion(event):
+		return false
+
+	var delta := _event_drag_delta(event)
+	var horizontal := absf(delta.x)
+	var vertical := absf(delta.y)
+	if touch_tracking_active:
+		horizontal = maxf(horizontal, absf(touch_drag_total.x))
+		vertical = maxf(vertical, absf(touch_drag_total.y))
+
+	return horizontal >= TOUCH_DRAG_CANCEL_DISTANCE and horizontal > vertical * 1.2
+
+
+func _event_drag_delta(event: InputEvent) -> Vector2:
+	if event is InputEventScreenDrag:
+		return (event as InputEventScreenDrag).relative
+	if event is InputEventPanGesture:
+		return (event as InputEventPanGesture).delta
+	if event is InputEventMouseMotion:
+		var mouse_motion := event as InputEventMouseMotion
+		if (mouse_motion.button_mask & MOUSE_BUTTON_MASK_LEFT) != 0:
+			return mouse_motion.relative
+
+	return Vector2.ZERO
 
 
 func _block_calendar_touch_drag(event: InputEvent) -> bool:
