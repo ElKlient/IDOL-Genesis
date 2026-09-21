@@ -2912,7 +2912,10 @@ func _connect_navigation_tap(button: BaseButton, action: Callable) -> void:
 	if not navigation_buttons.has(button):
 		navigation_buttons.append(button)
 	button.mouse_filter = Control.MOUSE_FILTER_STOP
-	button.action_mode = BaseButton.ACTION_MODE_BUTTON_PRESS
+	button.action_mode = BaseButton.ACTION_MODE_BUTTON_RELEASE
+	button.pressed.connect(func() -> void:
+		_run_navigation_button_action_for_button(button, action)
+	)
 	button.gui_input.connect(_handle_navigation_button_input.bind(button, action))
 
 
@@ -2976,7 +2979,7 @@ func _finish_navigation_button_tap(button: BaseButton, action: Callable, positio
 		return
 
 	get_viewport().set_input_as_handled()
-	_run_navigation_button_action(action)
+	_run_navigation_button_action_for_button(button, action)
 
 
 func _cancel_navigation_button_tap_if_moved(button: BaseButton, position: Vector2) -> void:
@@ -3063,6 +3066,21 @@ func _run_navigation_button_action(action: Callable) -> void:
 	action.call()
 	calendar_navigation_command_depth = maxi(calendar_navigation_command_depth - 1, 0)
 	navigation_button_action_active = false
+
+
+func _run_navigation_button_action_for_button(button: BaseButton, action: Callable) -> void:
+	if touch_drag_cancelled:
+		return
+	if not is_instance_valid(button):
+		return
+
+	var now_msec := int(Time.get_ticks_msec())
+	var last_action_msec := int(button.get_meta("nav_action_msec", -10000))
+	if now_msec - last_action_msec >= 0 and now_msec - last_action_msec < 120:
+		return
+
+	button.set_meta("nav_action_msec", now_msec)
+	_run_navigation_button_action(action)
 
 
 func _register_scroll_safe_control(control: Control) -> void:
