@@ -2,6 +2,10 @@
 
 Prosty kalendarz dla kierowcow jezdzacych w systemach pracy typu 2/1, 2/2, 3/1 albo liczonych w dniach.
 
+## Dla kolejnego kontenera
+
+Przed latkami przeczytaj `NEXT_CHAT_PROMPT.md`. Tam jest aktualny workflow, roznica miedzy kalendarzem kierowcy i `apps/wspolny-kalendarz`, komendy Termuxa oraz diagnoza problemu "na ekranie nadal widze stare menu".
+
 ## MVP
 
 - pionowy, kafelkowy kalendarz pod telefon:
