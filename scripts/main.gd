@@ -146,6 +146,7 @@ var selected_day_number: int = 0
 var selected_note_key: String = ""
 var work_start_unix: int = 0
 var work_end_unix: int = 0
+var pause_start_unix: int = 0
 var day_touch_targets: Array[Dictionary] = []
 var scroll_safe_buttons: Array[BaseButton] = []
 var navigation_buttons: Array[BaseButton] = []
@@ -1047,6 +1048,7 @@ func _build_day_tools_panel() -> PanelContainer:
 	pause_option.add_item("9h")
 	pause_option.add_item("11h")
 	pause_option.add_item("24h")
+	pause_option.add_item("45h")
 	_set_option_selected(pause_option, 0)
 	pause_option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	pause_option.item_selected.connect(_on_pause_selected)
@@ -1054,9 +1056,9 @@ func _build_day_tools_panel() -> PanelContainer:
 	pause_row.add_child(pause_option)
 
 	var pause_button := Button.new()
-	pause_button.text = "Policz pauzę"
+	pause_button.text = "Rozpocznij pauzę"
 	pause_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_connect_tap(pause_button, Callable(self, "_update_pause_result"))
+	_connect_tap(pause_button, Callable(self, "_on_start_pause_pressed"))
 	_prepare_control(pause_button, 20, 56)
 	pause_row.add_child(pause_button)
 
@@ -1218,10 +1220,6 @@ func _close_settings_panel() -> void:
 
 
 func _on_day_tools_toggled(visible: bool) -> void:
-	if _tap_is_blocked():
-		day_tools_toggle.set_pressed_no_signal(day_tools_visible)
-		return
-
 	_capture_undo_state()
 	day_tools_visible = visible
 	_apply_day_tools_visibility()
@@ -1449,6 +1447,7 @@ func _save_settings_to_disk() -> void:
 	config.set_value("calendar", "notes", notes.duplicate(true))
 	config.set_value("work", "start_unix", work_start_unix)
 	config.set_value("work", "end_unix", work_end_unix)
+	config.set_value("work", "pause_start_unix", pause_start_unix)
 	config.set_value("work", "pause_selected", pause_option.selected)
 
 	var error := config.save(SETTINGS_PATH)
@@ -1507,6 +1506,7 @@ func _load_settings_from_disk() -> void:
 
 	work_start_unix = int(config.get_value("work", "start_unix", 0))
 	work_end_unix = int(config.get_value("work", "end_unix", 0))
+	pause_start_unix = int(config.get_value("work", "pause_start_unix", 0))
 	_restore_work_panel_text()
 	_apply_day_tools_visibility()
 
@@ -1827,6 +1827,7 @@ func _calendar_state_snapshot() -> Dictionary:
 		"notes": notes.duplicate(true),
 		"work_start_unix": work_start_unix,
 		"work_end_unix": work_end_unix,
+		"pause_start_unix": pause_start_unix,
 		"pause_selected": pause_option.selected,
 	}
 
@@ -1868,6 +1869,7 @@ func _restore_calendar_state(snapshot: Dictionary) -> void:
 
 	work_start_unix = int(snapshot.get("work_start_unix", 0))
 	work_end_unix = int(snapshot.get("work_end_unix", 0))
+	pause_start_unix = int(snapshot.get("pause_start_unix", 0))
 	_restore_work_panel_text()
 	if not _apply_settings(false, false):
 		_rebuild_calendar()
@@ -1883,21 +1885,15 @@ func _restore_work_panel_text() -> void:
 
 	if work_start_unix <= 0:
 		work_status_label.text = "Tu później aplikacja policzy czas pracy."
-		if pause_result_label != null:
-			pause_result_label.text = ""
-		return
-
-	if work_end_unix <= 0:
+	elif work_end_unix <= 0:
 		work_status_label.text = "Start pracy: %s" % _format_unix_time(work_start_unix)
-		if pause_result_label != null:
-			pause_result_label.text = ""
-		return
+	else:
+		var worked_seconds: int = maxi(0, work_end_unix - work_start_unix)
+		work_status_label.text = "Praca trwała: %s. Koniec: %s" % [
+			_format_duration(worked_seconds),
+			_format_unix_time(work_end_unix),
+		]
 
-	var worked_seconds: int = maxi(0, work_end_unix - work_start_unix)
-	work_status_label.text = "Praca trwała: %s. Koniec: %s" % [
-		_format_duration(worked_seconds),
-		_format_unix_time(work_end_unix),
-	]
 	_update_pause_result()
 
 
@@ -1990,6 +1986,7 @@ func _reset_calendar_settings() -> void:
 	notes.clear()
 	work_start_unix = 0
 	work_end_unix = 0
+	pause_start_unix = 0
 	work_status_label.text = "Tu później aplikacja policzy czas pracy."
 	pause_result_label.text = ""
 
@@ -2798,6 +2795,8 @@ func _selected_pause_hours() -> int:
 			return 11
 		2:
 			return 24
+		3:
+			return 45
 	return 9
 
 
@@ -3770,7 +3769,7 @@ func _format_duration(seconds: int) -> String:
 
 
 func _format_unix_time(unix_time: int) -> String:
-	var date := Time.get_datetime_dict_from_unix_time(unix_time)
+	var date := Time.get_datetime_dict_from_unix_time(unix_time + _system_utc_offset_seconds())
 	return "%04d-%02d-%02d %02d:%02d" % [
 		int(date["year"]),
 		int(date["month"]),
@@ -3778,6 +3777,12 @@ func _format_unix_time(unix_time: int) -> String:
 		int(date["hour"]),
 		int(date["minute"]),
 	]
+
+
+func _system_utc_offset_seconds() -> int:
+	var local_now := Time.get_datetime_dict_from_system(false)
+	var utc_now := Time.get_datetime_dict_from_system(true)
+	return int(Time.get_unix_time_from_datetime_dict(local_now) - Time.get_unix_time_from_datetime_dict(utc_now))
 
 
 func _date_key(year: int, month: int, day: int) -> String:
@@ -3822,8 +3827,9 @@ func _on_start_work_pressed() -> void:
 	_capture_undo_state()
 	work_start_unix = int(Time.get_unix_time_from_system())
 	work_end_unix = 0
+	pause_start_unix = 0
 	work_status_label.text = "Start pracy: %s" % _format_unix_time(work_start_unix)
-	pause_result_label.text = ""
+	_update_pause_result()
 	_save_settings_to_disk()
 
 
@@ -3834,6 +3840,7 @@ func _on_end_work_pressed() -> void:
 
 	_capture_undo_state()
 	work_end_unix = int(Time.get_unix_time_from_system())
+	pause_start_unix = work_end_unix
 	var worked_seconds: int = maxi(0, work_end_unix - work_start_unix)
 	work_status_label.text = "Praca trwała: %s. Koniec: %s" % [
 		_format_duration(worked_seconds),
@@ -3843,16 +3850,24 @@ func _on_end_work_pressed() -> void:
 	_save_settings_to_disk()
 
 
+func _on_start_pause_pressed() -> void:
+	_capture_undo_state()
+	pause_start_unix = int(Time.get_unix_time_from_system())
+	_update_pause_result()
+	_save_settings_to_disk()
+
+
 func _update_pause_result() -> void:
 	if pause_result_label == null:
 		return
-	if work_end_unix <= 0:
-		pause_result_label.text = "Po zakończeniu pracy pokażę dokładną godzinę końca pauzy."
+	if pause_start_unix <= 0:
+		pause_result_label.text = "Kliknij Rozpocznij pauzę, żeby policzyć koniec."
 		return
 
 	var pause_hours := _selected_pause_hours()
-	var pause_end_unix := work_end_unix + pause_hours * 3600
-	pause_result_label.text = "Pauza %dh kończy się: %s" % [
+	var pause_end_unix := pause_start_unix + pause_hours * 3600
+	pause_result_label.text = "Start pauzy: %s. Pauza %dh kończy się: %s" % [
+		_format_unix_time(pause_start_unix),
 		pause_hours,
 		_format_unix_time(pause_end_unix),
 	]
