@@ -2028,8 +2028,8 @@ func _rebuild_calendar() -> void:
 		child.queue_free()
 
 	var month_count := _range_months()
-	var count_start_month := 1 if month_count == 12 else current_month
-	var counts := _count_visible_months(current_year, count_start_month, month_count)
+	var range_start_month := _visible_range_start_month()
+	var counts := _count_visible_months(current_year, range_start_month, month_count)
 
 	if calculator.mode == "none":
 		summary_label.text = "Uzupełnij swoje pierwsze dwa cykle pracy."
@@ -2047,7 +2047,7 @@ func _rebuild_calendar() -> void:
 		]
 
 	var year := current_year
-	var month := 1 if month_count == 12 else current_month
+	var month := range_start_month
 	var month_parent: Control = months_box
 	if month_count > 1:
 		var month_grid := GridContainer.new()
@@ -2431,32 +2431,34 @@ func _on_schedule_selected(index: int) -> void:
 
 
 func _on_range_selected(index: int) -> void:
-	var previous_index := int(range_option.get_meta("last_selected", range_option.selected))
-	if _option_change_was_scroll(range_option, index):
-		_sync_quick_range_option()
+	if range_option == null:
 		return
 
-	_capture_undo_state_for_option(range_option, previous_index)
-	_sync_quick_range_option()
-	_rebuild_calendar()
-	_save_settings_to_disk()
+	var previous_index := int(range_option.get_meta("last_selected", range_option.selected))
+	_apply_range_selection(index, previous_index)
 
 
 func _on_quick_range_selected(index: int) -> void:
 	if range_option == null or quick_range_option == null:
 		return
 
-	if _option_change_was_scroll(quick_range_option, index):
-		_sync_quick_range_option()
+	var previous_index := int(range_option.get_meta("last_selected", range_option.selected))
+	_apply_range_selection(index, previous_index)
+
+
+func _apply_range_selection(index: int, previous_index: int) -> void:
+	if range_option == null:
 		return
 
-	var previous_index := int(range_option.get_meta("last_selected", range_option.selected))
 	var valid_index := _valid_option_index(range_option, index)
 	_set_option_selected(range_option, valid_index)
-	_set_option_selected(quick_range_option, _valid_option_index(quick_range_option, valid_index))
+	if quick_range_option != null:
+		_set_option_selected(quick_range_option, _valid_option_index(quick_range_option, valid_index))
 	_capture_undo_state_for_option(range_option, previous_index)
 	_set_month_picker_visible(false)
 	_rebuild_calendar()
+	if main_scroll != null:
+		main_scroll.set_deferred("scroll_vertical", 0)
 	_save_settings_to_disk()
 
 
@@ -2664,6 +2666,23 @@ func _range_months() -> int:
 		3:
 			return 12
 	return 1
+
+
+func _visible_range_start_month() -> int:
+	match _range_months():
+		3:
+			if current_month <= 3:
+				return 1
+			if current_month <= 6:
+				return 4
+			if current_month <= 9:
+				return 7
+			return 10
+		6:
+			return 1 if current_month <= 6 else 7
+		12:
+			return 1
+	return current_month
 
 
 func _day_cell_height() -> int:
