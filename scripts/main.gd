@@ -136,6 +136,7 @@ var rest_after_work_label: Label
 var pause_option: OptionButton
 var pause_result_label: Label
 var day_action_dialog: AcceptDialog
+var work_finish_dialog: ConfirmationDialog
 var note_dialog: ConfirmationDialog
 var note_edit: TextEdit
 
@@ -151,6 +152,8 @@ var selected_note_key: String = ""
 var work_start_unix: int = 0
 var work_end_unix: int = 0
 var pause_start_unix: int = 0
+var last_work_duration_seconds: int = 0
+var last_work_end_unix: int = 0
 var day_touch_targets: Array[Dictionary] = []
 var scroll_safe_buttons: Array[BaseButton] = []
 var navigation_buttons: Array[BaseButton] = []
@@ -451,6 +454,7 @@ func _build_ui() -> void:
 	_set_settings_visible(true)
 
 	_build_day_action_dialog()
+	_build_work_finish_dialog()
 	_build_note_dialog()
 
 
@@ -1189,6 +1193,23 @@ func _build_note_dialog() -> void:
 	margin.add_child(note_edit)
 
 
+func _build_work_finish_dialog() -> void:
+	work_finish_dialog = ConfirmationDialog.new()
+	work_finish_dialog.title = "Zakończ pracę"
+	work_finish_dialog.dialog_text = "Czy na pewno chcesz zakończyć i zapisać?"
+	work_finish_dialog.confirmed.connect(_confirm_end_work)
+	work_finish_dialog.add_theme_stylebox_override("panel", _dialog_style())
+	add_child(work_finish_dialog)
+
+	var ok_button := work_finish_dialog.get_ok_button()
+	ok_button.text = "Tak"
+	_prepare_control(ok_button, 18, 48)
+
+	var cancel_button := work_finish_dialog.get_cancel_button()
+	cancel_button.text = "Nie"
+	_prepare_control(cancel_button, 18, 48)
+
+
 func _save_settings_and_close() -> void:
 	var undo_before := _app_state_snapshot()
 	if _apply_settings(false, true):
@@ -1478,6 +1499,8 @@ func _save_settings_to_disk() -> void:
 	config.set_value("work", "start_unix", work_start_unix)
 	config.set_value("work", "end_unix", work_end_unix)
 	config.set_value("work", "pause_start_unix", pause_start_unix)
+	config.set_value("work", "last_duration_seconds", last_work_duration_seconds)
+	config.set_value("work", "last_end_unix", last_work_end_unix)
 	config.set_value("work", "pause_selected", pause_option.selected)
 
 	var error := config.save(SETTINGS_PATH)
@@ -1537,6 +1560,8 @@ func _load_settings_from_disk() -> void:
 	work_start_unix = int(config.get_value("work", "start_unix", 0))
 	work_end_unix = int(config.get_value("work", "end_unix", 0))
 	pause_start_unix = int(config.get_value("work", "pause_start_unix", 0))
+	last_work_duration_seconds = int(config.get_value("work", "last_duration_seconds", 0))
+	last_work_end_unix = int(config.get_value("work", "last_end_unix", 0))
 	_restore_work_panel_text()
 	_apply_day_tools_visibility()
 
@@ -1858,6 +1883,8 @@ func _calendar_state_snapshot() -> Dictionary:
 		"work_start_unix": work_start_unix,
 		"work_end_unix": work_end_unix,
 		"pause_start_unix": pause_start_unix,
+		"last_work_duration_seconds": last_work_duration_seconds,
+		"last_work_end_unix": last_work_end_unix,
 		"pause_selected": pause_option.selected,
 	}
 
@@ -1900,6 +1927,8 @@ func _restore_calendar_state(snapshot: Dictionary) -> void:
 	work_start_unix = int(snapshot.get("work_start_unix", 0))
 	work_end_unix = int(snapshot.get("work_end_unix", 0))
 	pause_start_unix = int(snapshot.get("pause_start_unix", 0))
+	last_work_duration_seconds = int(snapshot.get("last_work_duration_seconds", 0))
+	last_work_end_unix = int(snapshot.get("last_work_end_unix", 0))
 	_restore_work_panel_text()
 	if not _apply_settings(false, false):
 		_rebuild_calendar()
@@ -1914,7 +1943,13 @@ func _restore_work_panel_text() -> void:
 		return
 
 	if work_start_unix <= 0:
-		work_status_label.text = "Tu później aplikacja policzy czas pracy."
+		if last_work_duration_seconds > 0:
+			work_status_label.text = "Zapisano ostatni czas pracy: %s. Koniec: %s" % [
+				_format_duration(last_work_duration_seconds),
+				_format_unix_time(last_work_end_unix),
+			]
+		else:
+			work_status_label.text = "Tu później aplikacja policzy czas pracy."
 	elif work_end_unix <= 0:
 		work_status_label.text = "Start pracy: %s" % _format_unix_time(work_start_unix)
 	else:
@@ -2059,6 +2094,8 @@ func _reset_calendar_settings() -> void:
 	work_start_unix = 0
 	work_end_unix = 0
 	pause_start_unix = 0
+	last_work_duration_seconds = 0
+	last_work_end_unix = 0
 	work_status_label.text = "Tu później aplikacja policzy czas pracy."
 	_update_work_timer()
 	pause_result_label.text = ""
@@ -3949,16 +3986,25 @@ func _on_end_work_pressed() -> void:
 		work_status_label.text = "Najpierw kliknij rozpoczęcie pracy."
 		return
 
+	if work_finish_dialog != null:
+		work_finish_dialog.popup_centered()
+		return
+
+	_confirm_end_work()
+
+
+func _confirm_end_work() -> void:
+	if work_start_unix <= 0:
+		return
+
 	_capture_undo_state()
-	work_end_unix = int(Time.get_unix_time_from_system())
-	pause_start_unix = work_end_unix
-	var worked_seconds: int = maxi(0, work_end_unix - work_start_unix)
-	work_status_label.text = "Praca trwała: %s. Koniec: %s" % [
-		_format_duration(worked_seconds),
-		_format_unix_time(work_end_unix),
-	]
-	_update_work_timer()
-	_update_pause_result()
+	var finished_unix := int(Time.get_unix_time_from_system())
+	last_work_duration_seconds = maxi(0, finished_unix - work_start_unix)
+	last_work_end_unix = finished_unix
+	work_start_unix = 0
+	work_end_unix = 0
+	pause_start_unix = 0
+	_restore_work_panel_text()
 	_save_settings_to_disk()
 
 
