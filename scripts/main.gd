@@ -274,6 +274,7 @@ func _process(_delta: float) -> void:
 	if now_msec >= work_timer_next_update_msec:
 		work_timer_next_update_msec = now_msec + 1000
 		_update_work_timer()
+		_update_pause_result()
 
 
 func _force_portrait() -> void:
@@ -1096,14 +1097,16 @@ func _build_day_tools_panel() -> PanelContainer:
 	_prepare_control(pause_button, 20, 56)
 	pause_row.add_child(pause_button)
 
-	work_status_label = _make_label("Tu później aplikacja policzy czas pracy.", 18, COLOR_TEXT_MUTED)
-	work_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	day_tools_body.add_child(work_status_label)
-
-	pause_result_label = _make_label("", 19, COLOR_TEXT)
+	pause_result_label = _make_label("", 19, Color(0.62, 0.92, 0.64))
 	pause_result_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	pause_result_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	pause_result_label.visible = false
 	day_tools_body.add_child(pause_result_label)
+
+	work_status_label = _make_label("Tu później aplikacja policzy czas pracy.", 18, COLOR_TEXT_MUTED)
+	work_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	work_status_label.visible = false
+	day_tools_body.add_child(work_status_label)
 
 	_apply_day_tools_visibility()
 
@@ -1960,6 +1963,7 @@ func _restore_work_panel_text() -> void:
 			_format_unix_time(work_end_unix),
 		]
 
+	work_status_label.visible = false
 	_update_work_timer()
 	_update_pause_result()
 
@@ -1973,20 +1977,14 @@ func _update_work_timer() -> void:
 		work_timer_label.text = "Praca --:--:--\nKoniec 15h pracy --:--"
 		work_timer_label.visible = true
 		work_timer_label.add_theme_color_override("font_color", COLOR_TEXT_MUTED)
-		if pause_start_unix > 0:
-			_show_pause_timer(now_unix)
-		else:
-			_show_next_rest_after_work_placeholder()
+		_show_next_rest_after_work_placeholder()
 		return
 
 	var limit_end_unix := work_start_unix + TEST_WORK_LIMIT_SECONDS
 	var rest_end_unix := limit_end_unix + TEST_REST_AFTER_WORK_SECONDS
-	if pause_start_unix > 0:
-		_show_pause_timer(now_unix)
-	else:
-		rest_after_work_label.visible = true
-		rest_after_work_label.add_theme_color_override("font_color", Color(0.96, 0.58, 0.22))
-		rest_after_work_label.text = "Następne 9h pauzy\nzakończy się o godz:\n%s" % _format_unix_clock(rest_end_unix)
+	rest_after_work_label.visible = true
+	rest_after_work_label.add_theme_color_override("font_color", Color(0.96, 0.58, 0.22))
+	rest_after_work_label.text = "Następne 9h pauzy\nzakończy się o godz:\n%s" % _format_unix_clock(rest_end_unix)
 
 	if work_end_unix > 0:
 		work_timer_label.text = "Praca zakończona\n%s" % _format_unix_clock(work_end_unix)
@@ -2016,12 +2014,15 @@ func _show_next_rest_after_work_placeholder() -> void:
 
 
 func _show_pause_timer(now_unix: int) -> void:
+	if pause_result_label == null:
+		return
+
 	var pause_hours := _selected_pause_hours()
 	var pause_end_unix := pause_start_unix + pause_hours * 3600
 	var pause_remaining_seconds: int = maxi(0, pause_end_unix - now_unix)
-	rest_after_work_label.visible = true
-	rest_after_work_label.add_theme_color_override("font_color", Color(0.62, 0.92, 0.64))
-	rest_after_work_label.text = "Pauza %dh %s\nKoniec pauzy %s" % [
+	pause_result_label.visible = true
+	pause_result_label.add_theme_color_override("font_color", Color(0.62, 0.92, 0.64))
+	pause_result_label.text = "Pauza %dh %s\nKoniec pauzy %s" % [
 		pause_hours,
 		_format_countdown(pause_remaining_seconds),
 		_format_unix_clock(pause_end_unix),
@@ -2122,6 +2123,7 @@ func _reset_calendar_settings() -> void:
 	last_work_end_unix = 0
 	work_status_label.text = "Tu później aplikacja policzy czas pracy."
 	_update_work_timer()
+	pause_result_label.visible = false
 	pause_result_label.text = ""
 
 	weekly_rest_toggle.set_pressed_no_signal(true)
@@ -4044,8 +4046,16 @@ func _on_start_pause_pressed() -> void:
 func _update_pause_result() -> void:
 	if pause_result_label == null:
 		return
-	pause_result_label.visible = false
-	pause_result_label.text = ""
+	if pause_start_unix <= 0:
+		pause_result_label.visible = false
+		pause_result_label.text = ""
+		if work_status_label != null:
+			work_status_label.visible = false
+		return
+
+	if work_status_label != null:
+		work_status_label.visible = false
+	_show_pause_timer(int(Time.get_unix_time_from_system()))
 
 
 func _button_previous_month() -> void:
