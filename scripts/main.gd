@@ -2691,10 +2691,11 @@ func _button_pick_month(month_index: int) -> void:
 
 func _on_pause_selected(index: int) -> void:
 	var previous_index := int(pause_option.get_meta("last_selected", pause_option.selected))
-	if _option_change_was_scroll(pause_option, index):
-		return
+	var selected_index := _valid_option_index(pause_option, index)
+	pause_option.selected = selected_index
 
 	_capture_undo_state_for_option(pause_option, previous_index)
+	pause_option.set_meta("last_selected", selected_index)
 	_update_work_timer()
 	_update_pause_result()
 	_save_settings_to_disk()
