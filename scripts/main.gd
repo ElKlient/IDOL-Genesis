@@ -1102,6 +1102,7 @@ func _build_day_tools_panel() -> PanelContainer:
 
 	pause_result_label = _make_label("", 19, COLOR_TEXT)
 	pause_result_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	pause_result_label.visible = false
 	day_tools_body.add_child(pause_result_label)
 
 	_apply_day_tools_visibility()
@@ -1967,21 +1968,25 @@ func _update_work_timer() -> void:
 	if work_timer_label == null or rest_after_work_label == null:
 		return
 
+	var now_unix := int(Time.get_unix_time_from_system())
 	if work_start_unix <= 0:
 		work_timer_label.text = "Praca --:--:--\nKoniec 15h pracy --:--"
 		work_timer_label.visible = true
 		work_timer_label.add_theme_color_override("font_color", COLOR_TEXT_MUTED)
-		rest_after_work_label.text = "Następne 9h pauzy\nzakończy się o godz:\n--:--"
-		rest_after_work_label.visible = true
-		rest_after_work_label.add_theme_color_override("font_color", Color(0.96, 0.58, 0.22))
+		if pause_start_unix > 0:
+			_show_pause_timer(now_unix)
+		else:
+			_show_next_rest_after_work_placeholder()
 		return
 
-	var now_unix := int(Time.get_unix_time_from_system())
 	var limit_end_unix := work_start_unix + TEST_WORK_LIMIT_SECONDS
 	var rest_end_unix := limit_end_unix + TEST_REST_AFTER_WORK_SECONDS
-	rest_after_work_label.visible = true
-	rest_after_work_label.add_theme_color_override("font_color", Color(0.96, 0.58, 0.22))
-	rest_after_work_label.text = "Następne 9h pauzy\nzakończy się o godz:\n%s" % _format_unix_clock(rest_end_unix)
+	if pause_start_unix > 0:
+		_show_pause_timer(now_unix)
+	else:
+		rest_after_work_label.visible = true
+		rest_after_work_label.add_theme_color_override("font_color", Color(0.96, 0.58, 0.22))
+		rest_after_work_label.text = "Następne 9h pauzy\nzakończy się o godz:\n%s" % _format_unix_clock(rest_end_unix)
 
 	if work_end_unix > 0:
 		work_timer_label.text = "Praca zakończona\n%s" % _format_unix_clock(work_end_unix)
@@ -2002,6 +2007,25 @@ func _update_work_timer() -> void:
 			_format_unix_time(limit_end_unix),
 			remaining_text,
 		]
+
+
+func _show_next_rest_after_work_placeholder() -> void:
+	rest_after_work_label.visible = true
+	rest_after_work_label.add_theme_color_override("font_color", Color(0.96, 0.58, 0.22))
+	rest_after_work_label.text = "Następne 9h pauzy\nzakończy się o godz:\n--:--"
+
+
+func _show_pause_timer(now_unix: int) -> void:
+	var pause_hours := _selected_pause_hours()
+	var pause_end_unix := pause_start_unix + pause_hours * 3600
+	var pause_remaining_seconds: int = maxi(0, pause_end_unix - now_unix)
+	rest_after_work_label.visible = true
+	rest_after_work_label.add_theme_color_override("font_color", Color(0.96, 0.58, 0.22))
+	rest_after_work_label.text = "Pauza %dh %s\nKoniec pauzy %s" % [
+		pause_hours,
+		_format_countdown(pause_remaining_seconds),
+		_format_unix_clock(pause_end_unix),
+	]
 
 
 func _adopt_manual_cycle_from_overrides() -> void:
@@ -2667,6 +2691,7 @@ func _on_pause_selected(index: int) -> void:
 		return
 
 	_capture_undo_state_for_option(pause_option, previous_index)
+	_update_work_timer()
 	_update_pause_result()
 	_save_settings_to_disk()
 
@@ -4011,6 +4036,7 @@ func _confirm_end_work() -> void:
 func _on_start_pause_pressed() -> void:
 	_capture_undo_state()
 	pause_start_unix = int(Time.get_unix_time_from_system())
+	_update_work_timer()
 	_update_pause_result()
 	_save_settings_to_disk()
 
@@ -4018,17 +4044,8 @@ func _on_start_pause_pressed() -> void:
 func _update_pause_result() -> void:
 	if pause_result_label == null:
 		return
-	if pause_start_unix <= 0:
-		pause_result_label.text = "Kliknij Rozpocznij pauzę, żeby policzyć koniec."
-		return
-
-	var pause_hours := _selected_pause_hours()
-	var pause_end_unix := pause_start_unix + pause_hours * 3600
-	pause_result_label.text = "Start pauzy: %s. Pauza %dh kończy się: %s" % [
-		_format_unix_time(pause_start_unix),
-		pause_hours,
-		_format_unix_time(pause_end_unix),
-	]
+	pause_result_label.visible = false
+	pause_result_label.text = ""
 
 
 func _button_previous_month() -> void:
