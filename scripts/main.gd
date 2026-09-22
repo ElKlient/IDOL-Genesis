@@ -1018,10 +1018,10 @@ func _build_day_tools_panel() -> PanelContainer:
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header.add_child(title)
 
-	work_timer_label = _make_label("Praca --:--:--\nKoniec --:--", 17, COLOR_TEXT_MUTED)
+	work_timer_label = _make_label("Praca --:--:--\nKoniec --:--", 19, COLOR_TEXT_MUTED)
 	work_timer_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	work_timer_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	work_timer_label.custom_minimum_size = Vector2(220, 52)
+	work_timer_label.custom_minimum_size = Vector2(250, 62)
 	work_timer_label.size_flags_horizontal = Control.SIZE_SHRINK_END
 	work_timer_label.visible = true
 	header.add_child(work_timer_label)
@@ -1030,7 +1030,7 @@ func _build_day_tools_panel() -> PanelContainer:
 	day_tools_toggle.text = ""
 	day_tools_toggle.button_pressed = day_tools_visible
 	day_tools_toggle.toggled.connect(_on_day_tools_toggled)
-	day_tools_toggle.custom_minimum_size = Vector2(88, 48)
+	day_tools_toggle.custom_minimum_size = Vector2(118, 66)
 	day_tools_toggle.size_flags_horizontal = Control.SIZE_SHRINK_END
 	_register_scroll_safe_control(day_tools_toggle)
 	header.add_child(day_tools_toggle)
