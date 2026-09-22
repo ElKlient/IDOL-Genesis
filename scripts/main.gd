@@ -1018,12 +1018,12 @@ func _build_day_tools_panel() -> PanelContainer:
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header.add_child(title)
 
-	work_timer_label = _make_label("", 14, Color(0.62, 0.92, 0.64))
+	work_timer_label = _make_label("Praca --:--:--\nKoniec --:--", 17, COLOR_TEXT_MUTED)
 	work_timer_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	work_timer_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	work_timer_label.custom_minimum_size = Vector2(166, 48)
+	work_timer_label.custom_minimum_size = Vector2(220, 52)
 	work_timer_label.size_flags_horizontal = Control.SIZE_SHRINK_END
-	work_timer_label.visible = false
+	work_timer_label.visible = true
 	header.add_child(work_timer_label)
 
 	day_tools_toggle = CheckButton.new()
@@ -1918,21 +1918,24 @@ func _update_work_timer() -> void:
 		return
 
 	if work_start_unix <= 0:
-		work_timer_label.text = ""
-		work_timer_label.visible = false
+		work_timer_label.text = "Praca --:--:--\nKoniec --:--"
+		work_timer_label.visible = true
+		work_timer_label.add_theme_color_override("font_color", COLOR_TEXT_MUTED)
 		return
 
 	if work_end_unix > 0:
-		work_timer_label.text = ""
-		work_timer_label.visible = false
+		work_timer_label.text = "Praca zakończona\n%s" % _format_unix_clock(work_end_unix)
+		work_timer_label.visible = true
+		work_timer_label.add_theme_color_override("font_color", COLOR_TEXT_MUTED)
 		return
 
 	var now_unix := int(Time.get_unix_time_from_system())
 	var limit_end_unix := work_start_unix + TEST_WORK_LIMIT_SECONDS
 	var remaining_seconds: int = maxi(0, limit_end_unix - now_unix)
-	var remaining_text := _format_duration(remaining_seconds)
+	var remaining_text := _format_countdown(remaining_seconds)
 	var end_clock := _format_unix_clock(limit_end_unix)
 	work_timer_label.visible = true
+	work_timer_label.add_theme_color_override("font_color", Color(0.62, 0.92, 0.64))
 	work_timer_label.text = "Praca %s\nKoniec %s" % [remaining_text, end_clock]
 
 	if work_status_label != null:
@@ -3070,43 +3073,12 @@ func _connect_day_tool_tap(button: BaseButton, action: Callable) -> void:
 	_register_scroll_safe_control(button)
 	button.mouse_filter = Control.MOUSE_FILTER_STOP
 	button.action_mode = BaseButton.ACTION_MODE_BUTTON_RELEASE
+	button.button_down.connect(func() -> void:
+		_run_day_tool_button_action(button, action)
+	)
 	button.pressed.connect(func() -> void:
 		_run_day_tool_button_action(button, action)
 	)
-	button.gui_input.connect(_handle_day_tool_button_input.bind(button, action))
-
-
-func _handle_day_tool_button_input(event: InputEvent, button: BaseButton, action: Callable) -> void:
-	if event is InputEventScreenTouch:
-		var touch := event as InputEventScreenTouch
-		if touch.pressed:
-			_begin_navigation_button_tap(button, touch.position)
-		else:
-			_finish_day_tool_button_tap(button, action, touch.position)
-	elif event is InputEventMouseButton:
-		var mouse_button := event as InputEventMouseButton
-		if mouse_button.button_index != MOUSE_BUTTON_LEFT:
-			return
-		if mouse_button.pressed:
-			_begin_navigation_button_tap(button, mouse_button.position)
-		else:
-			_finish_day_tool_button_tap(button, action, mouse_button.position)
-	elif _event_is_drag_motion(event):
-		_cancel_navigation_button_tap_if_moved(button, _event_pointer_position(event))
-
-
-func _finish_day_tool_button_tap(button: BaseButton, action: Callable, position: Vector2) -> void:
-	var clean_tap := _navigation_button_tap_is_clean(button, position)
-	_clear_navigation_button_tap(button)
-	button.set_pressed_no_signal(false)
-	accept_event()
-
-	if not clean_tap:
-		get_viewport().set_input_as_handled()
-		return
-
-	get_viewport().set_input_as_handled()
-	_run_day_tool_button_action(button, action)
 
 
 func _run_day_tool_button_action(button: BaseButton, action: Callable) -> void:
@@ -3115,7 +3087,7 @@ func _run_day_tool_button_action(button: BaseButton, action: Callable) -> void:
 
 	var now_msec := int(Time.get_ticks_msec())
 	var last_action_msec := int(button.get_meta("day_tool_action_msec", -10000))
-	if now_msec - last_action_msec >= 0 and now_msec - last_action_msec < 160:
+	if now_msec - last_action_msec >= 0 and now_msec - last_action_msec < 800:
 		return
 
 	button.set_meta("day_tool_action_msec", now_msec)
@@ -3869,6 +3841,14 @@ func _format_duration(seconds: int) -> String:
 	var hours := int(seconds / 3600)
 	var minutes := int((seconds % 3600) / 60)
 	return "%dh %02dmin" % [hours, minutes]
+
+
+func _format_countdown(seconds: int) -> String:
+	var safe_seconds: int = maxi(0, seconds)
+	var hours := int(safe_seconds / 3600)
+	var minutes := int((safe_seconds % 3600) / 60)
+	var remaining_seconds := int(safe_seconds % 60)
+	return "%02d:%02d:%02d" % [hours, minutes, remaining_seconds]
 
 
 func _format_unix_time(unix_time: int) -> String:
