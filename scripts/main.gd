@@ -1025,18 +1025,18 @@ func _build_day_tools_panel() -> PanelContainer:
 	timer_stack.size_flags_horizontal = Control.SIZE_SHRINK_END
 	header.add_child(timer_stack)
 
-	work_timer_label = _make_label("Praca --:--:--\nKoniec --:--", 19, COLOR_TEXT_MUTED)
+	work_timer_label = _make_label("Praca --:--:--\nKoniec pracy --:--", 19, COLOR_TEXT_MUTED)
 	work_timer_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	work_timer_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	work_timer_label.custom_minimum_size = Vector2(250, 62)
+	work_timer_label.custom_minimum_size = Vector2(310, 62)
 	work_timer_label.size_flags_horizontal = Control.SIZE_SHRINK_END
 	work_timer_label.visible = true
 	timer_stack.add_child(work_timer_label)
 
-	rest_after_work_label = _make_label("Pauza --:--:--\nStart --:--", 19, Color(0.96, 0.58, 0.22))
+	rest_after_work_label = _make_label("Pauza --:--:--\nKoniec pauzy --:--", 19, Color(0.96, 0.58, 0.22))
 	rest_after_work_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	rest_after_work_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	rest_after_work_label.custom_minimum_size = Vector2(250, 62)
+	rest_after_work_label.custom_minimum_size = Vector2(310, 62)
 	rest_after_work_label.size_flags_horizontal = Control.SIZE_SHRINK_END
 	rest_after_work_label.visible = true
 	timer_stack.add_child(rest_after_work_label)
@@ -1933,10 +1933,10 @@ func _update_work_timer() -> void:
 		return
 
 	if work_start_unix <= 0:
-		work_timer_label.text = "Praca --:--:--\nKoniec --:--"
+		work_timer_label.text = "Praca --:--:--\nKoniec pracy --:--"
 		work_timer_label.visible = true
 		work_timer_label.add_theme_color_override("font_color", COLOR_TEXT_MUTED)
-		rest_after_work_label.text = "Pauza --:--:--\nStart --:--"
+		rest_after_work_label.text = "Pauza --:--:--\nKoniec pauzy --:--"
 		rest_after_work_label.visible = true
 		rest_after_work_label.add_theme_color_override("font_color", Color(0.96, 0.58, 0.22))
 		return
@@ -1948,7 +1948,7 @@ func _update_work_timer() -> void:
 	var rest_remaining_seconds: int = maxi(0, rest_end_unix - rest_count_from_unix)
 	rest_after_work_label.visible = true
 	rest_after_work_label.add_theme_color_override("font_color", Color(0.96, 0.58, 0.22))
-	rest_after_work_label.text = "Pauza %s\nStart %s" % [
+	rest_after_work_label.text = "Pauza %s\nKoniec pauzy %s" % [
 		_format_countdown(rest_remaining_seconds),
 		_format_unix_clock(rest_end_unix),
 	]
@@ -1964,7 +1964,7 @@ func _update_work_timer() -> void:
 	var end_clock := _format_unix_clock(limit_end_unix)
 	work_timer_label.visible = true
 	work_timer_label.add_theme_color_override("font_color", Color(0.62, 0.92, 0.64))
-	work_timer_label.text = "Praca %s\nKoniec %s" % [remaining_text, end_clock]
+	work_timer_label.text = "Praca %s\nKoniec pracy %s" % [remaining_text, end_clock]
 
 	if work_status_label != null:
 		work_status_label.text = "Praca rozpoczęta: %s. Limit 15h kończy się: %s. Zostało: %s." % [
