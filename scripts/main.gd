@@ -267,7 +267,7 @@ func _process(_delta: float) -> void:
 	_remove_legacy_cycle_settings_menu()
 	var now_msec := int(Time.get_ticks_msec())
 	if now_msec >= work_timer_next_update_msec:
-		work_timer_next_update_msec = now_msec + 15000
+		work_timer_next_update_msec = now_msec + 1000
 		_update_work_timer()
 
 
@@ -1044,14 +1044,14 @@ func _build_day_tools_panel() -> PanelContainer:
 	day_tools_body.add_child(buttons)
 
 	var start_button := Button.new()
-	start_button.text = "Rozpocząłem pracę"
-	_connect_tap(start_button, Callable(self, "_on_start_work_pressed"))
+	start_button.text = "Rozpocznij pracę"
+	_connect_day_tool_tap(start_button, Callable(self, "_on_start_work_pressed"))
 	_prepare_control(start_button, 21, 58)
 	buttons.add_child(start_button)
 
 	var end_button := Button.new()
-	end_button.text = "Zakończyłem pracę"
-	_connect_tap(end_button, Callable(self, "_on_end_work_pressed"))
+	end_button.text = "Zakończ pracę"
+	_connect_day_tool_tap(end_button, Callable(self, "_on_end_work_pressed"))
 	_prepare_control(end_button, 21, 58)
 	buttons.add_child(end_button)
 
@@ -1073,7 +1073,7 @@ func _build_day_tools_panel() -> PanelContainer:
 	var pause_button := Button.new()
 	pause_button.text = "Rozpocznij pauzę"
 	pause_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_connect_tap(pause_button, Callable(self, "_on_start_pause_pressed"))
+	_connect_day_tool_tap(pause_button, Callable(self, "_on_start_pause_pressed"))
 	_prepare_control(pause_button, 20, 56)
 	pause_row.add_child(pause_button)
 
@@ -1933,10 +1933,10 @@ func _update_work_timer() -> void:
 	var remaining_text := _format_duration(remaining_seconds)
 	var end_clock := _format_unix_clock(limit_end_unix)
 	work_timer_label.visible = true
-	work_timer_label.text = "zost. %s\nkoniec %s" % [remaining_text, end_clock]
+	work_timer_label.text = "Praca %s\nKoniec %s" % [remaining_text, end_clock]
 
 	if work_status_label != null:
-		work_status_label.text = "Start pracy: %s. Limit 15h kończy się: %s. Zostało: %s." % [
+		work_status_label.text = "Praca rozpoczęta: %s. Limit 15h kończy się: %s. Zostało: %s." % [
 			_format_unix_time(work_start_unix),
 			_format_unix_time(limit_end_unix),
 			remaining_text,
@@ -3064,6 +3064,62 @@ func _connect_tap(button: BaseButton, action: Callable) -> void:
 			return
 		action.call()
 	)
+
+
+func _connect_day_tool_tap(button: BaseButton, action: Callable) -> void:
+	_register_scroll_safe_control(button)
+	button.mouse_filter = Control.MOUSE_FILTER_STOP
+	button.action_mode = BaseButton.ACTION_MODE_BUTTON_RELEASE
+	button.pressed.connect(func() -> void:
+		_run_day_tool_button_action(button, action)
+	)
+	button.gui_input.connect(_handle_day_tool_button_input.bind(button, action))
+
+
+func _handle_day_tool_button_input(event: InputEvent, button: BaseButton, action: Callable) -> void:
+	if event is InputEventScreenTouch:
+		var touch := event as InputEventScreenTouch
+		if touch.pressed:
+			_begin_navigation_button_tap(button, touch.position)
+		else:
+			_finish_day_tool_button_tap(button, action, touch.position)
+	elif event is InputEventMouseButton:
+		var mouse_button := event as InputEventMouseButton
+		if mouse_button.button_index != MOUSE_BUTTON_LEFT:
+			return
+		if mouse_button.pressed:
+			_begin_navigation_button_tap(button, mouse_button.position)
+		else:
+			_finish_day_tool_button_tap(button, action, mouse_button.position)
+	elif _event_is_drag_motion(event):
+		_cancel_navigation_button_tap_if_moved(button, _event_pointer_position(event))
+
+
+func _finish_day_tool_button_tap(button: BaseButton, action: Callable, position: Vector2) -> void:
+	var clean_tap := _navigation_button_tap_is_clean(button, position)
+	_clear_navigation_button_tap(button)
+	button.set_pressed_no_signal(false)
+	accept_event()
+
+	if not clean_tap:
+		get_viewport().set_input_as_handled()
+		return
+
+	get_viewport().set_input_as_handled()
+	_run_day_tool_button_action(button, action)
+
+
+func _run_day_tool_button_action(button: BaseButton, action: Callable) -> void:
+	if not is_instance_valid(button):
+		return
+
+	var now_msec := int(Time.get_ticks_msec())
+	var last_action_msec := int(button.get_meta("day_tool_action_msec", -10000))
+	if now_msec - last_action_msec >= 0 and now_msec - last_action_msec < 160:
+		return
+
+	button.set_meta("day_tool_action_msec", now_msec)
+	action.call()
 
 
 func _connect_navigation_tap(button: BaseButton, action: Callable) -> void:
