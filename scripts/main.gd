@@ -1084,17 +1084,19 @@ func _build_day_tools_panel() -> PanelContainer:
 	pause_option.add_item("11h")
 	pause_option.add_item("24h")
 	pause_option.add_item("45h")
+	pause_option.add_item("48h")
 	_set_option_selected(pause_option, 0)
 	pause_option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	pause_option.item_selected.connect(_on_pause_selected)
-	_prepare_control(pause_option, 20, 56)
+	_prepare_control(pause_option, 23, 66)
+	_prepare_pause_dropdown(pause_option)
 	pause_row.add_child(pause_option)
 
 	var pause_button := Button.new()
 	pause_button.text = "Rozpocznij pauzę"
 	pause_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_connect_day_tool_tap(pause_button, Callable(self, "_on_start_pause_pressed"))
-	_prepare_control(pause_button, 20, 56)
+	_prepare_control(pause_button, 22, 66)
 	pause_row.add_child(pause_button)
 
 	pause_result_label = _make_label("", 19, Color(0.62, 0.92, 0.64))
@@ -2927,13 +2929,15 @@ func _tile_badge_font_size() -> int:
 
 
 func _selected_pause_hours() -> int:
-	match pause_option.selected:
-		1:
-			return 11
-		2:
-			return 24
-		3:
-			return 45
+	if pause_option == null:
+		return 9
+	if pause_option.selected < 0 or pause_option.selected >= pause_option.get_item_count():
+		return 9
+
+	var selected_text := pause_option.get_item_text(pause_option.selected).replace("h", "").strip_edges()
+	if selected_text.is_valid_int():
+		return maxi(1, int(selected_text))
+
 	return 9
 
 
@@ -3108,6 +3112,15 @@ func _prepare_large_dropdown(option: OptionButton) -> void:
 	popup.add_theme_constant_override("v_separation", 14)
 	popup.add_theme_constant_override("item_start_padding", 18)
 	popup.add_theme_constant_override("item_end_padding", 18)
+
+
+func _prepare_pause_dropdown(option: OptionButton) -> void:
+	var popup := option.get_popup()
+	popup.min_size = Vector2i(360, 360)
+	popup.add_theme_font_size_override("font_size", 28)
+	popup.add_theme_constant_override("v_separation", 22)
+	popup.add_theme_constant_override("item_start_padding", 24)
+	popup.add_theme_constant_override("item_end_padding", 24)
 
 
 func _option_change_was_scroll(option: OptionButton, index: int) -> bool:
