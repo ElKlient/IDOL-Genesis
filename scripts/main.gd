@@ -61,6 +61,7 @@ const PROFILE_PANEL_WIDTH := 230
 const PROFILE_PANEL_HEIGHT := 350
 const DEFAULT_PROFILE_COUNT := 3
 const TEST_WORK_LIMIT_SECONDS := 15 * 3600
+const TEST_REST_AFTER_WORK_SECONDS := 9 * 3600
 const LEGACY_CYCLE_MENU_CLEANUP_MAX_CHECKS := 90
 const LEGACY_CYCLE_MENU_MARKERS := [
 	"Jakim systemem",
@@ -131,6 +132,7 @@ var custom_length_spin: SpinBox
 var error_label: Label
 var work_status_label: Label
 var work_timer_label: Label
+var rest_after_work_label: Label
 var pause_option: OptionButton
 var pause_result_label: Label
 var day_action_dialog: AcceptDialog
@@ -1018,13 +1020,26 @@ func _build_day_tools_panel() -> PanelContainer:
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header.add_child(title)
 
+	var timer_stack := VBoxContainer.new()
+	timer_stack.add_theme_constant_override("separation", 2)
+	timer_stack.size_flags_horizontal = Control.SIZE_SHRINK_END
+	header.add_child(timer_stack)
+
 	work_timer_label = _make_label("Praca --:--:--\nKoniec --:--", 19, COLOR_TEXT_MUTED)
 	work_timer_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	work_timer_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	work_timer_label.custom_minimum_size = Vector2(250, 62)
 	work_timer_label.size_flags_horizontal = Control.SIZE_SHRINK_END
 	work_timer_label.visible = true
-	header.add_child(work_timer_label)
+	timer_stack.add_child(work_timer_label)
+
+	rest_after_work_label = _make_label("Pauza --:--:--\nStart --:--", 19, Color(0.96, 0.58, 0.22))
+	rest_after_work_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	rest_after_work_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	rest_after_work_label.custom_minimum_size = Vector2(250, 62)
+	rest_after_work_label.size_flags_horizontal = Control.SIZE_SHRINK_END
+	rest_after_work_label.visible = true
+	timer_stack.add_child(rest_after_work_label)
 
 	day_tools_toggle = CheckButton.new()
 	day_tools_toggle.text = ""
@@ -1914,14 +1929,29 @@ func _restore_work_panel_text() -> void:
 
 
 func _update_work_timer() -> void:
-	if work_timer_label == null:
+	if work_timer_label == null or rest_after_work_label == null:
 		return
 
 	if work_start_unix <= 0:
 		work_timer_label.text = "Praca --:--:--\nKoniec --:--"
 		work_timer_label.visible = true
 		work_timer_label.add_theme_color_override("font_color", COLOR_TEXT_MUTED)
+		rest_after_work_label.text = "Pauza --:--:--\nStart --:--"
+		rest_after_work_label.visible = true
+		rest_after_work_label.add_theme_color_override("font_color", Color(0.96, 0.58, 0.22))
 		return
+
+	var now_unix := int(Time.get_unix_time_from_system())
+	var limit_end_unix := work_start_unix + TEST_WORK_LIMIT_SECONDS
+	var rest_end_unix := limit_end_unix + TEST_REST_AFTER_WORK_SECONDS
+	var rest_count_from_unix: int = maxi(now_unix, limit_end_unix)
+	var rest_remaining_seconds: int = maxi(0, rest_end_unix - rest_count_from_unix)
+	rest_after_work_label.visible = true
+	rest_after_work_label.add_theme_color_override("font_color", Color(0.96, 0.58, 0.22))
+	rest_after_work_label.text = "Pauza %s\nStart %s" % [
+		_format_countdown(rest_remaining_seconds),
+		_format_unix_clock(rest_end_unix),
+	]
 
 	if work_end_unix > 0:
 		work_timer_label.text = "Praca zakończona\n%s" % _format_unix_clock(work_end_unix)
@@ -1929,8 +1959,6 @@ func _update_work_timer() -> void:
 		work_timer_label.add_theme_color_override("font_color", COLOR_TEXT_MUTED)
 		return
 
-	var now_unix := int(Time.get_unix_time_from_system())
-	var limit_end_unix := work_start_unix + TEST_WORK_LIMIT_SECONDS
 	var remaining_seconds: int = maxi(0, limit_end_unix - now_unix)
 	var remaining_text := _format_countdown(remaining_seconds)
 	var end_clock := _format_unix_clock(limit_end_unix)
