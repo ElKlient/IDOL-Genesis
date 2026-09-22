@@ -60,6 +60,7 @@ const PROFILE_BUTTON_WIDTH := 142
 const PROFILE_PANEL_WIDTH := 230
 const PROFILE_PANEL_HEIGHT := 350
 const DEFAULT_PROFILE_COUNT := 3
+const TEST_WORK_LIMIT_SECONDS := 15 * 3600
 const LEGACY_CYCLE_MENU_CLEANUP_MAX_CHECKS := 90
 const LEGACY_CYCLE_MENU_MARKERS := [
 	"Jakim systemem",
@@ -129,6 +130,7 @@ var custom_panel: PanelContainer
 var custom_length_spin: SpinBox
 var error_label: Label
 var work_status_label: Label
+var work_timer_label: Label
 var pause_option: OptionButton
 var pause_result_label: Label
 var day_action_dialog: AcceptDialog
@@ -185,6 +187,7 @@ var shield_touch_tracking := false
 var shield_touch_dragged := false
 var legacy_cycle_menu_removed := false
 var legacy_cycle_menu_cleanup_checks := 0
+var work_timer_next_update_msec := 0
 
 
 func _ready() -> void:
@@ -262,6 +265,10 @@ func _process(_delta: float) -> void:
 	_sync_calendar_touch_shield()
 	_restore_unapproved_calendar_page()
 	_remove_legacy_cycle_settings_menu()
+	var now_msec := int(Time.get_ticks_msec())
+	if now_msec >= work_timer_next_update_msec:
+		work_timer_next_update_msec = now_msec + 15000
+		_update_work_timer()
 
 
 func _force_portrait() -> void:
@@ -1010,6 +1017,14 @@ func _build_day_tools_panel() -> PanelContainer:
 	var title := _make_section_label("Dzień pracy i pauza")
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header.add_child(title)
+
+	work_timer_label = _make_label("", 14, Color(0.62, 0.92, 0.64))
+	work_timer_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	work_timer_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	work_timer_label.custom_minimum_size = Vector2(166, 48)
+	work_timer_label.size_flags_horizontal = Control.SIZE_SHRINK_END
+	work_timer_label.visible = false
+	header.add_child(work_timer_label)
 
 	day_tools_toggle = CheckButton.new()
 	day_tools_toggle.text = ""
@@ -1894,7 +1909,38 @@ func _restore_work_panel_text() -> void:
 			_format_unix_time(work_end_unix),
 		]
 
+	_update_work_timer()
 	_update_pause_result()
+
+
+func _update_work_timer() -> void:
+	if work_timer_label == null:
+		return
+
+	if work_start_unix <= 0:
+		work_timer_label.text = ""
+		work_timer_label.visible = false
+		return
+
+	if work_end_unix > 0:
+		work_timer_label.text = ""
+		work_timer_label.visible = false
+		return
+
+	var now_unix := int(Time.get_unix_time_from_system())
+	var limit_end_unix := work_start_unix + TEST_WORK_LIMIT_SECONDS
+	var remaining_seconds: int = maxi(0, limit_end_unix - now_unix)
+	var remaining_text := _format_duration(remaining_seconds)
+	var end_clock := _format_unix_clock(limit_end_unix)
+	work_timer_label.visible = true
+	work_timer_label.text = "zost. %s\nkoniec %s" % [remaining_text, end_clock]
+
+	if work_status_label != null:
+		work_status_label.text = "Start pracy: %s. Limit 15h kończy się: %s. Zostało: %s." % [
+			_format_unix_time(work_start_unix),
+			_format_unix_time(limit_end_unix),
+			remaining_text,
+		]
 
 
 func _adopt_manual_cycle_from_overrides() -> void:
@@ -1988,6 +2034,7 @@ func _reset_calendar_settings() -> void:
 	work_end_unix = 0
 	pause_start_unix = 0
 	work_status_label.text = "Tu później aplikacja policzy czas pracy."
+	_update_work_timer()
 	pause_result_label.text = ""
 
 	weekly_rest_toggle.set_pressed_no_signal(true)
@@ -3779,6 +3826,11 @@ func _format_unix_time(unix_time: int) -> String:
 	]
 
 
+func _format_unix_clock(unix_time: int) -> String:
+	var date := Time.get_datetime_dict_from_unix_time(unix_time + _system_utc_offset_seconds())
+	return "%02d:%02d" % [int(date["hour"]), int(date["minute"])]
+
+
 func _system_utc_offset_seconds() -> int:
 	var local_now := Time.get_datetime_dict_from_system(false)
 	var utc_now := Time.get_datetime_dict_from_system(true)
@@ -3828,7 +3880,7 @@ func _on_start_work_pressed() -> void:
 	work_start_unix = int(Time.get_unix_time_from_system())
 	work_end_unix = 0
 	pause_start_unix = 0
-	work_status_label.text = "Start pracy: %s" % _format_unix_time(work_start_unix)
+	_update_work_timer()
 	_update_pause_result()
 	_save_settings_to_disk()
 
@@ -3846,6 +3898,7 @@ func _on_end_work_pressed() -> void:
 		_format_duration(worked_seconds),
 		_format_unix_time(work_end_unix),
 	]
+	_update_work_timer()
 	_update_pause_result()
 	_save_settings_to_disk()
 
