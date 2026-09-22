@@ -2020,7 +2020,7 @@ func _show_pause_timer(now_unix: int) -> void:
 	var pause_end_unix := pause_start_unix + pause_hours * 3600
 	var pause_remaining_seconds: int = maxi(0, pause_end_unix - now_unix)
 	rest_after_work_label.visible = true
-	rest_after_work_label.add_theme_color_override("font_color", Color(0.96, 0.58, 0.22))
+	rest_after_work_label.add_theme_color_override("font_color", Color(0.62, 0.92, 0.64))
 	rest_after_work_label.text = "Pauza %dh %s\nKoniec pauzy %s" % [
 		pause_hours,
 		_format_countdown(pause_remaining_seconds),
