@@ -1135,6 +1135,10 @@ func _build_day_tools_panel() -> PanelContainer:
 	monthly_work_total_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	monthly_work_total_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	day_tools_body.add_child(monthly_work_total_label)
+
+	var clear_month_hours_button := _action_button("Usuń godziny z miesiąca", Color(0.58, 0.26, 0.26, 0.88))
+	_connect_day_tool_tap(clear_month_hours_button, Callable(self, "_open_clear_month_hours_dialog"))
+	day_tools_body.add_child(clear_month_hours_button)
 	_update_work_hours_panel()
 
 	work_status_label = _make_label("Tu później aplikacja policzy czas pracy.", 18, COLOR_TEXT_MUTED)
@@ -1193,10 +1197,6 @@ func _build_day_action_dialog() -> void:
 	var clear_hours_button := _action_button("Skasuj godziny tego dnia", Color(0.54, 0.43, 0.26, 0.88))
 	_connect_day_tool_tap(clear_hours_button, Callable(self, "_open_clear_day_hours_dialog"))
 	box.add_child(clear_hours_button)
-
-	var clear_month_button := _action_button("Usuń godziny z miesiąca", Color(0.58, 0.26, 0.26, 0.88))
-	_connect_day_tool_tap(clear_month_button, Callable(self, "_open_clear_month_hours_dialog"))
-	box.add_child(clear_month_button)
 
 	var set_work := _action_button("Praca", COLOR_WORK)
 	_connect_tap(set_work, Callable(self, "_set_selected_day_state").bind(ScheduleCalculator.DayState.WORK))
@@ -2781,18 +2781,16 @@ func _open_clear_month_hours_dialog() -> void:
 	if clear_month_hours_dialog == null:
 		return
 
-	var year := selected_day_year if selected_day_year > 0 else current_year
-	var month := selected_day_month if selected_day_month > 0 else current_month
 	clear_month_hours_dialog.dialog_text = "Czy na pewno chcesz usunąć wszystkie godziny z miesiąca %s %d?" % [
-		MONTH_NAMES[clampi(month, 1, 12) - 1],
-		year,
+		MONTH_NAMES[clampi(current_month, 1, 12) - 1],
+		current_year,
 	]
 	clear_month_hours_dialog.popup_centered()
 
 
 func _confirm_clear_selected_month_hours() -> void:
-	var year := selected_day_year if selected_day_year > 0 else current_year
-	var month := selected_day_month if selected_day_month > 0 else current_month
+	var year := current_year
+	var month := current_month
 	if _worked_seconds_for_month(year, month) <= 0:
 		_update_selected_day_hours_label()
 		return
