@@ -137,6 +137,7 @@ var pause_option: OptionButton
 var pause_result_label: Label
 var day_action_dialog: AcceptDialog
 var work_finish_dialog: ConfirmationDialog
+var pause_clear_dialog: ConfirmationDialog
 var note_dialog: ConfirmationDialog
 var note_edit: TextEdit
 
@@ -456,6 +457,7 @@ func _build_ui() -> void:
 
 	_build_day_action_dialog()
 	_build_work_finish_dialog()
+	_build_pause_clear_dialog()
 	_build_note_dialog()
 
 
@@ -1099,6 +1101,12 @@ func _build_day_tools_panel() -> PanelContainer:
 	_prepare_control(pause_button, 22, 66)
 	pause_row.add_child(pause_button)
 
+	var clear_pause_button := Button.new()
+	clear_pause_button.text = "Kasuj czas"
+	_connect_day_tool_tap(clear_pause_button, Callable(self, "_on_clear_pause_pressed"))
+	_prepare_control(clear_pause_button, 20, 56)
+	day_tools_body.add_child(clear_pause_button)
+
 	pause_result_label = _make_label("", 19, Color(0.62, 0.92, 0.64))
 	pause_result_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	pause_result_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
@@ -1212,6 +1220,23 @@ func _build_work_finish_dialog() -> void:
 	_prepare_control(ok_button, 18, 48)
 
 	var cancel_button := work_finish_dialog.get_cancel_button()
+	cancel_button.text = "Nie"
+	_prepare_control(cancel_button, 18, 48)
+
+
+func _build_pause_clear_dialog() -> void:
+	pause_clear_dialog = ConfirmationDialog.new()
+	pause_clear_dialog.title = "Kasuj czas"
+	pause_clear_dialog.dialog_text = "Czy na pewno chcesz skasować czas pauzy?"
+	pause_clear_dialog.confirmed.connect(_confirm_clear_pause_time)
+	pause_clear_dialog.add_theme_stylebox_override("panel", _dialog_style())
+	add_child(pause_clear_dialog)
+
+	var ok_button := pause_clear_dialog.get_ok_button()
+	ok_button.text = "Tak"
+	_prepare_control(ok_button, 18, 48)
+
+	var cancel_button := pause_clear_dialog.get_cancel_button()
 	cancel_button.text = "Nie"
 	_prepare_control(cancel_button, 18, 48)
 
@@ -4053,6 +4078,27 @@ func _on_start_pause_pressed() -> void:
 	_capture_undo_state()
 	pause_start_unix = int(Time.get_unix_time_from_system())
 	_update_work_timer()
+	_update_pause_result()
+	_save_settings_to_disk()
+
+
+func _on_clear_pause_pressed() -> void:
+	if pause_start_unix <= 0:
+		return
+
+	if pause_clear_dialog != null:
+		pause_clear_dialog.popup_centered()
+		return
+
+	_confirm_clear_pause_time()
+
+
+func _confirm_clear_pause_time() -> void:
+	if pause_start_unix <= 0:
+		return
+
+	_capture_undo_state()
+	pause_start_unix = 0
 	_update_pause_result()
 	_save_settings_to_disk()
 
