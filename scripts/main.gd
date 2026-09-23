@@ -37,7 +37,7 @@ const COLOR_VACATION := Color(0.40, 0.48, 0.58, 0.86)
 const PORTRAIT_WIDTH := 640
 const TILE_COLUMNS := 7
 const SETTINGS_PATH := "user://driver_calendar.cfg"
-const TOUCH_DRAG_CANCEL_DISTANCE := 8.0
+const TOUCH_DRAG_CANCEL_DISTANCE := 14.0
 const TAP_BLOCK_AFTER_DRAG_MS := 450
 const NAVIGATION_TAP_MAX_MS := 900
 const NAVIGATION_TAP_MOVE_LIMIT := 12.0
@@ -949,21 +949,9 @@ func _sync_calendar_touch_shield() -> void:
 		calendar_touch_shield.size = viewport_rect.size
 		calendar_touch_shield.visible = true
 		return
-	if months_box == null or not is_instance_valid(months_box):
-		calendar_touch_shield.visible = false
-		return
-	if calendar_root == null or not is_instance_valid(calendar_root) or not calendar_root.visible:
-		calendar_touch_shield.visible = false
-		return
 
-	var rect := months_box.get_global_rect()
-	if rect.size.x <= 1.0 or rect.size.y <= 1.0:
-		calendar_touch_shield.visible = false
-		return
-
-	calendar_touch_shield.position = rect.position
-	calendar_touch_shield.size = rect.size
-	calendar_touch_shield.visible = true
+	calendar_touch_shield.visible = false
+	return
 
 
 func _register_day_touch_target(button: Button, year: int, month: int, day: int) -> void:
@@ -2678,14 +2666,27 @@ func _tile_label(text: String, font_size: int, color: Color) -> Label:
 
 
 func _open_day_actions(year: int, month: int, day: int) -> void:
+	_select_day(year, month, day)
+	day_action_dialog.title = selected_day_key
+	_update_selected_day_hours_label()
+	day_action_dialog.popup_centered()
+
+
+func _select_day(year: int, month: int, day: int) -> void:
 	selected_day_year = year
 	selected_day_month = month
 	selected_day_number = day
 	selected_day_key = _date_key(year, month, day)
 	selected_day_index = ScheduleCalculator.day_index_from_date(year, month, day)
-	day_action_dialog.title = selected_day_key
-	_update_selected_day_hours_label()
-	day_action_dialog.popup_centered()
+
+
+func _select_day_from_key(day_key: String) -> void:
+	var parsed := ScheduleCalculator.parse_date(day_key)
+	if parsed.is_empty():
+		selected_day_key = day_key
+		return
+
+	_select_day(int(parsed["year"]), int(parsed["month"]), int(parsed["day"]))
 
 
 func _update_selected_day_hours_label() -> void:
@@ -2730,6 +2731,7 @@ func _confirm_add_manual_hours() -> void:
 	_capture_undo_state()
 	_add_worked_seconds_for_day_key(target_key, seconds)
 	show_worked_hours = true
+	_select_day_from_key(target_key)
 	_update_selected_day_hours_label()
 	_update_work_hours_panel()
 	_rebuild_calendar()
@@ -2872,7 +2874,11 @@ func _clear_selected_day_override() -> void:
 
 
 func _manual_cycle_setup_active() -> bool:
-	return not main_view_saved and (schedule_option == null or schedule_option.selected == 0 or _is_custom_schedule())
+	if main_view_saved:
+		return false
+	if not (schedule_option == null or schedule_option.selected == 0 or _is_custom_schedule()):
+		return false
+	return cycle_pending_apply or calculator.mode == "none"
 
 
 func _should_adopt_manual_cycle_from_overrides() -> bool:
@@ -4489,6 +4495,8 @@ func _save_worked_seconds_for_day(start_unix: int, duration_seconds: int) -> voi
 
 func _add_worked_seconds_for_day_key(day_key: String, duration_seconds: int) -> void:
 	if day_key.is_empty() or duration_seconds <= 0:
+		return
+	if ScheduleCalculator.parse_date(day_key).is_empty():
 		return
 
 	worked_seconds_by_day[day_key] = int(worked_seconds_by_day.get(day_key, 0)) + duration_seconds
