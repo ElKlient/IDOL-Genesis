@@ -135,6 +135,8 @@ var work_timer_label: Label
 var rest_after_work_label: Label
 var pause_option: OptionButton
 var pause_result_label: Label
+var work_hours_toggle_button: Button
+var monthly_work_total_label: Label
 var day_action_dialog: AcceptDialog
 var work_finish_dialog: ConfirmationDialog
 var pause_clear_dialog: ConfirmationDialog
@@ -144,6 +146,7 @@ var note_edit: TextEdit
 var custom_pattern: Array[int] = []
 var manual_overrides: Dictionary = {}
 var notes: Dictionary = {}
+var worked_seconds_by_day: Dictionary = {}
 var selected_day_key: String = ""
 var selected_day_index: int = 0
 var selected_day_year: int = 0
@@ -164,6 +167,7 @@ var main_view_saved := false
 var calendar_only_mode := false
 var cycle_pending_apply := false
 var day_tools_visible := true
+var show_worked_hours := true
 var quick_navigation_body_visible := true
 var reset_undo_available := false
 var reset_undo_snapshot: Dictionary = {}
@@ -1101,17 +1105,28 @@ func _build_day_tools_panel() -> PanelContainer:
 	_prepare_control(pause_button, 22, 66)
 	pause_row.add_child(pause_button)
 
+	pause_result_label = _make_label("", 19, Color(0.62, 0.92, 0.64))
+	pause_result_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	pause_result_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	pause_result_label.visible = false
+	day_tools_body.add_child(pause_result_label)
+
 	var clear_pause_button := Button.new()
 	clear_pause_button.text = "Kasuj czas"
 	_connect_day_tool_tap(clear_pause_button, Callable(self, "_on_clear_pause_pressed"))
 	_prepare_control(clear_pause_button, 20, 56)
 	day_tools_body.add_child(clear_pause_button)
 
-	pause_result_label = _make_label("", 19, Color(0.62, 0.92, 0.64))
-	pause_result_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	pause_result_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	pause_result_label.visible = false
-	day_tools_body.add_child(pause_result_label)
+	work_hours_toggle_button = Button.new()
+	_connect_day_tool_tap(work_hours_toggle_button, Callable(self, "_on_toggle_work_hours_pressed"))
+	_prepare_control(work_hours_toggle_button, 20, 56)
+	day_tools_body.add_child(work_hours_toggle_button)
+
+	monthly_work_total_label = _make_label("", 19, COLOR_TEXT)
+	monthly_work_total_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	monthly_work_total_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	day_tools_body.add_child(monthly_work_total_label)
+	_update_work_hours_panel()
 
 	work_status_label = _make_label("Tu później aplikacja policzy czas pracy.", 18, COLOR_TEXT_MUTED)
 	work_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -1210,7 +1225,7 @@ func _build_note_dialog() -> void:
 func _build_work_finish_dialog() -> void:
 	work_finish_dialog = ConfirmationDialog.new()
 	work_finish_dialog.title = "Zakończ pracę"
-	work_finish_dialog.dialog_text = "Czy na pewno chcesz zakończyć i zapisać?"
+	work_finish_dialog.dialog_text = "Czy na pewno chcesz zakończyć pracę i zapisać godziny?"
 	work_finish_dialog.confirmed.connect(_confirm_end_work)
 	work_finish_dialog.add_theme_stylebox_override("panel", _dialog_style())
 	add_child(work_finish_dialog)
@@ -1505,6 +1520,7 @@ func _save_settings_to_disk() -> void:
 	config.set_value("ui", "calendar_only_mode", calendar_only_mode)
 	config.set_value("ui", "cycle_pending_apply", cycle_pending_apply)
 	config.set_value("ui", "day_tools_visible", day_tools_visible)
+	config.set_value("ui", "show_worked_hours", show_worked_hours)
 	config.set_value("ui", "quick_navigation_body_visible", quick_navigation_body_visible)
 	config.set_value("undo", "available", undo_available)
 	config.set_value("undo", "snapshot", undo_snapshot.duplicate(true))
@@ -1527,6 +1543,7 @@ func _save_settings_to_disk() -> void:
 	config.set_value("calendar", "custom_pattern", custom_pattern.duplicate())
 	config.set_value("calendar", "manual_overrides", manual_overrides.duplicate(true))
 	config.set_value("calendar", "notes", notes.duplicate(true))
+	config.set_value("calendar", "worked_seconds_by_day", worked_seconds_by_day.duplicate(true))
 	config.set_value("work", "start_unix", work_start_unix)
 	config.set_value("work", "end_unix", work_end_unix)
 	config.set_value("work", "pause_start_unix", pause_start_unix)
@@ -1550,6 +1567,7 @@ func _load_settings_from_disk() -> void:
 		main_view_saved = true
 	cycle_pending_apply = bool(config.get_value("ui", "cycle_pending_apply", false))
 	day_tools_visible = bool(config.get_value("ui", "day_tools_visible", true))
+	show_worked_hours = bool(config.get_value("ui", "show_worked_hours", true))
 	quick_navigation_body_visible = bool(config.get_value("ui", "quick_navigation_body_visible", true))
 	_apply_quick_navigation_body_visibility()
 	undo_available = bool(config.get_value("undo", "available", false))
@@ -1587,6 +1605,7 @@ func _load_settings_from_disk() -> void:
 	_load_custom_pattern(config.get_value("calendar", "custom_pattern", []))
 	_load_dictionary_as_ints(manual_overrides, config.get_value("calendar", "manual_overrides", {}))
 	_load_dictionary_as_strings(notes, config.get_value("calendar", "notes", {}))
+	_load_dictionary_as_ints(worked_seconds_by_day, config.get_value("calendar", "worked_seconds_by_day", {}))
 
 	work_start_unix = int(config.get_value("work", "start_unix", 0))
 	work_end_unix = int(config.get_value("work", "end_unix", 0))
@@ -1594,6 +1613,7 @@ func _load_settings_from_disk() -> void:
 	last_work_duration_seconds = int(config.get_value("work", "last_duration_seconds", 0))
 	last_work_end_unix = int(config.get_value("work", "last_end_unix", 0))
 	_restore_work_panel_text()
+	_update_work_hours_panel()
 	_apply_day_tools_visibility()
 
 
@@ -1895,6 +1915,7 @@ func _calendar_state_snapshot() -> Dictionary:
 		"calendar_only_mode": calendar_only_mode,
 		"cycle_pending_apply": cycle_pending_apply,
 		"day_tools_visible": day_tools_visible,
+		"show_worked_hours": show_worked_hours,
 		"quick_navigation_body_visible": quick_navigation_body_visible,
 		"settings_visible": settings_panel != null and settings_panel.visible,
 		"current_year": current_year,
@@ -1911,6 +1932,7 @@ func _calendar_state_snapshot() -> Dictionary:
 		"custom_pattern": custom_pattern.duplicate(),
 		"manual_overrides": manual_overrides.duplicate(true),
 		"notes": notes.duplicate(true),
+		"worked_seconds_by_day": worked_seconds_by_day.duplicate(true),
 		"work_start_unix": work_start_unix,
 		"work_end_unix": work_end_unix,
 		"pause_start_unix": pause_start_unix,
@@ -1927,6 +1949,7 @@ func _restore_calendar_state(snapshot: Dictionary) -> void:
 		main_view_saved = true
 	cycle_pending_apply = bool(snapshot.get("cycle_pending_apply", false))
 	day_tools_visible = bool(snapshot.get("day_tools_visible", true))
+	show_worked_hours = bool(snapshot.get("show_worked_hours", true))
 	quick_navigation_body_visible = bool(snapshot.get("quick_navigation_body_visible", true))
 	_apply_quick_navigation_body_visibility()
 	current_year = int(snapshot.get("current_year", current_year))
@@ -1954,6 +1977,7 @@ func _restore_calendar_state(snapshot: Dictionary) -> void:
 	_load_custom_pattern(snapshot.get("custom_pattern", []))
 	_load_dictionary_as_ints(manual_overrides, snapshot.get("manual_overrides", {}))
 	_load_dictionary_as_strings(notes, snapshot.get("notes", {}))
+	_load_dictionary_as_ints(worked_seconds_by_day, snapshot.get("worked_seconds_by_day", {}))
 
 	work_start_unix = int(snapshot.get("work_start_unix", 0))
 	work_end_unix = int(snapshot.get("work_end_unix", 0))
@@ -1961,6 +1985,7 @@ func _restore_calendar_state(snapshot: Dictionary) -> void:
 	last_work_duration_seconds = int(snapshot.get("last_work_duration_seconds", 0))
 	last_work_end_unix = int(snapshot.get("last_work_end_unix", 0))
 	_restore_work_panel_text()
+	_update_work_hours_panel()
 	if not _apply_settings(false, false):
 		_rebuild_calendar()
 	_apply_main_view_mode(main_view_saved)
@@ -2150,6 +2175,7 @@ func _reset_calendar_settings() -> void:
 	last_work_end_unix = 0
 	work_status_label.text = "Tu później aplikacja policzy czas pracy."
 	_update_work_timer()
+	_update_work_hours_panel()
 	pause_result_label.visible = false
 	pause_result_label.text = ""
 
@@ -2268,6 +2294,7 @@ func _rebuild_calendar() -> void:
 		if month > 12:
 			month = 1
 			year += 1
+	_update_work_hours_panel()
 	_lock_horizontal_scroll_deferred()
 	call_deferred("_sync_calendar_touch_shield")
 
@@ -2433,7 +2460,7 @@ func _make_day_cell(year: int, month: int, day: int, day_index: int, state: int,
 	button.add_theme_stylebox_override("hover", _tile_style(_state_color(state).lightened(0.08), is_today, is_vacation))
 	button.add_theme_stylebox_override("pressed", _tile_style(_state_color(state).darkened(0.09), is_today, is_vacation))
 	button.add_theme_stylebox_override("focus", _tile_style(_state_color(state), true, is_vacation))
-	_fill_day_tile(button, day, day_index, state, notes.has(key), is_today)
+	_fill_day_tile(button, key, day, day_index, state, notes.has(key), is_today)
 	if _range_months() == 1:
 		_connect_tap(button, Callable(self, "_open_day_actions").bind(year, month, day))
 	else:
@@ -2451,7 +2478,7 @@ func _make_day_spacer() -> Control:
 	return spacer
 
 
-func _fill_day_tile(button: Button, day: int, day_index: int, state: int, has_note: bool, is_today: bool) -> void:
+func _fill_day_tile(button: Button, key: String, day: int, day_index: int, state: int, has_note: bool, is_today: bool) -> void:
 	var margin := MarginContainer.new()
 	margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	margin.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -2479,6 +2506,11 @@ func _fill_day_tile(button: Button, day: int, day_index: int, state: int, has_no
 		box.add_child(_tile_label(state_name, _tile_badge_font_size(), COLOR_TEXT))
 	elif has_note:
 		box.add_child(_tile_label("not.", _tile_badge_font_size(), COLOR_TEXT_MUTED))
+
+	if show_worked_hours and worked_seconds_by_day.has(key):
+		var worked_text := _format_worked_hours_tile(int(worked_seconds_by_day[key]))
+		if not worked_text.is_empty():
+			box.add_child(_tile_label(worked_text, _tile_work_hours_font_size(), Color(0.62, 0.92, 0.64)))
 
 	var accent := Panel.new()
 	accent.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -2833,6 +2865,38 @@ func _count_visible_months(start_year: int, start_month: int, month_count: int) 
 	return result
 
 
+func _worked_seconds_for_month(year: int, month: int) -> int:
+	var total := 0
+	var days := ScheduleCalculator.days_in_month(year, month)
+	for day in range(1, days + 1):
+		var key := _date_key(year, month, day)
+		total += int(worked_seconds_by_day.get(key, 0))
+	return total
+
+
+func _update_work_hours_panel() -> void:
+	if work_hours_toggle_button != null:
+		work_hours_toggle_button.text = "Godziny: pokazuj" if show_worked_hours else "Godziny: ukryte"
+		_apply_work_hours_toggle_style()
+
+	if monthly_work_total_label != null:
+		var total_seconds := _worked_seconds_for_month(current_year, current_month)
+		monthly_work_total_label.text = "Suma miesiąca: %s" % _format_duration(total_seconds)
+
+
+func _apply_work_hours_toggle_style() -> void:
+	if work_hours_toggle_button == null:
+		return
+
+	var base := Color(0.25, 0.52, 0.34, 0.58) if show_worked_hours else Color(0.90, 0.94, 0.90, 0.13)
+	var hover := base.lightened(0.08) if show_worked_hours else Color(0.90, 0.94, 0.90, 0.18)
+	var pressed := base.darkened(0.08) if show_worked_hours else Color(0.90, 0.94, 0.90, 0.09)
+	work_hours_toggle_button.add_theme_stylebox_override("normal", _control_style(base))
+	work_hours_toggle_button.add_theme_stylebox_override("hover", _control_style(hover))
+	work_hours_toggle_button.add_theme_stylebox_override("pressed", _control_style(pressed))
+	work_hours_toggle_button.add_theme_stylebox_override("focus", _control_style(base, true))
+
+
 func _calendar_is_empty() -> bool:
 	if not manual_overrides.is_empty():
 		return false
@@ -2952,6 +3016,15 @@ func _tile_badge_font_size() -> int:
 		12:
 			return 8
 	return 11
+
+
+func _tile_work_hours_font_size() -> int:
+	match _range_months():
+		3, 6:
+			return 8
+		12:
+			return 8
+	return 10
 
 
 func _selected_pause_hours() -> int:
@@ -3969,6 +4042,17 @@ func _format_duration(seconds: int) -> String:
 	return "%dh %02dmin" % [hours, minutes]
 
 
+func _format_worked_hours_tile(seconds: int) -> String:
+	var safe_seconds: int = maxi(0, seconds)
+	var hours := int(safe_seconds / 3600)
+	var minutes := int((safe_seconds % 3600) / 60)
+	if hours <= 0 and minutes <= 0:
+		return ""
+	if minutes == 0:
+		return "%dh" % hours
+	return "%dh%02d" % [hours, minutes]
+
+
 func _format_countdown(seconds: int) -> String:
 	var safe_seconds: int = maxi(0, seconds)
 	var hours := int(safe_seconds / 3600)
@@ -3991,6 +4075,11 @@ func _format_unix_time(unix_time: int) -> String:
 func _format_unix_clock(unix_time: int) -> String:
 	var date := Time.get_datetime_dict_from_unix_time(unix_time + _system_utc_offset_seconds())
 	return "%02d:%02d" % [int(date["hour"]), int(date["minute"])]
+
+
+func _date_key_from_unix_time(unix_time: int) -> String:
+	var date := Time.get_datetime_dict_from_unix_time(unix_time + _system_utc_offset_seconds())
+	return _date_key(int(date["year"]), int(date["month"]), int(date["day"]))
 
 
 func _system_utc_offset_seconds() -> int:
@@ -4067,10 +4156,12 @@ func _confirm_end_work() -> void:
 	var finished_unix := int(Time.get_unix_time_from_system())
 	last_work_duration_seconds = maxi(0, finished_unix - work_start_unix)
 	last_work_end_unix = finished_unix
+	_save_worked_seconds_for_day(work_start_unix, last_work_duration_seconds)
 	work_start_unix = 0
 	work_end_unix = 0
 	pause_start_unix = 0
 	_restore_work_panel_text()
+	_rebuild_calendar()
 	_save_settings_to_disk()
 
 
@@ -4101,6 +4192,22 @@ func _confirm_clear_pause_time() -> void:
 	pause_start_unix = 0
 	_update_pause_result()
 	_save_settings_to_disk()
+
+
+func _on_toggle_work_hours_pressed() -> void:
+	_capture_undo_state()
+	show_worked_hours = not show_worked_hours
+	_update_work_hours_panel()
+	_rebuild_calendar()
+	_save_settings_to_disk()
+
+
+func _save_worked_seconds_for_day(start_unix: int, duration_seconds: int) -> void:
+	if start_unix <= 0 or duration_seconds <= 0:
+		return
+
+	var key := _date_key_from_unix_time(start_unix)
+	worked_seconds_by_day[key] = int(worked_seconds_by_day.get(key, 0)) + duration_seconds
 
 
 func _update_pause_result() -> void:
