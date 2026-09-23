@@ -43,6 +43,8 @@ const NAVIGATION_TAP_MAX_MS := 900
 const NAVIGATION_TAP_MOVE_LIMIT := 12.0
 const NAVIGATION_TAP_SCROLL_LIMIT := 10.0
 const NAVIGATION_BLOCK_AFTER_SCROLL_MS := 1600
+const CALENDAR_TAP_MOVE_LIMIT := 24.0
+const CALENDAR_TILE_HIT_PADDING := 10.0
 const TOUCH_SCROLL_DEADZONE_MENU := 18
 const RETURN_TODAY_BUTTON_TOP := 84
 const RETURN_TODAY_BUTTON_HEIGHT := 44
@@ -905,13 +907,13 @@ func _mark_calendar_shield_drag(position: Vector2) -> void:
 		shield_touch_dragged = true
 		return
 
-	if shield_touch_start_position.distance_to(position) > TOUCH_DRAG_CANCEL_DISTANCE:
+	if shield_touch_start_position.distance_to(position) > CALENDAR_TAP_MOVE_LIMIT:
 		shield_touch_dragged = true
 
 
 func _finish_calendar_shield_touch(position: Vector2) -> void:
 	var was_dragged := shield_touch_dragged
-	if shield_touch_tracking and shield_touch_start_position.distance_to(position) > TOUCH_DRAG_CANCEL_DISTANCE:
+	if shield_touch_tracking and shield_touch_start_position.distance_to(position) > CALENDAR_TAP_MOVE_LIMIT:
 		was_dragged = true
 
 	shield_touch_tracking = false
@@ -979,6 +981,14 @@ func _calendar_day_at_position(position: Vector2) -> Dictionary:
 			day_touch_targets.remove_at(index)
 			continue
 		if button.visible and button.get_global_rect().has_point(position):
+			return target
+
+	for index in range(day_touch_targets.size() - 1, -1, -1):
+		var target := day_touch_targets[index]
+		var button = target.get("button", null)
+		if not (button is Button) or not is_instance_valid(button):
+			continue
+		if button.visible and button.get_global_rect().grow(CALENDAR_TILE_HIT_PADDING).has_point(position):
 			return target
 
 	return {}
@@ -3243,10 +3253,10 @@ func _visible_range_start_month() -> int:
 func _day_cell_height() -> int:
 	match _range_months():
 		3, 6:
-			return 56
+			return 60
 		12:
-			return 56
-	return 84
+			return 60
+	return 90
 
 
 func _tile_day_font_size() -> int:
@@ -3279,10 +3289,10 @@ func _tile_badge_font_size() -> int:
 func _tile_work_hours_font_size() -> int:
 	match _range_months():
 		3, 6:
-			return 8
+			return 9
 		12:
-			return 8
-	return 10
+			return 9
+	return 12
 
 
 func _selected_pause_hours() -> int:
@@ -4425,6 +4435,7 @@ func _confirm_end_work() -> void:
 	last_work_duration_seconds = maxi(0, finished_unix - work_start_unix)
 	last_work_end_unix = finished_unix
 	_save_worked_seconds_for_day(work_start_unix, last_work_duration_seconds)
+	show_worked_hours = true
 	work_start_unix = 0
 	work_end_unix = 0
 	pause_start_unix = 0
