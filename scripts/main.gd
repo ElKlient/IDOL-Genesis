@@ -137,7 +137,11 @@ var pause_option: OptionButton
 var pause_result_label: Label
 var work_hours_toggle_button: Button
 var monthly_work_total_label: Label
+var day_action_hours_label: Label
 var day_action_dialog: AcceptDialog
+var manual_hours_dialog: ConfirmationDialog
+var manual_hours_spin: SpinBox
+var manual_minutes_spin: SpinBox
 var work_finish_dialog: ConfirmationDialog
 var pause_clear_dialog: ConfirmationDialog
 var note_dialog: ConfirmationDialog
@@ -460,6 +464,7 @@ func _build_ui() -> void:
 	_set_settings_visible(true)
 
 	_build_day_action_dialog()
+	_build_manual_hours_dialog()
 	_build_work_finish_dialog()
 	_build_pause_clear_dialog()
 	_build_note_dialog()
@@ -1153,7 +1158,7 @@ func _build_day_action_dialog() -> void:
 	day_action_dialog = AcceptDialog.new()
 	day_action_dialog.title = "Wybierz dzień"
 	day_action_dialog.exclusive = false
-	day_action_dialog.min_size = Vector2i(640, 650)
+	day_action_dialog.min_size = Vector2i(640, 720)
 	day_action_dialog.add_theme_stylebox_override("panel", _dialog_style())
 	add_child(day_action_dialog)
 
@@ -1167,6 +1172,15 @@ func _build_day_action_dialog() -> void:
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 10)
 	margin.add_child(box)
+
+	day_action_hours_label = _make_label("Godziny dnia: 0h 00min", 22, Color(0.62, 0.92, 0.64))
+	day_action_hours_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	day_action_hours_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	box.add_child(day_action_hours_label)
+
+	var add_hours_button := _action_button("Dodaj godziny ręcznie", Color(0.25, 0.52, 0.34, 0.88))
+	_connect_tap(add_hours_button, Callable(self, "_open_manual_hours_dialog"))
+	box.add_child(add_hours_button)
 
 	var set_work := _action_button("Praca", COLOR_WORK)
 	_connect_tap(set_work, Callable(self, "_set_selected_day_state").bind(ScheduleCalculator.DayState.WORK))
@@ -1199,6 +1213,52 @@ func _build_day_action_dialog() -> void:
 	var close_button := day_action_dialog.get_ok_button()
 	close_button.text = "Zamknij"
 	_prepare_control(close_button, 18, 48)
+
+
+func _build_manual_hours_dialog() -> void:
+	manual_hours_dialog = ConfirmationDialog.new()
+	manual_hours_dialog.title = "Dodaj godziny ręcznie"
+	manual_hours_dialog.dialog_text = ""
+	manual_hours_dialog.confirmed.connect(_confirm_add_manual_hours)
+	manual_hours_dialog.add_theme_stylebox_override("panel", _dialog_style())
+	add_child(manual_hours_dialog)
+
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 14)
+	margin.add_theme_constant_override("margin_right", 14)
+	margin.add_theme_constant_override("margin_top", 14)
+	margin.add_theme_constant_override("margin_bottom", 14)
+	manual_hours_dialog.add_child(margin)
+
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 10)
+	margin.add_child(box)
+
+	var hint := _make_label("Dodaj czas do wybranego dnia.", 18, COLOR_TEXT_MUTED)
+	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(hint)
+
+	var hours_label := _make_label("Godziny", 16, COLOR_TEXT_MUTED)
+	box.add_child(hours_label)
+
+	manual_hours_spin = _make_spin(0, 48, 0, false)
+	manual_hours_spin.custom_minimum_size.y = 58
+	box.add_child(manual_hours_spin)
+
+	var minutes_label := _make_label("Minuty", 16, COLOR_TEXT_MUTED)
+	box.add_child(minutes_label)
+
+	manual_minutes_spin = _make_spin(0, 59, 0, false)
+	manual_minutes_spin.custom_minimum_size.y = 58
+	box.add_child(manual_minutes_spin)
+
+	var ok_button := manual_hours_dialog.get_ok_button()
+	ok_button.text = "Dodaj"
+	_prepare_control(ok_button, 18, 48)
+
+	var cancel_button := manual_hours_dialog.get_cancel_button()
+	cancel_button.text = "Anuluj"
+	_prepare_control(cancel_button, 18, 48)
 
 
 func _build_note_dialog() -> void:
@@ -2462,7 +2522,7 @@ func _make_day_cell(year: int, month: int, day: int, day_index: int, state: int,
 	button.add_theme_stylebox_override("focus", _tile_style(_state_color(state), true, is_vacation))
 	_fill_day_tile(button, key, day, day_index, state, notes.has(key), is_today)
 	if _range_months() == 1:
-		_connect_tap(button, Callable(self, "_open_day_actions").bind(year, month, day))
+		_connect_day_cell_tap(button, Callable(self, "_open_day_actions").bind(year, month, day))
 	else:
 		_connect_month_select_tap(button, year, month)
 	_prepare_calendar_drag_blocker(button)
@@ -2551,7 +2611,51 @@ func _open_day_actions(year: int, month: int, day: int) -> void:
 	selected_day_key = _date_key(year, month, day)
 	selected_day_index = ScheduleCalculator.day_index_from_date(year, month, day)
 	day_action_dialog.title = selected_day_key
+	_update_selected_day_hours_label()
 	day_action_dialog.popup_centered()
+
+
+func _update_selected_day_hours_label() -> void:
+	if day_action_hours_label == null:
+		return
+
+	var seconds := int(worked_seconds_by_day.get(selected_day_key, 0))
+	day_action_hours_label.text = "Godziny dnia: %s" % _format_duration(seconds)
+
+
+func _open_manual_hours_dialog() -> void:
+	if selected_day_key.is_empty() or manual_hours_dialog == null:
+		return
+
+	manual_hours_dialog.title = "Dodaj godziny: %s" % selected_day_key
+	if manual_hours_spin != null:
+		_set_spin_value(manual_hours_spin, 0)
+	if manual_minutes_spin != null:
+		_set_spin_value(manual_minutes_spin, 0)
+	manual_hours_dialog.popup_centered()
+
+
+func _confirm_add_manual_hours() -> void:
+	if selected_day_key.is_empty():
+		return
+
+	var hours := 0
+	var minutes := 0
+	if manual_hours_spin != null:
+		hours = int(manual_hours_spin.value)
+	if manual_minutes_spin != null:
+		minutes = int(manual_minutes_spin.value)
+
+	var seconds := hours * 3600 + minutes * 60
+	if seconds <= 0:
+		return
+
+	_capture_undo_state()
+	_add_worked_seconds_for_day_key(selected_day_key, seconds)
+	_update_selected_day_hours_label()
+	_update_work_hours_panel()
+	_rebuild_calendar()
+	_save_settings_to_disk()
 
 
 func _set_selected_day_state(state: int) -> void:
@@ -3311,6 +3415,16 @@ func _connect_month_select_tap(button: BaseButton, year: int, month: int) -> voi
 		if touch_drag_cancelled:
 			return
 		_open_month_from_overview(year, month)
+	)
+
+
+func _connect_day_cell_tap(button: BaseButton, action: Callable) -> void:
+	_register_scroll_safe_control(button)
+	button.action_mode = BaseButton.ACTION_MODE_BUTTON_RELEASE
+	button.pressed.connect(func() -> void:
+		if touch_drag_cancelled:
+			return
+		action.call()
 	)
 
 
@@ -4207,7 +4321,14 @@ func _save_worked_seconds_for_day(start_unix: int, duration_seconds: int) -> voi
 		return
 
 	var key := _date_key_from_unix_time(start_unix)
-	worked_seconds_by_day[key] = int(worked_seconds_by_day.get(key, 0)) + duration_seconds
+	_add_worked_seconds_for_day_key(key, duration_seconds)
+
+
+func _add_worked_seconds_for_day_key(day_key: String, duration_seconds: int) -> void:
+	if day_key.is_empty() or duration_seconds <= 0:
+		return
+
+	worked_seconds_by_day[day_key] = int(worked_seconds_by_day.get(day_key, 0)) + duration_seconds
 
 
 func _update_pause_result() -> void:
