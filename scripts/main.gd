@@ -156,6 +156,8 @@ var manual_overrides: Dictionary = {}
 var notes: Dictionary = {}
 var worked_seconds_by_day: Dictionary = {}
 var selected_day_key: String = ""
+var manual_hours_day_key: String = ""
+var clear_day_hours_key: String = ""
 var selected_day_index: int = 0
 var selected_day_year: int = 0
 var selected_day_month: int = 0
@@ -983,15 +985,21 @@ func _calendar_day_at_position(position: Vector2) -> Dictionary:
 		if button.visible and button.get_global_rect().has_point(position):
 			return target
 
+	var closest_target := {}
+	var closest_distance := 1000000000.0
 	for index in range(day_touch_targets.size() - 1, -1, -1):
 		var target := day_touch_targets[index]
 		var button = target.get("button", null)
 		if not (button is Button) or not is_instance_valid(button):
 			continue
-		if button.visible and button.get_global_rect().grow(CALENDAR_TILE_HIT_PADDING).has_point(position):
-			return target
+		var rect: Rect2 = button.get_global_rect()
+		if button.visible and rect.grow(CALENDAR_TILE_HIT_PADDING).has_point(position):
+			var distance := rect.get_center().distance_to(position)
+			if distance < closest_distance:
+				closest_distance = distance
+				closest_target = target
 
-	return {}
+	return closest_target
 
 
 func _build_profile_panel() -> PanelContainer:
@@ -2692,7 +2700,8 @@ func _open_manual_hours_dialog() -> void:
 	if selected_day_key.is_empty() or manual_hours_dialog == null:
 		return
 
-	manual_hours_dialog.title = "Dodaj godziny: %s" % selected_day_key
+	manual_hours_day_key = selected_day_key
+	manual_hours_dialog.title = "Dodaj godziny: %s" % manual_hours_day_key
 	if manual_hours_spin != null:
 		_reset_manual_hours_spin(manual_hours_spin)
 	if manual_minutes_spin != null:
@@ -2701,7 +2710,10 @@ func _open_manual_hours_dialog() -> void:
 
 
 func _confirm_add_manual_hours() -> void:
-	if selected_day_key.is_empty():
+	var target_key := manual_hours_day_key
+	if target_key.is_empty():
+		target_key = selected_day_key
+	if target_key.is_empty():
 		return
 
 	var hours := 0
@@ -2716,11 +2728,12 @@ func _confirm_add_manual_hours() -> void:
 		return
 
 	_capture_undo_state()
-	_add_worked_seconds_for_day_key(selected_day_key, seconds)
+	_add_worked_seconds_for_day_key(target_key, seconds)
 	show_worked_hours = true
 	_update_selected_day_hours_label()
 	_update_work_hours_panel()
 	_rebuild_calendar()
+	manual_hours_day_key = ""
 	_save_settings_to_disk()
 
 
@@ -2770,20 +2783,25 @@ func _open_clear_day_hours_dialog() -> void:
 	if selected_day_key.is_empty() or clear_day_hours_dialog == null:
 		return
 
-	clear_day_hours_dialog.dialog_text = "Czy na pewno chcesz skasować godziny dnia %s?" % selected_day_key
+	clear_day_hours_key = selected_day_key
+	clear_day_hours_dialog.dialog_text = "Czy na pewno chcesz skasować godziny dnia %s?" % clear_day_hours_key
 	clear_day_hours_dialog.popup_centered()
 
 
 func _confirm_clear_selected_day_hours() -> void:
-	if selected_day_key.is_empty():
+	var target_key := clear_day_hours_key
+	if target_key.is_empty():
+		target_key = selected_day_key
+	if target_key.is_empty():
 		return
-	if not worked_seconds_by_day.has(selected_day_key):
+	if not worked_seconds_by_day.has(target_key):
 		_update_selected_day_hours_label()
 		return
 
 	_capture_undo_state()
-	worked_seconds_by_day.erase(selected_day_key)
+	worked_seconds_by_day.erase(target_key)
 	_refresh_worked_hours_after_change()
+	clear_day_hours_key = ""
 	_save_settings_to_disk()
 
 
@@ -2823,34 +2841,14 @@ func _refresh_worked_hours_after_change() -> void:
 
 
 func _set_selected_day_state(state: int) -> void:
+	if selected_day_key.is_empty():
+		return
+
 	_capture_undo_state()
-	if _single_day_edit_active():
-		_set_selected_day_override(state)
-	elif _manual_cycle_setup_active():
+	if _manual_cycle_setup_active():
 		_stage_selected_day_state(state)
-	elif state == ScheduleCalculator.DayState.VACATION:
-		manual_overrides[selected_day_key] = state
-		_rebuild_calendar()
-	elif _is_preset_schedule():
-		if state == ScheduleCalculator.DayState.WORK:
-			start_input.text = selected_day_key
-			start_input.set_meta("last_text", start_input.text)
-			manual_overrides.clear()
-			manual_overrides[selected_day_key] = state
-			cycle_pending_apply = true
-			_rebuild_calendar()
-		elif state == ScheduleCalculator.DayState.NONE:
-			manual_overrides[selected_day_key] = state
-			_rebuild_calendar()
-		else:
-			manual_overrides[selected_day_key] = state
-			_rebuild_calendar()
 	else:
-		_ensure_custom_mode_for_selected_day()
-		var offset := ScheduleCalculator.positive_mod(selected_day_index - calculator.start_day_index, custom_pattern.size())
-		custom_pattern[offset] = state
-		cycle_pending_apply = true
-		_rebuild_calendar()
+		_set_selected_day_override(state)
 
 	day_action_dialog.hide()
 	_save_settings_to_disk()
