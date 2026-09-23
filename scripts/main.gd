@@ -1179,7 +1179,7 @@ func _build_day_action_dialog() -> void:
 	box.add_child(day_action_hours_label)
 
 	var add_hours_button := _action_button("Dodaj godziny ręcznie", Color(0.25, 0.52, 0.34, 0.88))
-	_connect_tap(add_hours_button, Callable(self, "_open_manual_hours_dialog"))
+	_connect_day_tool_tap(add_hours_button, Callable(self, "_open_manual_hours_dialog"))
 	box.add_child(add_hours_button)
 
 	var set_work := _action_button("Praca", COLOR_WORK)
@@ -1219,6 +1219,8 @@ func _build_manual_hours_dialog() -> void:
 	manual_hours_dialog = ConfirmationDialog.new()
 	manual_hours_dialog.title = "Dodaj godziny ręcznie"
 	manual_hours_dialog.dialog_text = ""
+	manual_hours_dialog.exclusive = false
+	manual_hours_dialog.min_size = Vector2i(560, 360)
 	manual_hours_dialog.confirmed.connect(_confirm_add_manual_hours)
 	manual_hours_dialog.add_theme_stylebox_override("panel", _dialog_style())
 	add_child(manual_hours_dialog)
@@ -1243,6 +1245,7 @@ func _build_manual_hours_dialog() -> void:
 
 	manual_hours_spin = _make_spin(0, 48, 0, false)
 	manual_hours_spin.custom_minimum_size.y = 58
+	_prepare_manual_hours_spin(manual_hours_spin)
 	box.add_child(manual_hours_spin)
 
 	var minutes_label := _make_label("Minuty", 16, COLOR_TEXT_MUTED)
@@ -1250,6 +1253,7 @@ func _build_manual_hours_dialog() -> void:
 
 	manual_minutes_spin = _make_spin(0, 59, 0, false)
 	manual_minutes_spin.custom_minimum_size.y = 58
+	_prepare_manual_hours_spin(manual_minutes_spin)
 	box.add_child(manual_minutes_spin)
 
 	var ok_button := manual_hours_dialog.get_ok_button()
@@ -2629,9 +2633,9 @@ func _open_manual_hours_dialog() -> void:
 
 	manual_hours_dialog.title = "Dodaj godziny: %s" % selected_day_key
 	if manual_hours_spin != null:
-		_set_spin_value(manual_hours_spin, 0)
+		_reset_manual_hours_spin(manual_hours_spin)
 	if manual_minutes_spin != null:
-		_set_spin_value(manual_minutes_spin, 0)
+		_reset_manual_hours_spin(manual_minutes_spin)
 	manual_hours_dialog.popup_centered()
 
 
@@ -2642,9 +2646,9 @@ func _confirm_add_manual_hours() -> void:
 	var hours := 0
 	var minutes := 0
 	if manual_hours_spin != null:
-		hours = int(manual_hours_spin.value)
+		hours = _manual_hours_spin_value(manual_hours_spin)
 	if manual_minutes_spin != null:
-		minutes = int(manual_minutes_spin.value)
+		minutes = _manual_hours_spin_value(manual_minutes_spin)
 
 	var seconds := hours * 3600 + minutes * 60
 	if seconds <= 0:
@@ -2652,10 +2656,48 @@ func _confirm_add_manual_hours() -> void:
 
 	_capture_undo_state()
 	_add_worked_seconds_for_day_key(selected_day_key, seconds)
+	show_worked_hours = true
 	_update_selected_day_hours_label()
 	_update_work_hours_panel()
 	_rebuild_calendar()
 	_save_settings_to_disk()
+
+
+func _prepare_manual_hours_spin(spin: SpinBox) -> void:
+	if spin == null:
+		return
+
+	var input := spin.get_line_edit()
+	if input == null:
+		return
+
+	input.placeholder_text = "0"
+
+
+func _reset_manual_hours_spin(spin: SpinBox) -> void:
+	if spin == null:
+		return
+
+	_set_spin_value(spin, 0)
+	var input := spin.get_line_edit()
+	if input != null:
+		input.text = "0"
+
+
+func _manual_hours_spin_value(spin: SpinBox) -> int:
+	if spin == null:
+		return 0
+
+	var value := int(spin.value)
+	var input := spin.get_line_edit()
+	if input != null:
+		var raw := input.text.strip_edges().replace(",", ".")
+		if raw.is_valid_int():
+			value = int(raw)
+		elif raw.is_valid_float():
+			value = int(float(raw))
+
+	return clampi(value, int(spin.min_value), int(spin.max_value))
 
 
 func _set_selected_day_state(state: int) -> void:
