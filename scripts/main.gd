@@ -142,6 +142,8 @@ var day_action_dialog: AcceptDialog
 var manual_hours_dialog: ConfirmationDialog
 var manual_hours_spin: SpinBox
 var manual_minutes_spin: SpinBox
+var clear_day_hours_dialog: ConfirmationDialog
+var clear_month_hours_dialog: ConfirmationDialog
 var work_finish_dialog: ConfirmationDialog
 var pause_clear_dialog: ConfirmationDialog
 var note_dialog: ConfirmationDialog
@@ -465,6 +467,8 @@ func _build_ui() -> void:
 
 	_build_day_action_dialog()
 	_build_manual_hours_dialog()
+	_build_clear_day_hours_dialog()
+	_build_clear_month_hours_dialog()
 	_build_work_finish_dialog()
 	_build_pause_clear_dialog()
 	_build_note_dialog()
@@ -1178,9 +1182,21 @@ func _build_day_action_dialog() -> void:
 	day_action_hours_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	box.add_child(day_action_hours_label)
 
+	var close_top_button := _action_button("Zamknij okno", Color(0.42, 0.44, 0.43, 0.88))
+	_connect_day_tool_tap(close_top_button, Callable(self, "_hide_day_action_dialog"))
+	box.add_child(close_top_button)
+
 	var add_hours_button := _action_button("Dodaj godziny ręcznie", Color(0.25, 0.52, 0.34, 0.88))
 	_connect_day_tool_tap(add_hours_button, Callable(self, "_open_manual_hours_dialog"))
 	box.add_child(add_hours_button)
+
+	var clear_hours_button := _action_button("Skasuj godziny tego dnia", Color(0.54, 0.43, 0.26, 0.88))
+	_connect_day_tool_tap(clear_hours_button, Callable(self, "_open_clear_day_hours_dialog"))
+	box.add_child(clear_hours_button)
+
+	var clear_month_button := _action_button("Usuń godziny z miesiąca", Color(0.58, 0.26, 0.26, 0.88))
+	_connect_day_tool_tap(clear_month_button, Callable(self, "_open_clear_month_hours_dialog"))
+	box.add_child(clear_month_button)
 
 	var set_work := _action_button("Praca", COLOR_WORK)
 	_connect_tap(set_work, Callable(self, "_set_selected_day_state").bind(ScheduleCalculator.DayState.WORK))
@@ -1212,7 +1228,8 @@ func _build_day_action_dialog() -> void:
 
 	var close_button := day_action_dialog.get_ok_button()
 	close_button.text = "Zamknij"
-	_prepare_control(close_button, 18, 48)
+	_prepare_control(close_button, 22, 66)
+	close_button.custom_minimum_size.x = 360
 
 
 func _build_manual_hours_dialog() -> void:
@@ -1263,6 +1280,40 @@ func _build_manual_hours_dialog() -> void:
 	var cancel_button := manual_hours_dialog.get_cancel_button()
 	cancel_button.text = "Anuluj"
 	_prepare_control(cancel_button, 18, 48)
+
+
+func _build_clear_day_hours_dialog() -> void:
+	clear_day_hours_dialog = ConfirmationDialog.new()
+	clear_day_hours_dialog.title = "Skasuj godziny dnia"
+	clear_day_hours_dialog.dialog_text = "Czy na pewno chcesz skasować godziny tego dnia?"
+	clear_day_hours_dialog.confirmed.connect(_confirm_clear_selected_day_hours)
+	clear_day_hours_dialog.add_theme_stylebox_override("panel", _dialog_style())
+	add_child(clear_day_hours_dialog)
+
+	var ok_button := clear_day_hours_dialog.get_ok_button()
+	ok_button.text = "Tak"
+	_prepare_control(ok_button, 18, 52)
+
+	var cancel_button := clear_day_hours_dialog.get_cancel_button()
+	cancel_button.text = "Nie"
+	_prepare_control(cancel_button, 18, 52)
+
+
+func _build_clear_month_hours_dialog() -> void:
+	clear_month_hours_dialog = ConfirmationDialog.new()
+	clear_month_hours_dialog.title = "Usuń godziny z miesiąca"
+	clear_month_hours_dialog.dialog_text = "Czy na pewno chcesz usunąć wszystkie godziny z tego miesiąca?"
+	clear_month_hours_dialog.confirmed.connect(_confirm_clear_selected_month_hours)
+	clear_month_hours_dialog.add_theme_stylebox_override("panel", _dialog_style())
+	add_child(clear_month_hours_dialog)
+
+	var ok_button := clear_month_hours_dialog.get_ok_button()
+	ok_button.text = "Tak"
+	_prepare_control(ok_button, 18, 52)
+
+	var cancel_button := clear_month_hours_dialog.get_cancel_button()
+	cancel_button.text = "Nie"
+	_prepare_control(cancel_button, 18, 52)
 
 
 func _build_note_dialog() -> void:
@@ -2698,6 +2749,69 @@ func _manual_hours_spin_value(spin: SpinBox) -> int:
 			value = int(float(raw))
 
 	return clampi(value, int(spin.min_value), int(spin.max_value))
+
+
+func _hide_day_action_dialog() -> void:
+	if day_action_dialog != null:
+		day_action_dialog.hide()
+
+
+func _open_clear_day_hours_dialog() -> void:
+	if selected_day_key.is_empty() or clear_day_hours_dialog == null:
+		return
+
+	clear_day_hours_dialog.dialog_text = "Czy na pewno chcesz skasować godziny dnia %s?" % selected_day_key
+	clear_day_hours_dialog.popup_centered()
+
+
+func _confirm_clear_selected_day_hours() -> void:
+	if selected_day_key.is_empty():
+		return
+	if not worked_seconds_by_day.has(selected_day_key):
+		_update_selected_day_hours_label()
+		return
+
+	_capture_undo_state()
+	worked_seconds_by_day.erase(selected_day_key)
+	_refresh_worked_hours_after_change()
+	_save_settings_to_disk()
+
+
+func _open_clear_month_hours_dialog() -> void:
+	if clear_month_hours_dialog == null:
+		return
+
+	var year := selected_day_year if selected_day_year > 0 else current_year
+	var month := selected_day_month if selected_day_month > 0 else current_month
+	clear_month_hours_dialog.dialog_text = "Czy na pewno chcesz usunąć wszystkie godziny z miesiąca %s %d?" % [
+		MONTH_NAMES[clampi(month, 1, 12) - 1],
+		year,
+	]
+	clear_month_hours_dialog.popup_centered()
+
+
+func _confirm_clear_selected_month_hours() -> void:
+	var year := selected_day_year if selected_day_year > 0 else current_year
+	var month := selected_day_month if selected_day_month > 0 else current_month
+	if _worked_seconds_for_month(year, month) <= 0:
+		_update_selected_day_hours_label()
+		return
+
+	_capture_undo_state()
+	var days := ScheduleCalculator.days_in_month(year, month)
+	for day in range(1, days + 1):
+		var key := _date_key(year, month, day)
+		if worked_seconds_by_day.has(key):
+			worked_seconds_by_day.erase(key)
+
+	_refresh_worked_hours_after_change()
+	_save_settings_to_disk()
+
+
+func _refresh_worked_hours_after_change() -> void:
+	_update_selected_day_hours_label()
+	_update_work_hours_panel()
+	_rebuild_calendar()
 
 
 func _set_selected_day_state(state: int) -> void:
