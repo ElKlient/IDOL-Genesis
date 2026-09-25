@@ -39,6 +39,9 @@ const TILE_COLUMNS := 7
 const SETTINGS_PATH := "user://driver_calendar.cfg"
 const SETTINGS_BACKUP_PATH := "user://driver_calendar.cfg.bak"
 const SETTINGS_TEMP_PATH := "user://driver_calendar.cfg.tmp"
+const SETTINGS_FORMAT_VERSION := 1
+
+var preserved_settings_text := ""
 const TOUCH_DRAG_CANCEL_DISTANCE := 14.0
 const TAP_BLOCK_AFTER_DRAG_MS := 450
 const NAVIGATION_TAP_MAX_MS := 900
@@ -237,6 +240,10 @@ func _ready() -> void:
 	_apply_main_view_mode(main_view_saved)
 	_remove_legacy_cycle_settings_menu()
 	_accept_calendar_page()
+	if OS.has_feature("driver_beta"):
+		var beta_access := preload("res://scripts/beta_access.gd").new()
+		beta_access.calendar = self
+		get_tree().root.call_deferred("add_child", beta_access)
 
 
 func _input(event: InputEvent) -> void:
@@ -1708,7 +1715,10 @@ func _save_settings_to_disk() -> bool:
 
 	_sync_active_profile()
 	var config := ConfigFile.new()
-	config.set_value("format", "version", 1)
+	if not preserved_settings_text.is_empty() and config.parse(preserved_settings_text) != OK:
+		_report_save_error(ERR_FILE_CORRUPT)
+		return false
+	config.set_value("format", "version", SETTINGS_FORMAT_VERSION)
 	config.set_value("ui", "main_view_saved", main_view_saved)
 	config.set_value("ui", "calendar_only_mode", calendar_only_mode)
 	config.set_value("ui", "cycle_pending_apply", cycle_pending_apply)
@@ -1751,6 +1761,7 @@ func _save_settings_to_disk() -> bool:
 		_report_save_error(error)
 		return false
 	storage_write_failed = false
+	preserved_settings_text = config.encode_to_text()
 	return true
 
 
@@ -1799,6 +1810,7 @@ func _show_storage_notice(message: String) -> void:
 
 func _load_settings_from_disk() -> void:
 	var config := ConfigFile.new()
+	preserved_settings_text = ""
 	storage_load_failed = false
 	var error := config.load(SETTINGS_PATH)
 	if error != OK or not config.has_section("calendar"):
@@ -1810,6 +1822,15 @@ func _load_settings_from_disk() -> void:
 				_report_save_error(ERR_FILE_CORRUPT)
 			return
 		_show_storage_notice("Odzyskano poprzedni zapis kalendarza z kopii zapasowej. Sprawdź ostatnio wprowadzone zmiany.")
+
+	var format_version := int(config.get_value("format", "version", 0))
+	if format_version < 0 or format_version > SETTINGS_FORMAT_VERSION:
+		storage_load_failed = true
+		storage_write_failed = true
+		_show_storage_notice("Ten zapis pochodzi z nowszej wersji aplikacji. Zainstaluj najnowszą aktualizację. Pliki i godziny zachowano; zapis zmian jest wstrzymany.")
+		return
+	# Preserve unknown keys when upgrading; new features must not erase older data.
+	preserved_settings_text = config.encode_to_text()
 
 	main_view_saved = bool(config.get_value("ui", "main_view_saved", false))
 	calendar_only_mode = bool(config.get_value("ui", "calendar_only_mode", false))
