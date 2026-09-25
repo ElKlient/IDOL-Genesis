@@ -6,6 +6,8 @@ var bridge: Object
 var web: Object
 var import_callback: Object
 var update_callback: Object
+var access_callback: Object
+var last_access_state := ""
 var pending_config: ConfigFile
 var confirm_import: ConfirmationDialog
 
@@ -15,6 +17,13 @@ func _ready() -> void:
 	web = bridge.get_interface("DriverWeb")
 	import_callback = bridge.create_callback(_import_selected)
 	update_callback = bridge.create_callback(_update_checked)
+	access_callback = bridge.create_callback(_access_action)
+	access.code_input.hide()
+	access.activate_button.text = "Wpisz lub wklej kod"
+	for connection in access.activate_button.pressed.get_connections():
+		access.activate_button.pressed.disconnect(connection["callable"])
+	access.activate_button.pressed.connect(func(): web.showAccess())
+	web.bindAccess(access_callback)
 	access._button("Pobierz kopię kalendarza", _download_backup)
 	access._button("Przywróć kopię z pliku", func(): web.chooseBackup(import_callback))
 	confirm_import = ConfirmationDialog.new()
@@ -29,6 +38,38 @@ func _ready() -> void:
 		access.state_error = true
 		access.status_label.text = "Safari nie udostępnia trwałego zapisu. Zamknij tryb prywatny i otwórz kalendarz z ikony na ekranie głównym."
 	web.ready()
+	_sync_access.call_deferred()
+
+
+func _process(_delta: float) -> void:
+	_sync_access()
+
+
+func _sync_access() -> void:
+	var state := JSON.stringify({
+		"message": access.status_label.text,
+		"busy": not access.pending_nonce.is_empty(),
+		"allowed": access.unlocked,
+		"storage_error": access.state_error,
+		"can_refresh": not access.session_token.is_empty(),
+	})
+	if state != last_access_state:
+		last_access_state = state
+		web.accessState(state)
+
+
+func _access_action(args: Array) -> void:
+	if args.size() < 2:
+		return
+	var action := String(args[0])
+	if action == "activate":
+		access.code_input.text = String(args[1]).strip_edges()
+		access._request_access("activate")
+	elif action == "refresh":
+		access._request_access("refresh")
+	# Re-enable the native form even if a repeated immediate error is identical.
+	last_access_state = ""
+	_sync_access()
 
 
 static func parse_backup(text: String) -> ConfigFile:

@@ -308,6 +308,10 @@ func _process(_delta: float) -> void:
 
 
 func _force_portrait() -> void:
+	if OS.has_feature("web"):
+		# Shrinking the visible area for a keyboard must not shrink the whole UI.
+		get_tree().root.content_scale_aspect = Window.CONTENT_SCALE_ASPECT_KEEP_WIDTH
+		return
 	ProjectSettings.set_setting("display/window/handheld/orientation", DisplayServer.SCREEN_PORTRAIT)
 	DisplayServer.screen_set_orientation(DisplayServer.SCREEN_PORTRAIT)
 	DisplayServer.window_set_size(Vector2i(720, 1280))

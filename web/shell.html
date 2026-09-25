@@ -13,13 +13,21 @@
   <style>
     * { box-sizing:border-box; } html,body { margin:0; width:100%; height:100%; background:#101a28; color:#edf3f8; font-family:Arial,sans-serif; }
     body { overflow:hidden; overscroll-behavior:none; }
-    #surface { position:fixed; inset:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); display:flex; justify-content:center; }
-    canvas { display:block; width:100%; height:100%; max-width:600px; touch-action:none; outline:none; }
-    #intro { position:fixed; inset:0; z-index:2; overflow:auto; background:#101a28; padding:max(24px,env(safe-area-inset-top)) 24px max(24px,env(safe-area-inset-bottom)); }
+    #surface { position:fixed; display:flex; justify-content:center; }
+    canvas { display:block; flex:none; min-width:0; width:100%; height:100%; max-width:600px; touch-action:none; outline:none; }
+    #intro, #access { position:fixed; inset:0; z-index:2; overflow:auto; background:#101a28; padding:max(24px,env(safe-area-inset-top)) 24px max(24px,env(safe-area-inset-bottom)); }
     .card { max-width:470px; margin:10vh auto 24px; } h1 { font-size:32px; line-height:1.15; margin:12px 0 24px; } p,li { font-size:17px; line-height:1.55; } li { margin:14px 0; }
     .eyebrow { color:#f0bb68; font-size:14px; } .muted { color:#b2c0cf; } button,a { color:inherit; } button { min-height:50px; padding:12px 18px; border:0; border-radius:9px; background:#f0bb68; color:#101a28; font:700 17px Arial; cursor:pointer; } button:disabled{opacity:.6;cursor:wait} button:focus-visible,a:focus-visible{outline:3px solid white;outline-offset:4px}
     #progress { width:100%; height:12px; accent-color:#f0bb68; } #status { white-space:pre-line; } [hidden] { display:none!important; }
     #notice { position:fixed; bottom:max(12px,env(safe-area-inset-bottom)); left:12px; right:12px; z-index:3; margin:auto; max-width:570px; padding:12px; background:#273b4e; border:1px solid #7891a8; border-radius:8px; font-size:15px; }
+    #access { inset:auto; z-index:4; touch-action:pan-y; -webkit-user-select:text; user-select:text; }
+    #access .card { margin:24px auto; }
+    #access h1 { font-size:30px; }
+    #access label { display:block; font-size:17px; margin-bottom:10px; }
+    #access input { display:block; width:100%; min-width:0; min-height:54px; margin-bottom:16px; padding:12px; border:1px solid #7891a8; border-radius:8px; background:#172638; color:#fff; font:18px Arial,sans-serif; -webkit-user-select:text; user-select:text; touch-action:auto; }
+    #access button { width:100%; margin-bottom:12px; }
+    #access .secondary { background:#273b4e; color:#edf3f8; }
+    #access-status { min-height:26px; white-space:pre-line; }
   </style>
 </head>
 <body>
@@ -34,10 +42,25 @@
     <p class="muted">Godziny i profile zapisujemy na tym urządzeniu. Pobieraj kopię w menu „Wersja beta i aktualizacje”. Nie usuwaj aplikacji ani danych Safari.</p>
     <a href="/">Wróć do strony testów</a>
   </div></section>
+  <section id="access" hidden aria-labelledby="access-title"><div class="card">
+    <p class="eyebrow">KALENDARZ KIEROWCY · WEB 2</p>
+    <h1 id="access-title">Aktywuj dostęp testowy</h1>
+    <form id="access-form">
+      <label for="access-code">Twój kod na 30 dni</label>
+      <input id="access-code" name="beta-code" type="text" inputmode="text" autocomplete="off" autocapitalize="characters" autocorrect="off" spellcheck="false" maxlength="80" enterkeyhint="go" placeholder="DK-XXXXX-XXXXX-XXXXX-XXXXX" aria-describedby="paste-help access-status">
+      <p id="paste-help" class="muted">Przytrzymaj palec w polu i wybierz „Wklej”. Możesz też wpisać kod ręcznie.</p>
+      <button id="access-submit" type="submit">Aktywuj kod</button>
+    </form>
+    <p id="access-status" role="status" aria-live="polite"></p>
+    <button id="access-refresh" class="secondary" type="button" hidden>Sprawdź istniejący dostęp</button>
+    <button id="access-data" class="secondary" type="button">Zapisane dane, kopie i aktualizacje</button>
+    <p class="muted">30 dni od pierwszej aktywacji. Godziny i profile zostają na tym urządzeniu.</p>
+  </div></section>
   <p id="notice" role="status" hidden></p>
   <input id="backup" type="file" accept=".dkcal,.txt,text/plain" hidden>
   <noscript>Włącz JavaScript w Safari, aby uruchomić kalendarz.</noscript>
   <script src="$GODOT_URL"></script>
+  <script src="mobile-ui.js"></script>
   <script>
     const config = $GODOT_CONFIG;
     // The build script points the engine at its immutable, compressed R2 asset.
@@ -53,15 +76,13 @@
     const standalone = navigator.standalone || matchMedia('(display-mode: standalone)').matches;
     let registration, importCallback;
     function notify(text) { notice.textContent=text; notice.hidden=false; }
-    function sizeCanvas() {
-      const keyboardInset=window.visualViewport ? Math.max(0,innerHeight-window.visualViewport.height) : 0;
-      surface.style.bottom=keyboardInset>100?`${keyboardInset}px`:'env(safe-area-inset-bottom)';
-      const width=Math.min(surface.clientWidth,600); canvas.width=720; canvas.height=Math.round(surface.clientHeight*720/Math.max(width,1));
-    }
-    sizeCanvas(); addEventListener('resize',sizeCanvas); window.visualViewport?.addEventListener('resize',sizeCanvas);
+    const mobileUI=new DriverMobileUI();
     const backupInput=document.getElementById('backup');
     window.DriverWeb={
-      ready() { intro.hidden=true; },
+      ready() { intro.hidden=true; mobileUI.resize(); },
+      bindAccess(callback) { mobileUI.bind(callback); },
+      showAccess() { mobileUI.show(); },
+      accessState(state) { mobileUI.update(state); },
       chooseBackup(callback) { importCallback=callback; backupInput.value=''; backupInput.click(); },
       async checkUpdate(callback) {
         if (!registration) { callback('Aktualizacje wymagają internetu oraz otwarcia aplikacji przez bezpieczny link.'); return; }
@@ -85,6 +106,7 @@
         const persistence=await new Promise((resolve,reject)=>{const r=indexedDB.open('driver-calendar-storage-check',1);r.onerror=()=>reject(Error('Nie można zapisywać danych. Sprawdź ustawienia Safari.'));r.onsuccess=()=>{r.result.close();resolve(true);};});
         if(persistence && navigator.storage?.persist) navigator.storage.persist().catch(()=>{});
         await engine.startGame({canvasResizePolicy:0,onProgress:(n,total)=>{if(total){progress.max=total;progress.value=n;}}});
+        mobileUI.resize();
         // Godot calls DriverWeb.ready after loading its stored calendar and activation.
         if('serviceWorker' in navigator && window.isSecureContext){
           registration=await navigator.serviceWorker.register('service-worker.js',{scope:'./',updateViaCache:'none'});

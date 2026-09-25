@@ -48,6 +48,7 @@ def main():
     html = html[:match.start(1)] + json.dumps(config, ensure_ascii=False) + html[match.end(1):]
     (output / 'index.html').write_text(html)
     wasm.unlink()
+    shutil.copy2(ROOT / 'web/mobile-ui.js', output / 'mobile-ui.js')
     for generated_import in output.glob('*.import'):
         generated_import.unlink()
     (output / 'manifest.webmanifest').write_text(json.dumps({
