@@ -158,6 +158,8 @@ func _run() -> void:
 	app.work_start_unix = int(Time.get_unix_time_from_system()) - 8 * 3600
 	app._on_save_profile_pressed()
 	app._confirm_end_work()
+	_check("Finishing work starts the selected rest", app.pause_start_unix == app.last_work_end_unix and app.pause_start_unix > 0)
+	app._confirm_clear_pause_time()
 	app._on_load_profile_pressed()
 	_check("Loading a profile does not resurrect completed shift", app.work_start_unix == 0, "start_unix=%d hours=%s" % [app.work_start_unix, app.worked_seconds_by_day])
 	_check("Completed shift remains in active profile", not app.worked_seconds_by_day.is_empty() and not app.saved_profiles["1"]["worked_seconds_by_day"].is_empty())
@@ -212,12 +214,23 @@ func _run() -> void:
 	app.work_start_unix = int(Time.get_unix_time_from_system()) - 8 * 3600
 	app._on_pause_selected(1)
 	app._update_work_timer()
-	print("OBSERVATION | selected 11h pause | %s" % app.rest_after_work_label.text.replace("\n", " / "))
+	_check("Rest forecast follows selected 11h duration", app.rest_after_work_label.text.contains("11h") and app.rest_after_work_label.text.contains(app._format_unix_time(app.work_start_unix + 26 * 3600)), app.rest_after_work_label.text.replace("\n", " / "))
+	_check("Active shift disables duplicate start button", app.start_work_button.disabled and not app.end_work_button.disabled)
 	await _capture("04-timer")
 	app._apply_range_selection(3, 0)
 	await _settle()
 	_check("Year view enables vertical scrolling", app.calendar_scroll.vertical_scroll_mode == ScrollContainer.SCROLL_MODE_AUTO)
 	await _capture("05-year")
+	_clean()
+	app.work_start_unix = int(Time.get_unix_time_from_datetime_string("2026-09-30T23:00:00"))
+	app.work_start_day_key = "2026-10-01"
+	app._save_worked_seconds_for_day(app.work_start_unix, 3600)
+	_check("Shift keeps its original local start date", app.worked_seconds_by_day == {"2026-10-01": 3600})
+	app.today_day_index -= 1
+	var page_before := Vector2i(app.current_year, app.current_month)
+	app._refresh_today_if_changed()
+	var now := Time.get_datetime_dict_from_system()
+	_check("Today marker refresh does not navigate the calendar", app.today_day_index == Calculator.day_index_from_date(now.year, now.month, now.day) and page_before == Vector2i(app.current_year, app.current_month))
 
 	_clean()
 	app.current_year = 2026

@@ -64,8 +64,7 @@ const PROFILE_BUTTON_WIDTH := 160
 const PROFILE_PANEL_WIDTH := 520
 const PROFILE_PANEL_HEIGHT := 430
 const DEFAULT_PROFILE_COUNT := 3
-const TEST_WORK_LIMIT_SECONDS := 15 * 3600
-const TEST_REST_AFTER_WORK_SECONDS := 9 * 3600
+const WORK_PLAN_SECONDS := 15 * 3600
 const LEGACY_CYCLE_MENU_CLEANUP_MAX_CHECKS := 90
 const LEGACY_CYCLE_MENU_MARKERS := [
 	"Jakim systemem",
@@ -135,6 +134,9 @@ var custom_panel: PanelContainer
 var custom_length_spin: SpinBox
 var error_label: Label
 var work_status_label: Label
+var start_work_button: Button
+var end_work_button: Button
+var start_pause_button: Button
 var work_timer_label: Label
 var rest_after_work_label: Label
 var pause_option: OptionButton
@@ -166,6 +168,7 @@ var selected_day_month: int = 0
 var selected_day_number: int = 0
 var selected_note_key: String = ""
 var work_start_unix: int = 0
+var work_start_day_key := ""
 var work_end_unix: int = 0
 var pause_start_unix: int = 0
 var last_work_duration_seconds: int = 0
@@ -294,6 +297,7 @@ func _process(_delta: float) -> void:
 	var now_msec := int(Time.get_ticks_msec())
 	if now_msec >= work_timer_next_update_msec:
 		work_timer_next_update_msec = now_msec + 1000
+		_refresh_today_if_changed()
 		_update_work_timer()
 		_update_pause_result()
 
@@ -1066,7 +1070,7 @@ func _build_day_tools_panel() -> PanelContainer:
 	timer_stack.size_flags_horizontal = Control.SIZE_SHRINK_END
 	header.add_child(timer_stack)
 
-	work_timer_label = _make_label("Praca --:--:--\nKoniec 15h pracy --:--", 19, COLOR_TEXT_MUTED)
+	work_timer_label = _make_label("Do planu 15h --:--:--\nPlanowany koniec --:--", 19, COLOR_TEXT_MUTED)
 	work_timer_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	work_timer_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	work_timer_label.custom_minimum_size = Vector2(310, 62)
@@ -1074,7 +1078,7 @@ func _build_day_tools_panel() -> PanelContainer:
 	work_timer_label.visible = true
 	timer_stack.add_child(work_timer_label)
 
-	rest_after_work_label = _make_label("Następne 9h pauzy\nzakończy się o godz:\n--:--", 18, Color(0.96, 0.58, 0.22))
+	rest_after_work_label = _make_label("Plan pauzy\nKoniec --:--", 18, Color(0.96, 0.58, 0.22))
 	rest_after_work_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	rest_after_work_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	rest_after_work_label.custom_minimum_size = Vector2(310, 76)
@@ -1099,13 +1103,15 @@ func _build_day_tools_panel() -> PanelContainer:
 	buttons.add_theme_constant_override("separation", 8)
 	day_tools_body.add_child(buttons)
 
-	var start_button := Button.new()
+	start_work_button = Button.new()
+	var start_button := start_work_button
 	start_button.text = "Rozpocznij pracę"
 	_connect_day_tool_tap(start_button, Callable(self, "_on_start_work_pressed"))
 	_prepare_control(start_button, 21, 58)
 	buttons.add_child(start_button)
 
-	var end_button := Button.new()
+	end_work_button = Button.new()
+	var end_button := end_work_button
 	end_button.text = "Zakończ pracę"
 	_connect_day_tool_tap(end_button, Callable(self, "_on_end_work_pressed"))
 	_prepare_control(end_button, 21, 58)
@@ -1128,7 +1134,8 @@ func _build_day_tools_panel() -> PanelContainer:
 	_prepare_pause_dropdown(pause_option)
 	pause_row.add_child(pause_option)
 
-	var pause_button := Button.new()
+	start_pause_button = Button.new()
+	var pause_button := start_pause_button
 	pause_button.text = "Rozpocznij pauzę"
 	pause_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_connect_day_tool_tap(pause_button, Callable(self, "_on_start_pause_pressed"))
@@ -1361,7 +1368,7 @@ func _build_note_dialog() -> void:
 func _build_work_finish_dialog() -> void:
 	work_finish_dialog = ConfirmationDialog.new()
 	work_finish_dialog.title = "Zakończ pracę"
-	work_finish_dialog.dialog_text = "Czy na pewno chcesz zakończyć pracę i zapisać godziny?"
+	work_finish_dialog.dialog_text = "Zakończyć zmianę, zapisać godziny i rozpocząć wybraną pauzę?"
 	work_finish_dialog.confirmed.connect(_confirm_end_work)
 	work_finish_dialog.add_theme_stylebox_override("panel", _dialog_style())
 	add_child(work_finish_dialog)
@@ -1690,6 +1697,7 @@ func _save_settings_to_disk() -> bool:
 	config.set_value("calendar", "notes", notes.duplicate(true))
 	config.set_value("calendar", "worked_seconds_by_day", worked_seconds_by_day.duplicate(true))
 	config.set_value("work", "start_unix", work_start_unix)
+	config.set_value("work", "start_day_key", work_start_day_key)
 	config.set_value("work", "end_unix", work_end_unix)
 	config.set_value("work", "pause_start_unix", pause_start_unix)
 	config.set_value("work", "last_duration_seconds", last_work_duration_seconds)
@@ -1809,6 +1817,7 @@ func _load_settings_from_disk() -> void:
 	_load_dictionary_as_ints(worked_seconds_by_day, config.get_value("calendar", "worked_seconds_by_day", {}))
 
 	work_start_unix = int(config.get_value("work", "start_unix", 0))
+	work_start_day_key = String(config.get_value("work", "start_day_key", ""))
 	work_end_unix = int(config.get_value("work", "end_unix", 0))
 	pause_start_unix = int(config.get_value("work", "pause_start_unix", 0))
 	last_work_duration_seconds = int(config.get_value("work", "last_duration_seconds", 0))
@@ -2078,7 +2087,8 @@ func _on_save_profile_pressed() -> void:
 
 
 func _on_load_profile_pressed() -> void:
-	if work_start_unix > 0 or pause_start_unix > 0:
+	var pause_running := pause_start_unix > 0 and int(Time.get_unix_time_from_system()) < pause_start_unix + _selected_pause_hours() * 3600
+	if work_start_unix > 0 or pause_running:
 		profile_status_label.text = "Zakończ pracę lub wyzeruj licznik pauzy przed wczytaniem profilu."
 		return
 
@@ -2159,6 +2169,7 @@ func _profile_snapshot(calendar: Dictionary) -> Dictionary:
 	# Profiles hold calendar data; live timers belong to the current session.
 	for key in ["work_start_unix", "work_end_unix", "pause_start_unix", "last_work_duration_seconds", "last_work_end_unix"]:
 		snapshot[key] = 0
+	snapshot["work_start_day_key"] = ""
 	return snapshot
 
 
@@ -2192,6 +2203,7 @@ func _calendar_state_snapshot() -> Dictionary:
 		"notes": notes.duplicate(true),
 		"worked_seconds_by_day": worked_seconds_by_day.duplicate(true),
 		"work_start_unix": work_start_unix,
+		"work_start_day_key": work_start_day_key,
 		"work_end_unix": work_end_unix,
 		"pause_start_unix": pause_start_unix,
 		"last_work_duration_seconds": last_work_duration_seconds,
@@ -2238,6 +2250,7 @@ func _restore_calendar_state(snapshot: Dictionary) -> void:
 	_load_dictionary_as_ints(worked_seconds_by_day, snapshot.get("worked_seconds_by_day", {}))
 
 	work_start_unix = int(snapshot.get("work_start_unix", 0))
+	work_start_day_key = String(snapshot.get("work_start_day_key", ""))
 	work_end_unix = int(snapshot.get("work_end_unix", 0))
 	pause_start_unix = int(snapshot.get("pause_start_unix", 0))
 	last_work_duration_seconds = int(snapshot.get("last_work_duration_seconds", 0))
@@ -2282,19 +2295,29 @@ func _update_work_timer() -> void:
 	if work_timer_label == null or rest_after_work_label == null:
 		return
 
+	if start_work_button != null:
+		start_work_button.disabled = work_start_unix > 0
+	if end_work_button != null:
+		end_work_button.disabled = work_start_unix <= 0
+	if start_pause_button != null:
+		start_pause_button.disabled = pause_start_unix > 0
 	var now_unix := int(Time.get_unix_time_from_system())
+	var pause_hours := _selected_pause_hours()
+	rest_after_work_label.visible = true
+	if pause_start_unix > 0:
+		rest_after_work_label.text = "Pauza %dh\nKoniec %s" % [pause_hours, _format_unix_time(pause_start_unix + pause_hours * 3600)]
+	elif work_start_unix > 0:
+		var rest_end_unix := work_start_unix + WORK_PLAN_SECONDS + pause_hours * 3600
+		rest_after_work_label.text = "Plan pauzy %dh\nKoniec %s" % [pause_hours, _format_unix_time(rest_end_unix)]
+	else:
+		_show_next_rest_after_work_placeholder()
 	if work_start_unix <= 0:
-		work_timer_label.text = "Praca --:--:--\nKoniec 15h pracy --:--"
+		work_timer_label.text = "Do planu 15h --:--:--\nPlanowany koniec --:--"
 		work_timer_label.visible = true
 		work_timer_label.add_theme_color_override("font_color", COLOR_TEXT_MUTED)
-		_show_next_rest_after_work_placeholder()
 		return
 
-	var limit_end_unix := work_start_unix + TEST_WORK_LIMIT_SECONDS
-	var rest_end_unix := limit_end_unix + TEST_REST_AFTER_WORK_SECONDS
-	rest_after_work_label.visible = true
-	rest_after_work_label.add_theme_color_override("font_color", Color(0.96, 0.58, 0.22))
-	rest_after_work_label.text = "Następne 9h pauzy\nzakończy się o godz:\n%s" % _format_unix_clock(rest_end_unix)
+	var limit_end_unix := work_start_unix + WORK_PLAN_SECONDS
 
 	if work_end_unix > 0:
 		work_timer_label.text = "Praca zakończona\n%s" % _format_unix_clock(work_end_unix)
@@ -2307,10 +2330,10 @@ func _update_work_timer() -> void:
 	var end_clock := _format_unix_clock(limit_end_unix)
 	work_timer_label.visible = true
 	work_timer_label.add_theme_color_override("font_color", Color(0.62, 0.92, 0.64))
-	work_timer_label.text = "Praca %s\nKoniec 15h pracy %s" % [remaining_text, end_clock]
+	work_timer_label.text = "Do planu 15h %s\nPlanowany koniec %s" % [remaining_text, end_clock]
 
 	if work_status_label != null:
-		work_status_label.text = "Praca rozpoczęta: %s. Limit 15h kończy się: %s. Zostało: %s." % [
+		work_status_label.text = "Zmiana rozpoczęta: %s. Plan 15h kończy się: %s. Zostało: %s." % [
 			_format_unix_time(work_start_unix),
 			_format_unix_time(limit_end_unix),
 			remaining_text,
@@ -2320,7 +2343,7 @@ func _update_work_timer() -> void:
 func _show_next_rest_after_work_placeholder() -> void:
 	rest_after_work_label.visible = true
 	rest_after_work_label.add_theme_color_override("font_color", Color(0.96, 0.58, 0.22))
-	rest_after_work_label.text = "Następne 9h pauzy\nzakończy się o godz:\n--:--"
+	rest_after_work_label.text = "Plan pauzy %dh\nKoniec --:--" % _selected_pause_hours()
 
 
 func _show_pause_timer(now_unix: int) -> void:
@@ -2428,6 +2451,7 @@ func _reset_calendar_settings(persist: bool = true) -> void:
 	notes.clear()
 	worked_seconds_by_day.clear()
 	work_start_unix = 0
+	work_start_day_key = ""
 	work_end_unix = 0
 	pause_start_unix = 0
 	last_work_duration_seconds = 0
@@ -3292,7 +3316,7 @@ func _update_work_hours_panel() -> void:
 
 	if monthly_work_total_label != null:
 		var total_seconds := _worked_seconds_for_month(current_year, current_month)
-		monthly_work_total_label.text = "Suma miesiąca: %s" % _format_duration(total_seconds)
+		monthly_work_total_label.text = "Suma miesiąca: %s\nZmiany według dnia rozpoczęcia" % _format_duration(total_seconds)
 
 
 func _apply_work_hours_toggle_style() -> void:
@@ -4523,6 +4547,13 @@ func _refresh_today_day_index() -> void:
 	today_day_index = ScheduleCalculator.day_index_from_date(int(now["year"]), int(now["month"]), int(now["day"]))
 
 
+func _refresh_today_if_changed() -> void:
+	var previous_today := today_day_index
+	_refresh_today_day_index()
+	if previous_today != today_day_index:
+		_rebuild_calendar()
+
+
 func _date_for_month_cell(year: int, month: int, cell_index: int, first_offset: int, days_current: int) -> Dictionary:
 	var day_number := cell_index - first_offset + 1
 	var result_year := year
@@ -4552,6 +4583,7 @@ func _on_start_work_pressed() -> void:
 		return
 	_capture_undo_state()
 	work_start_unix = int(Time.get_unix_time_from_system())
+	work_start_day_key = _date_key_from_unix_time(work_start_unix)
 	work_end_unix = 0
 	pause_start_unix = 0
 	_update_work_timer()
@@ -4565,6 +4597,7 @@ func _on_end_work_pressed() -> void:
 		return
 
 	if work_finish_dialog != null:
+		work_finish_dialog.dialog_text = "Zakończyć zmianę, zapisać godziny i rozpocząć pauzę %dh?" % _selected_pause_hours()
 		work_finish_dialog.popup_centered()
 		return
 
@@ -4582,8 +4615,9 @@ func _confirm_end_work() -> void:
 	_save_worked_seconds_for_day(work_start_unix, last_work_duration_seconds)
 	show_worked_hours = true
 	work_start_unix = 0
+	work_start_day_key = ""
 	work_end_unix = 0
-	pause_start_unix = 0
+	pause_start_unix = finished_unix
 	_restore_work_panel_text()
 	_rebuild_calendar()
 	_save_settings_to_disk()
@@ -4591,6 +4625,9 @@ func _confirm_end_work() -> void:
 
 func _on_start_pause_pressed() -> void:
 	if pause_start_unix > 0:
+		return
+	if work_start_unix > 0:
+		_on_end_work_pressed()
 		return
 	_capture_undo_state()
 	pause_start_unix = int(Time.get_unix_time_from_system())
@@ -4616,6 +4653,7 @@ func _confirm_clear_pause_time() -> void:
 
 	_capture_undo_state()
 	pause_start_unix = 0
+	_update_work_timer()
 	_update_pause_result()
 	_save_settings_to_disk()
 
@@ -4633,6 +4671,8 @@ func _save_worked_seconds_for_day(start_unix: int, duration_seconds: int) -> voi
 		return
 
 	var key := _date_key_from_unix_time(start_unix)
+	if start_unix == work_start_unix and not ScheduleCalculator.parse_date(work_start_day_key).is_empty():
+		key = work_start_day_key
 	_add_worked_seconds_for_day_key(key, duration_seconds)
 
 
