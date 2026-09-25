@@ -1762,6 +1762,8 @@ func _save_settings_to_disk() -> bool:
 		return false
 	storage_write_failed = false
 	preserved_settings_text = config.encode_to_text()
+	if OS.has_feature("web"):
+		Engine.get_singleton("JavaScriptBridge").force_fs_sync()
 	return true
 
 

@@ -37,6 +37,7 @@ var update_button: Button
 var key_pem := ""
 var state_error := false
 var unlocked := false
+var web_tools: Node
 
 
 func _ready() -> void:
@@ -46,6 +47,10 @@ func _ready() -> void:
 	key_pem = FileAccess.get_file_as_string(PUBLIC_KEY_PATH)
 	_load_state()
 	_build_gate()
+	if OS.has_feature("web"):
+		web_tools = preload("res://scripts/web_beta_tools.gd").new()
+		web_tools.access = self
+		add_child(web_tools)
 	var open_button := Button.new()
 	open_button.text = "Wersja beta i aktualizacje"
 	open_button.custom_minimum_size.y = 58
@@ -100,7 +105,7 @@ func _build_gate() -> void:
 	refresh_button = _button("Sprawdź dostęp przez internet", func(): _request_access("refresh"))
 	_label("30 dni od pierwszej aktywacji. Do 72 godzin bez internetu po potwierdzeniu dostępu, najwyżej do końca testów. Aktualizacje nie odnawiają okresu testowego.", 18)
 	_label("Profile, godziny i notatki pozostają na telefonie. Usługa otrzymuje kod, losowy identyfikator instalacji i dane potrzebne do potwierdzenia dostępu.", 17)
-	update_label = _label("Aktualizację instaluj na obecną aplikację. Nie odinstalowuj jej i nie czyść danych.", 18)
+	update_label = _label("Aktualizację instaluj na obecną aplikację. Nie odinstalowuj jej i nie czyść danych." if not OS.has_feature("web") else "Otwieraj kalendarz zawsze z tej samej ikony. Nie usuwaj aplikacji ani danych Safari. Regularnie pobieraj kopię kalendarza.", 18)
 	_button("Sprawdź aktualizację", _check_update)
 	update_button = _button("Pobierz aktualizację", func(): OS.shell_open(String(release["service_url"]) + "/download"))
 	update_button.visible = false
@@ -180,7 +185,10 @@ func _save_state() -> bool:
 	if valid.load(STATE_PATH) == OK:
 		if DirAccess.copy_absolute(STATE_PATH, STATE_PATH + ".bak") != OK:
 			return false
-	return DirAccess.rename_absolute(STATE_PATH + ".tmp", STATE_PATH) == OK
+	var saved := DirAccess.rename_absolute(STATE_PATH + ".tmp", STATE_PATH) == OK
+	if saved and OS.has_feature("web"):
+		Engine.get_singleton("JavaScriptBridge").force_fs_sync()
+	return saved
 
 
 func _now() -> int:
@@ -205,7 +213,7 @@ func _process(_delta: float) -> void:
 
 
 func _notification(what: int) -> void:
-	if what == NOTIFICATION_APPLICATION_RESUMED and is_instance_valid(http) and not session_token.is_empty():
+	if what in [NOTIFICATION_APPLICATION_RESUMED, NOTIFICATION_APPLICATION_FOCUS_IN] and is_instance_valid(http) and not session_token.is_empty():
 		_request_access("refresh")
 
 
@@ -255,7 +263,13 @@ func _request_access(kind: String) -> void:
 		body["code"] = code_input.text.strip_edges()
 	else:
 		body["session_token"] = session_token
-	var error := http.request(String(release["service_url"]) + "/api/beta/" + kind, ["Content-Type: application/json", "User-Agent: KalendarzKierowcyBeta/0.1.0"], HTTPClient.METHOD_POST, JSON.stringify(body))
+	var headers := PackedStringArray(["Content-Type: application/json"])
+	if not OS.has_feature("web"):
+		headers.append("User-Agent: KalendarzKierowcyBeta/0.1.0")
+	var service_url := String(release["service_url"])
+	if OS.has_feature("web"):
+		service_url = String(Engine.get_singleton("JavaScriptBridge").eval("window.location.origin"))
+	var error := http.request(service_url + "/api/beta/" + kind, headers, HTTPClient.METHOD_POST, JSON.stringify(body))
 	if error != OK:
 		pending_nonce = ""
 		status_label.text = "Nie udało się połączyć. Sprawdź internet i spróbuj ponownie."
@@ -303,6 +317,9 @@ func _request_completed(result: int, response_code: int, _headers: PackedStringA
 
 
 func _check_update() -> void:
+	if OS.has_feature("web"):
+		web_tools.check_update()
+		return
 	update_label.text = "Sprawdzanie aktualizacji…"
 	var error := update_http.request(String(release["service_url"]) + "/api/releases/latest", ["User-Agent: KalendarzKierowcyBeta/0.1.0"])
 	if error != OK:
