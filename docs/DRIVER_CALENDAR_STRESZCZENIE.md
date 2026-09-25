@@ -213,6 +213,7 @@ Na GitHub branch `driver-shift-calendar` po publikacji profili:
 
 ## Aktualne uwagi techniczne
 
+- Audyt 25.09.2026: `docs/DRIVER_CALENDAR_AUDYT_2026-09-25.md`; bazowy kod `c5ccea4`. Swiezy Godot 4.4.1 dziala headless. `tests/release_audit.gd` wykonal 24 kontrole: 15 PASS, 9 FAIL. To testy i diagnoza, bez napraw aplikacji. Przed latkami przeczytac raport; nie zakladac, ze runtime zawsze jest niedostepny.
 - Lokalny branch moze byc `ahead`, bo czesc poprawek byla publikowana przez GitHub API, a nie klasyczny `git push`.
 - Nie zakladac, ze lokalny `origin/driver-shift-calendar` jest swiezy.
 - Przed publikacja najlepiej porownac remote przez GitHub albo zrobic ostrozny pull/fetch, jesli srodowisko pozwala.
