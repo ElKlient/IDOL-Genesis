@@ -6,7 +6,7 @@ Ten sam projekt Godot wyeksportowany do WebAssembly, jako aplikacja webowa
 dodawana z Safari do ekranu głównego (PWA). To nie jest natywna IPA ani wydanie
 TestFlight. Wersja Android pozostaje dostępna osobno.
 
-Link: https://kalendarz-kierowcy-beta.sethoyt.chatgpt.site/iphone/index.html
+Link: https://kalendarz-kierowcy-beta.sethoyt.chatgpt.site/iphone/
 
 ## Instrukcja dla kolegi
 
@@ -14,7 +14,8 @@ Link: https://kalendarz-kierowcy-beta.sethoyt.chatgpt.site/iphone/index.html
 2. Wybierz Udostępnij → Dodaj do ekranu początkowego/głównego.
    Jeśli jest opcja „Otwórz jako aplikację”, włącz ją. Potwierdź Dodaj.
 3. Otwórz nową ikonę i poczekaj na pierwsze pobranie kalendarza.
-4. Wpisz indywidualny kod od organizatora. W tym momencie zaczyna się 30 dni.
+4. Wpisz indywidualny kod od organizatora albo przytrzymaj pole i wybierz „Wklej”.
+   Dotknij „Aktywuj kod”. W tym momencie zaczyna się 30 dni.
 5. Korzystaj zawsze z tej samej ikony. Nie aktywuj osobnej sesji w Safari.
 
 Organizator tworzy kod w dotychczasowym panelu `/admin`. Kod już przypisany
@@ -100,6 +101,25 @@ Nie publikować tymczasowych `runtime-check.html`, `audit.pck` ani podpisanych
 fixture testowych. Nie dodawać kluczy prywatnych do repo lub publicznych plików.
 
 ## Sprawdzone 25.09.2026
+
+Poprawka WEB 2 po zgłoszeniu problemów z wklejaniem i rozdzielczością:
+
+- Aktywacja używa zwykłego pola HTML. Safari obsługuje zaznaczanie i wklejanie;
+  walidacja kodu i podpisanej zgody nadal należy do Godota. Formularz nie
+  zapisuje kodu do localStorage ani adresu strony. Po sukcesie czyści pole.
+- Canvas dostaje rzeczywisty rozmiar widocznego obszaru, z uwzględnieniem
+  wycięcia ekranu i gęstości pikseli (maks. 2×). Godot utrzymuje szerokość
+  interfejsu; klawiatura zmienia dostępną wysokość bez pomniejszania całego UI.
+- Formularz dopasowuje wysokość do klawiatury i przewija się pionowo.
+- Test przeglądarkowy wyizolowanego formularza: wklejenie ze schowka,
+  przekazanie kodu bez skrajnych spacji, ponowna próba oraz Enter działają.
+  Wymiary 320×568, 390×330 (klawiatura) i 844×390: brak poziomego przepełnienia,
+  canvas ma prawidłowe wymiary. To Chrome i symulacja rozmiarów, nie Safari.
+- Ponownie: 23 testy dostępu/aktualizacji, 8 kopii, 3 service workera — PASS.
+  Eksport Godot 4.4.1 bez błędów skryptów. Fizyczny iPhone nadal do sprawdzenia.
+- Aktualizacja istniejącej ikony: otworzyć z internetem, poczekać na komunikat
+  o gotowej aktualizacji, zamknąć wszystkie okna kalendarza i otworzyć ikonę
+  ponownie. Nowy ekran aktywacji ma oznaczenie „WEB 2”. Nie kasować danych Safari.
 
 - Godot headless: 48 testów kalendarza + 23 dostępu/aktualizacji + 8 kopii, PASS.
 - Usługa: 10 dotychczasowych testów + 2 przesyłania silnika, PASS; TypeScript PASS.

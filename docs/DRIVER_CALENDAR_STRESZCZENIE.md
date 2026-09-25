@@ -102,6 +102,12 @@ nie IPA/TestFlight. Ten sam system kodów 30 dni; kopia do pliku i import;
 aktualizacje webowe zachowują IndexedDB i wchodzą po zamknięciu okien.
 Nie twierdzić, że sprawdzono fizyczny iPhone — testuje kolega użytkownika.
 
+Poprawka WEB 2: pole aktywacji HTML obsługuje systemowe wklejanie; canvas skaluje
+się do visualViewport i zachowuje stałą szerokość UI przy otwarciu klawiatury.
+Źródła: `web/mobile-ui.js`, `web/shell.html`, `scripts/web_beta_tools.gd`.
+Nie wracać do samego LineEdit Godota dla kodu na iPhonie. Aktualizację PWA
+odbiera się po pobraniu i zamknięciu wszystkich okien, bez usuwania danych.
+
 Aktualizacja 25.09.2026: przygotowano bete Android z kodami na 30 dni od
 pierwszej aktywacji, podpisanymi zgodami offline do 72h, panelem wlasciciela
 i publikowaniem aktualizacji APK. Najpierw przeczytac `docs/DRIVER_CALENDAR_BETA.md`.
