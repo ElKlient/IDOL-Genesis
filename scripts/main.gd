@@ -58,9 +58,9 @@ const CALENDAR_ONLY_RETURN_WIDTH := 142
 const CALENDAR_ONLY_RETURN_HEIGHT := 54
 const PROFILE_BUTTON_TOP := 84
 const PROFILE_BUTTON_HEIGHT := 44
-const PROFILE_BUTTON_WIDTH := 142
-const PROFILE_PANEL_WIDTH := 230
-const PROFILE_PANEL_HEIGHT := 350
+const PROFILE_BUTTON_WIDTH := 160
+const PROFILE_PANEL_WIDTH := 520
+const PROFILE_PANEL_HEIGHT := 430
 const DEFAULT_PROFILE_COUNT := 3
 const TEST_WORK_LIMIT_SECONDS := 15 * 3600
 const TEST_REST_AFTER_WORK_SECONDS := 9 * 3600
@@ -791,17 +791,17 @@ func _add_reset_undo_overlay() -> void:
 
 func _add_profile_overlay() -> void:
 	profile_overlay = VBoxContainer.new()
-	profile_overlay.anchor_left = 1.0
-	profile_overlay.anchor_right = 1.0
+	profile_overlay.anchor_left = 0.5
+	profile_overlay.anchor_right = 0.5
 	profile_overlay.anchor_top = 0.0
 	profile_overlay.anchor_bottom = 0.0
-	profile_overlay.offset_left = -PROFILE_PANEL_WIDTH - 18.0
-	profile_overlay.offset_right = -18.0
+	profile_overlay.offset_left = -PROFILE_PANEL_WIDTH * 0.5
+	profile_overlay.offset_right = PROFILE_PANEL_WIDTH * 0.5
 	profile_overlay.offset_top = PROFILE_BUTTON_TOP
 	profile_overlay.offset_bottom = PROFILE_BUTTON_TOP + PROFILE_BUTTON_HEIGHT + PROFILE_PANEL_HEIGHT
 	profile_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	profile_overlay.z_index = 35
-	profile_overlay.add_theme_constant_override("separation", 7)
+	profile_overlay.add_theme_constant_override("separation", 9)
 	add_child(profile_overlay)
 
 	profile_button = Button.new()
@@ -992,43 +992,52 @@ func _calendar_day_at_position(position: Vector2) -> Dictionary:
 
 func _build_profile_panel() -> PanelContainer:
 	var panel := _panel()
-	panel.custom_minimum_size.x = PROFILE_PANEL_WIDTH
-	var box := _panel_box(panel, 8)
+	panel.custom_minimum_size = Vector2(PROFILE_PANEL_WIDTH, 0)
+	var box := _panel_box(panel, 14)
+	box.add_theme_constant_override("separation", 10)
 
-	box.add_child(_make_label("Profile kalendarza", 17, COLOR_TEXT))
+	var title := _make_label("Profile kalendarza", 21, COLOR_TEXT)
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(title)
+
+	var hint := _make_label("Zapisz obecny kalendarz albo wczytaj osobny profil.", 14, COLOR_TEXT_MUTED)
+	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(hint)
 
 	profile_option = OptionButton.new()
 	profile_option.item_selected.connect(_on_profile_selected)
-	_prepare_control(profile_option, 16, 48)
+	_prepare_control(profile_option, 19, 58)
 	_prepare_large_dropdown(profile_option)
 	box.add_child(profile_option)
 
 	profile_save_button = Button.new()
-	profile_save_button.text = "Zapisz w profilu"
+	profile_save_button.text = "Zapisz aktualny kalendarz"
 	_connect_tap(profile_save_button, Callable(self, "_on_save_profile_pressed"))
-	_prepare_control(profile_save_button, 16, 46)
+	_prepare_control(profile_save_button, 18, 54)
 	box.add_child(profile_save_button)
 
 	profile_load_button = Button.new()
-	profile_load_button.text = "Wczytaj"
+	profile_load_button.text = "Wczytaj profil"
 	_connect_tap(profile_load_button, Callable(self, "_on_load_profile_pressed"))
-	_prepare_control(profile_load_button, 16, 46)
+	_prepare_control(profile_load_button, 18, 54)
 	box.add_child(profile_load_button)
 
 	profile_delete_button = Button.new()
-	profile_delete_button.text = "Usuń profil"
+	profile_delete_button.text = "Usuń zapis profilu"
 	_connect_tap(profile_delete_button, Callable(self, "_on_delete_profile_pressed"))
-	_prepare_control(profile_delete_button, 16, 46)
+	_prepare_control(profile_delete_button, 18, 54)
 	box.add_child(profile_delete_button)
 
 	var add_button := Button.new()
-	add_button.text = "Dodaj profil"
+	add_button.text = "Dodaj nowy profil"
 	_connect_tap(add_button, Callable(self, "_on_add_profile_pressed"))
-	_prepare_control(add_button, 16, 46)
+	_prepare_control(add_button, 18, 54)
 	box.add_child(add_button)
 
-	profile_status_label = _make_label("", 14, COLOR_TEXT_MUTED)
+	profile_status_label = _make_label("", 15, COLOR_TEXT_MUTED)
 	profile_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	profile_status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(profile_status_label)
 
 	return panel
@@ -1953,12 +1962,19 @@ func _selected_profile_saved() -> bool:
 
 func _update_profile_actions() -> void:
 	var has_saved_profile := _selected_profile_saved()
+	var can_delete_profile := has_saved_profile or selected_profile_index > DEFAULT_PROFILE_COUNT
 	if profile_load_button != null:
-		profile_load_button.disabled = not has_saved_profile
+		profile_load_button.disabled = false
+		profile_load_button.text = "Wczytaj zapisany profil" if has_saved_profile else "Wczytaj pusty kalendarz"
 	if profile_delete_button != null:
-		profile_delete_button.visible = has_saved_profile
+		profile_delete_button.visible = true
+		profile_delete_button.disabled = not can_delete_profile
+		profile_delete_button.text = "Usuń profil" if selected_profile_index > DEFAULT_PROFILE_COUNT else "Usuń zapis profilu"
 	if profile_status_label != null:
-		profile_status_label.text = "Ten profil jest zapisany." if has_saved_profile else "Ten profil jest pusty."
+		if has_saved_profile:
+			profile_status_label.text = "Profil %d jest zapisany. Możesz go wczytać albo nadpisać." % selected_profile_index
+		else:
+			profile_status_label.text = "Profil %d jest pusty. Wczytaj go, żeby zacząć czysty kalendarz." % selected_profile_index
 
 
 func _on_profile_selected(index: int) -> void:
@@ -1974,13 +1990,7 @@ func _on_profile_selected(index: int) -> void:
 
 
 func _on_save_profile_pressed() -> void:
-	var undo_before := _app_state_snapshot()
-	if not _apply_settings(false, true):
-		if profile_status_label != null:
-			profile_status_label.text = "Popraw ustawienia przed zapisem profilu."
-		return
-
-	_store_undo_snapshot(undo_before)
+	_capture_undo_state()
 	saved_profiles[_selected_profile_key()] = _calendar_state_snapshot()
 	_refresh_profile_options()
 	_set_profile_panel_visible(true)
@@ -1990,32 +2000,54 @@ func _on_save_profile_pressed() -> void:
 
 
 func _on_load_profile_pressed() -> void:
-	if not _selected_profile_saved():
-		if profile_status_label != null:
-			profile_status_label.text = "Ten profil jest pusty."
-		return
-
+	var loaded_index := selected_profile_index
+	var status_text := ""
 	_capture_undo_state()
-	var snapshot: Dictionary = saved_profiles[_selected_profile_key()].duplicate(true)
-	reset_undo_available = false
-	reset_undo_snapshot.clear()
-	_restore_calendar_state(snapshot)
+	if _selected_profile_saved():
+		var snapshot: Dictionary = saved_profiles[_selected_profile_key()].duplicate(true)
+		reset_undo_available = false
+		reset_undo_snapshot.clear()
+		_restore_calendar_state(snapshot)
+		status_text = "Wczytano profil %d." % loaded_index
+	else:
+		_reset_calendar_settings()
+		selected_profile_index = loaded_index
+		status_text = "Wczytano pusty kalendarz w profilu %d." % loaded_index
 	_refresh_profile_options()
 	_set_profile_panel_visible(true)
 	if profile_status_label != null:
-		profile_status_label.text = "Wczytano profil %d." % selected_profile_index
+		profile_status_label.text = status_text
 	_update_undo_buttons()
 	_save_settings_to_disk()
 
 
 func _on_delete_profile_pressed() -> void:
+	var remove_slot := selected_profile_index > DEFAULT_PROFILE_COUNT
+	if not _selected_profile_saved() and not remove_slot:
+		_update_profile_actions()
+		return
+
 	_capture_undo_state()
 	var deleted_index := selected_profile_index
-	saved_profiles.erase(_selected_profile_key())
+	saved_profiles.erase(_profile_key(deleted_index))
+	if remove_slot:
+		for index in range(deleted_index + 1, profile_count + 1):
+			var from_key := _profile_key(index)
+			var to_key := _profile_key(index - 1)
+			if saved_profiles.has(from_key):
+				saved_profiles[to_key] = saved_profiles[from_key].duplicate(true)
+			else:
+				saved_profiles.erase(to_key)
+		saved_profiles.erase(_profile_key(profile_count))
+		profile_count = maxi(DEFAULT_PROFILE_COUNT, profile_count - 1)
+		selected_profile_index = clampi(deleted_index, 1, profile_count)
 	_refresh_profile_options()
-	_set_profile_panel_visible(false)
+	_set_profile_panel_visible(true)
 	if profile_status_label != null:
-		profile_status_label.text = "Usunięto profil %d." % deleted_index
+		if remove_slot:
+			profile_status_label.text = "Usunięto profil %d." % deleted_index
+		else:
+			profile_status_label.text = "Usunięto zapis profilu %d." % deleted_index
 	_save_settings_to_disk()
 
 
