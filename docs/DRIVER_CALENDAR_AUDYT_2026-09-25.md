@@ -11,14 +11,52 @@ branch `driver-shift-calendar`, kod bazowy
 `c5ccea422ba72c63cc6023fe66462a08e343ecc3`.
 Nie dotyczy gry ani `apps/wspolny-kalendarz`.
 
-Ta zmiana dodaje testy i dokumentacje. Nie naprawia wymienionych problemow.
+Pierwszy commit audytu (`a3fdad5`) dodal testy i dokumentacje bez napraw.
+Ponizsza diagnoza opisuje stan bazowy; aktualny wynik po poprawkach jest tutaj.
 
-## Co rzeczywiscie uruchomiono
+## Aktualizacja po poprawkach - 25.09.2026
+
+Godot 4.4.1 headless: **48 PASS, 0 FAIL**, kod wyjscia 0.
+Test obejmuje rzeczywisty skrypt aplikacji, zapis/odczyt, kontrolowane bledy
+plikow, geometrie 720x1280 i 720x960 oraz nacisniecia i przeciagniecia
+w glownym oknie i przewinietym menu dnia. Ostrzezenia zapisu oraz blad
+otwarcia `.bak.tmp` sa celowo wywolane przez scenariusze awarii.
+
+Wdrozone w malych latkach:
+
+- Pusty profil nie dziedziczy godzin. Aktywny profil zapisuje zmiany automatycznie;
+  samo zaznaczenie innego slotu nie zmienia wlasciciela danych. Wczytanie profilu
+  podczas pracy lub trwajacej pauzy jest blokowane. Profile przechowuja grafik,
+  notatki i godziny, bez odtwarzania starych aktywnych licznikow. Biezacy licznik
+  nadal wraca po ponownym otwarciu aplikacji.
+- Ponowny start pracy lub pauzy nie zeruje licznika. Potwierdzone zakonczenie
+  pracy zapisuje godziny i rozpoczyna wybrana pauze od chwili zakonczenia.
+  Panel opisuje 15h jako plan; przewidywana pauza odpowiada wybranej dlugosci.
+- Godziny pozostaja przy dniu rozpoczecia zmiany, rowniez po zmianie strefy;
+  suma miesiaca opisuje te regule. Znacznik dzisiaj odswieza sie po zmianie daty.
+- Zapis przez sprawdzony plik tymczasowy, kopia poprzedniego poprawnego zapisu,
+  odtworzenie po uszkodzeniu pliku glownego i widoczna informacja o bledzie.
+  Gdy oba pliki sa nieczytelne, zapis jest blokowany zamiast nadpisywac je pustym
+  kalendarzem. Lokalna kopia nie zastepuje eksportu poza aplikacje.
+- Przyciski profili i dzisiaj nie nakladaja sie. Powrot do dzisiaj dziala takze
+  w trybie samego kalendarza. Wysoki miesiac i menu dnia przewijaja sie pionowo;
+  naglowek zostaje na miejscu, opcje pozostaja dostepne.
+- Akcje uruchamiaja sie po puszczeniu przycisku. Przeciagniecie przez start pracy
+  lub strzalke miesiaca nie wykonuje akcji. Nie przywrocono poziomego swipe.
+
+Do sprawdzenia przez uzytkownika na Androidzie: aktualizacja z jego danymi,
+dotyk i przewijanie, start/koniec zmiany, profile, ponowne otwarcie aplikacji.
+Nie wykonano testu fizycznego telefonu, zabicia procesu ani renderowanej oceny UI.
+Do kolejnych etapow pozostaja eksport/import danych, prognozy przez zmiane czasu,
+wznowienie po uspieniu oraz przygotowanie podpisanego wydania i test zamkniety.
+Ocena gotowosci do platnego wydania pozostaje negatywna do zakonczenia tych etapow.
+
+## Co rzeczywiscie uruchomiono w audycie bazowym
 
 - Swiezy oficjalny Godot 4.4.1, Linux x86_64, import projektu: powodzenie.
 - Rzeczywisty skrypt aplikacji i scenariusze `tests/release_audit.gd` w silniku.
 - Osobny `XDG_DATA_HOME` w `/tmp/driver-calendar-audit-*`, bez danych uzytkownika.
-- 24 kontrole: **15 PASS, 9 FAIL**. Kod wyjscia 1 jest oczekiwany przy obecnych usterkach.
+- 24 kontrole: **15 PASS, 9 FAIL**. Historyczny wynik przed poprawkami, kod wyjscia 1.
 - Geometria kontrolek dla viewportu 720x1280 i syntetyczne zdarzenia dotyku.
 - Xvfb nie uruchomil ekranu: srodowisko odmawia tworzenia gniazd Unix.
   Nie wykonano zrzutow renderowanej aplikacji ani testu fizycznego Androida.
@@ -39,13 +77,14 @@ XDG_DATA_HOME=/tmp/driver-calendar-audit-local godot --headless --path . --scrip
 ```
 
 Jesli binarka nazywa sie `godot4`, uzyj tej nazwy. Katalog musi byc przeznaczony
-wylacznie na ten test: skrypt usuwa i nadpisuje testowy `driver_calendar.cfg`.
+wylacznie na ten test: skrypt usuwa i nadpisuje testowy `driver_calendar.cfg`
+oraz jego pliki `.tmp`, `.bak` i `.bak.tmp`.
 Skrypt odmawia pracy poza wskazanym prefiksem katalogu i poza Linux.
 FAIL oznacza niespelniony warunek akceptacji; czesc dotyczy decyzji UX,
 a nie bledu wykonania silnika. Powodzenie testu gestu nie dowodzi poprawnosci
 wszystkich gestow, urzadzen, przekatnych ruchow i zachowan Androida.
 
-## Problemy poparte testami
+## Problemy poparte testami w wersji bazowej
 
 Numery linii odnosza sie do bazowego `scripts/main.gd`.
 
@@ -78,7 +117,7 @@ nie dowod identycznego obrazu na kazdym telefonie.
 - Zerowy poziomy scroll, brak zmiany miesiaca po jednym syntetycznym swipe.
 - Widok roku wlacza mozliwosc przewijania pionowego.
 
-## Dodatkowe obserwacje i decyzje
+## Dodatkowe obserwacje z wersji bazowej i decyzje
 
 1. **Licznik nie jest kalkulatorem zgodnosci z przepisami.** Kod ma stale 15h i 9h
    (`TEST_WORK_LIMIT_SECONDS`, `TEST_REST_AFTER_WORK_SECONDS`, linie 65-66).

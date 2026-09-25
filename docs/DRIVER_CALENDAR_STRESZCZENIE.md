@@ -64,13 +64,14 @@ Publikacja:
 
 - docelowo na branch `driver-shift-calendar`,
 - zwykly `git push origin HEAD:driver-shift-calendar` moze byc blokowany przez sandbox,
-- jesli push jest blokowany, publikowac waski zakres przez GitHub API jako jeden commit, najlepiej tylko zmienione pliki.
+- jesli push jest blokowany, publikowac waski zakres przez GitHub API, zachowujac male commity i tylko zmienione pliki. Porownac SHA drzewa z przetestowanym lokalnym commitem; aktualizowac ref bez force.
 
 Uzytkownik testuje na Androidzie:
 
 ```bash
-cd ~/IDOL-Genesis
-git pull origin driver-shift-calendar
+cd /storage/emulated/0/Godot/DriverShiftCalendar &&
+git pull --ff-only origin driver-shift-calendar &&
+git log -1 --oneline
 ```
 
 ## Jak ma pracowac dwoch agentow naraz
@@ -111,7 +112,7 @@ Najwazniejsza zasada nawigacji:
 
 - kalendarz nie moze zmieniac miesiaca ani przesuwac sie prawo-lewo od palca,
 - zmiana miesiaca/roku tylko guzikami,
-- widoki wielu miesiecy moga przewijac sie pionowo.
+- widoki wielu miesiecy oraz pojedynczy miesiac niemieszczacy sie na ekranie moga przewijac sie pionowo.
 
 ## Obecne glowne elementy UI
 
@@ -150,7 +151,7 @@ Najwazniejsza zasada nawigacji:
 Tryby i UI:
 
 - Dodano tryb `Pokaz tylko kalendarz`.
-- W tym trybie zostaje sam kalendarz i guzik `Pokaz opcje`.
+- W tym trybie zostaje kalendarz, `Wroc do aktualnej daty` i guzik `Pokaz opcje`.
 - Stan trybu zapisuje sie w `ConfigFile`.
 - Nawigacja i panel pracy/pauzy sa chowane.
 - Usunieto gesty zmiany miesiaca palcem.
@@ -177,14 +178,18 @@ Profile:
 - Pusty profil mozna wczytac jako czysty kalendarz.
 - Dodatkowe profile mozna usuwac jako sloty.
 - Domyslne puste profile 1-3 zostaja jako bezpieczne miejsca.
-- Zapisywany jest snapshot kalendarza: widok, cykle, reczne dni, notatki, godziny, liczniki pracy/pauzy.
+- Aktywny profil zapisuje zmiany automatycznie; zaznaczenie slotu na liscie samo nie zmienia aktywnego profilu.
+- Profil przechowuje widok, cykle, reczne dni, notatki i godziny, bez aktywnych licznikow pracy/pauzy.
+- Wczytywanie profilu podczas pracy lub trwajacej pauzy jest blokowane. Stare profile nie przywracaja zakonczonych licznikow.
+- Biezacy stan aplikacji osobno zachowuje aktywny licznik po ponownym uruchomieniu.
 
 Godziny pracy i pauzy:
 
-- `Rozpocznij prace` uruchamia licznik testowy 15h.
-- Panel pokazuje pozostaly czas pracy i koniec 15h pracy.
-- Pokazuje tez nastepne 9h pauzy liczone od konca 15h.
-- `Zakoncz prace` pyta o potwierdzenie i zapisuje przepracowane godziny do dnia.
+- `Rozpocznij prace` uruchamia licznik z planem 15h. To plan, nie kalkulator zgodnosci z przepisami.
+- Panel pokazuje pozostaly czas planu i prognoze wybranej dlugosci pauzy.
+- `Zakoncz prace` pyta o potwierdzenie, zapisuje godziny do dnia rozpoczecia i od razu rozpoczyna wybrana pauze.
+- Start aktywnej pracy lub pauzy nie zeruje licznika. Rozpoczecie pauzy podczas pracy wymaga potwierdzenia zakonczenia zmiany.
+- Data rozpoczecia jest zapamietywana przy starcie; godziny nie sa dzielone o polnocy. Podsumowanie miesiaca opisuje te regule.
 - Godziny mozna dodawac recznie w menu dnia.
 - Godziny pokazuja sie na kafelkach dni.
 - Jest suma godzin miesiaca.
@@ -196,8 +201,24 @@ Menu dnia:
 - Po kliknieciu kafelka otwiera sie okno dnia.
 - Zmiany maja dotyczyc tylko wybranego dnia.
 - Dodawanie godzin recznie ma zapisywac do konkretnego `YYYY-MM-DD`, bez mieszania z innymi kafelkami.
+- Menu dnia miesci sie w oknie i przewija pionowo; zamkniecie pozostaje dostepne.
 
-## Ostatnie wazne commity
+Zapis danych:
+
+- `driver_calendar.cfg` jest podmieniany przez zweryfikowany plik `.tmp`; `.bak` zachowuje poprzedni poprawny zapis.
+- Nieudany zapis pokazuje komunikat zamiast pozornego sukcesu. Nieczytelny plik glowny jest odzyskiwany z kopii.
+- Gdy oba pliki sa nieczytelne, aplikacja blokuje zapis pustego stanu. Eksport/import poza aplikacje pozostaje do zrobienia.
+
+## Aktualizacja po audycie 25.09.2026
+
+Male commity: `Isolate active profiles and protect running timers`,
+`Preserve calendar saves with atomic replacement and recovery`,
+`Use selected rest duration and retain shift start dates`,
+`Fix calendar layout and release-only touch actions`.
+Publikacja przez API moze nadac inne SHA niz lokalne; aktualny stan sprawdzac w `git log`.
+Wynik: **48 PASS, 0 FAIL** w Godot 4.4.1 headless. Szczegoly w raporcie audytu.
+
+## Historyczne wazne commity
 
 Lokalnie:
 
@@ -213,12 +234,13 @@ Na GitHub branch `driver-shift-calendar` po publikacji profili:
 
 ## Aktualne uwagi techniczne
 
-- Audyt 25.09.2026: `docs/DRIVER_CALENDAR_AUDYT_2026-09-25.md`; bazowy kod `c5ccea4`. Swiezy Godot 4.4.1 dziala headless. `tests/release_audit.gd` wykonal 24 kontrole: 15 PASS, 9 FAIL. To testy i diagnoza, bez napraw aplikacji. Przed latkami przeczytac raport; nie zakladac, ze runtime zawsze jest niedostepny.
+- Audyt 25.09.2026: `docs/DRIVER_CALENDAR_AUDYT_2026-09-25.md`; bazowy kod `c5ccea4` mial 15 PASS, 9 FAIL. Po poprawkach `tests/release_audit.gd` wykonuje 48 kontroli: 48 PASS, 0 FAIL.
 - Lokalny branch moze byc `ahead`, bo czesc poprawek byla publikowana przez GitHub API, a nie klasyczny `git push`.
 - Nie zakladac, ze lokalny `origin/driver-shift-calendar` jest swiezy.
 - Przed publikacja najlepiej porownac remote przez GitHub albo zrobic ostrozny pull/fetch, jesli srodowisko pozwala.
-- Godot w srodowisku Codex zwykle nie dziala; ostatnio headless konczyl sie kodem `139`.
-- Uczciwie mowic uzytkownikowi, ze runtime test jest po stronie Androida.
+- Swiezy oficjalny Godot 4.4.1 dziala headless; poprzednia znaleziona binarka byla niekompletna. Nie zakladac niedostepnosci silnika.
+- Testy uruchamiac z izolowanym `XDG_DATA_HOME=/tmp/driver-calendar-audit-*`; nadpisuja swoje pliki testowe.
+- Testy obejmuja logike, zapis i awarie, geometrie oraz syntetyczne zdarzenia. Fizyczny Android i wizualna ocena pozostaja po stronie uzytkownika; nie twierdzic, ze zostaly sprawdzone.
 
 ## Jesli user zglosi, ze cos nadal przesuwa sie prawo-lewo
 
@@ -235,15 +257,13 @@ Sprawdzic:
 
 Nie przywracac gestow swipe. Nawigacja ma byc tylko guzikami.
 
-## Najblizszy znany problem po profilach
+## Kolejne priorytety
 
-Po poprawce profili panel wyglada dobrze, ale guzik `Profile` moze nakladac sie z guzikiem `Wroc do aktualnej daty`.
-
-Jesli user kaze to poprawic:
-
-- ruszyc tylko pozycje guzika `Profile`,
-- menu profili zostawic bez zmian,
-- nie przebudowywac calego headera.
+- Weryfikacja aktualizacji z istniejacymi danymi i obslugi dotykiem na Androidzie.
+- Eksport/import kopii poza aplikacje; lokalna `.bak` nie chroni przed utrata telefonu.
+- Prognozy przez zmiane czasu i wznowienie aplikacji po uspieniu.
+- Podpisane wydanie Android i test zamkniety przed platna premiera.
+- Nakladanie przyciskow profili i dzisiaj naprawiono; nie otwierac tego ponownie bez nowego zgloszenia.
 
 ## Gotowy prompt dla drugiego agenta
 
@@ -276,10 +296,11 @@ git add ...
 git commit -m "..."
 Publikuj na driver-shift-calendar.
 
-Jesli git push jest blokowany przez sandbox, publikuj waski zakres przez GitHub API jako jeden commit.
+Jesli git push jest blokowany, publikuj waski zakres przez GitHub API w malych commitach, bez force.
 Uzytkownik testuje Androidem:
-cd ~/IDOL-Genesis
-git pull origin driver-shift-calendar
+cd /storage/emulated/0/Godot/DriverShiftCalendar &&
+git pull --ff-only origin driver-shift-calendar &&
+git log -1 --oneline
 
 Najwazniejsze: kalendarz nie moze przesuwac sie palcem prawo-lewo i nie moze zmieniac miesiaca swipe. Tylko guziki.
 
@@ -291,7 +312,10 @@ Aktualny stan:
 - dodatkowe profile mozna usuwac,
 - godziny pracy zapisuje sie do konkretnych dni,
 - godziny widac na kafelkach i sumuja sie w miesiacu,
-- Godot headless w Codex zwykle pada kodem 139, wiec test runtime robi user na Androidzie.
+- aktywny profil zapisuje zmiany automatycznie, a stare liczniki nie wracaja z profili,
+- potwierdzone zakonczenie pracy rozpoczyna wybrana pauze,
+- zapis ma kopie do odzyskiwania i widoczna obsluge bledow,
+- Godot 4.4.1 headless: 48 PASS, 0 FAIL; fizyczny Android testuje user.
 
 Jesli pracujesz rownolegle z drugim agentem, bierz tylko swoj element, nie refaktoruj szeroko scripts/main.gd i po publikacji podaj commit SHA.
 ```
