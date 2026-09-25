@@ -46,7 +46,7 @@ rg -n "calendar_only|main_scroll|horizontal|settings_panel|day_tools|profile|res
 git diff --check
 ```
 
-6. Godot headless w srodowisku Codex moze konczyc sie `Segmentation fault` / kodem `139`. To nie jest wiarygodny test tej aplikacji. Uczciwie o tym powiedz i rob kontrole statyczne.
+6. Swiezy Godot 4.4.1 dziala headless. Uruchamiaj testy z izolowanym XDG_DATA_HOME wedlug `docs/DRIVER_CALENDAR_BETA.md`. Poprzednia uszkodzona binarka nie oznacza niedostepnosci testow. Test fizycznego Androida nadal wykonuje uzytkownik.
 
 7. Commituj mala latke.
 
@@ -62,13 +62,11 @@ Godot na telefonie ma otwierac projekt z:
 /storage/emulated/0/Godot/DriverShiftCalendar
 ```
 
-Po latce uzytkownik powinien wymusic aktualny remote w tym wlasnie folderze:
+Po latce uzytkownik aktualizuje ten wlasnie folder bez kasowania zmian:
 
 ```bash
-cd /storage/emulated/0/Godot/DriverShiftCalendar
-git fetch origin
-git checkout driver-shift-calendar
-git reset --hard origin/driver-shift-calendar
+cd /storage/emulated/0/Godot/DriverShiftCalendar &&
+git pull --ff-only origin driver-shift-calendar &&
 git --no-pager log -1 --oneline
 ```
 
@@ -81,6 +79,11 @@ Jesli zmiana "nadal jest" na ekranie, najpierw podejrzewaj zla kopie projektu al
 - jesli Godot otwiera inny folder, bedzie widac stary ekran mimo poprawnego GitHuba.
 
 ## Aktualny stan po ostatnich latkach
+
+- Beta Android, kody, aktualizacje i zachowanie danych: `docs/DRIVER_CALENDAR_BETA.md`.
+- Profile i godziny musza przetrwac kazda aktualizacje. Zachowaj package ID,
+  podpis APK i `user://driver_calendar.cfg`. Nigdy nie proponuj odinstalowania
+  jako sposobu aktualizacji. `git pull` nie aktualizuje APK testerow.
 
 - Miesiac nie ma zmieniac sie gestem palca prawo/lewo. Nawigacja miesiecy tylko przyciskami.
 - Dodany byl twardy lock poziomego scrolla: `_consume_horizontal_drag`, `_lock_horizontal_scroll`.

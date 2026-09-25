@@ -61,6 +61,7 @@ func _run() -> void:
 	var access := Access.new()
 	access.calendar = app
 	root.add_child(access)
+	access.last_refresh_ticks = Time.get_ticks_msec()
 	await settle()
 	check("Unactivated beta blocks calendar interaction", not access.unlocked and app.process_mode == Node.PROCESS_MODE_DISABLED and access.panel.visible)
 	var before := FileAccess.get_file_as_bytes(Main.SETTINGS_PATH)

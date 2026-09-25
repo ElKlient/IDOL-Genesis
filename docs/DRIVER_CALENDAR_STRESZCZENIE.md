@@ -96,6 +96,13 @@ Przy konflikcie:
 
 ## Aktualny stan aplikacji
 
+Aktualizacja 25.09.2026: przygotowano bete Android z kodami na 30 dni od
+pierwszej aktywacji, podpisanymi zgodami offline do 72h, panelem wlasciciela
+i publikowaniem aktualizacji APK. Najpierw przeczytac `docs/DRIVER_CALENDAR_BETA.md`.
+Nie zmieniac package ID, klucza podpisu ani sciezek danych przy aktualizacji.
+Zwykle uruchomienie zrodel w Godot nadal sluzy pracy wlasciciela; preset
+`Android Beta` wlacza aktywacje. Feedback/czat pozostaja poza zakresem.
+
 Aplikacja to pionowy mobilny kalendarz kierowcy:
 
 - 7 kafelkow dni w rzedzie,
