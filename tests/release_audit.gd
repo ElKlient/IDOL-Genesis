@@ -62,6 +62,38 @@ func _capture(name: String) -> void:
 	print("SCREENSHOT | %s | %s" % [ProjectSettings.globalize_path(path), error])
 
 
+func _click_at(position: Vector2, move: Vector2 = Vector2.ZERO, target_viewport: Viewport = null) -> void:
+	var input_viewport := root
+	if target_viewport != null:
+		position = root.get_screen_transform().affine_inverse() * target_viewport.get_screen_transform() * position
+	var hover := InputEventMouseMotion.new()
+	hover.position = position
+	hover.global_position = position
+	input_viewport.push_input(hover, true)
+	var press := InputEventMouseButton.new()
+	press.button_index = MOUSE_BUTTON_LEFT
+	press.button_mask = MOUSE_BUTTON_MASK_LEFT
+	press.position = position
+	press.global_position = position
+	press.pressed = true
+	input_viewport.push_input(press, true)
+	await process_frame
+	if move != Vector2.ZERO:
+		var motion := InputEventMouseMotion.new()
+		motion.button_mask = MOUSE_BUTTON_MASK_LEFT
+		motion.position = position + move
+		motion.global_position = position + move
+		motion.relative = move
+		input_viewport.push_input(motion, true)
+		await process_frame
+	var release := InputEventMouseButton.new()
+	release.button_index = MOUSE_BUTTON_LEFT
+	release.position = position + move
+	release.global_position = position + move
+	input_viewport.push_input(release, true)
+	await _settle()
+
+
 func _run() -> void:
 	print("ENGINE | %s | display=%s" % [Engine.get_version_info().string, DisplayServer.get_name()])
 	print("ISOLATED_DATA | %s" % OS.get_user_data_dir())
@@ -243,7 +275,59 @@ func _run() -> void:
 	await _settle()
 	print("LAYOUT | day_dialog=%s root=%s" % [app.day_action_dialog.size, root.size])
 	_check("Day actions dialog fits portrait viewport", app.day_action_dialog.size.y <= root.size.y, "dialog_height=%s viewport_height=%s" % [app.day_action_dialog.size.y, root.size.y])
+	app.day_action_scroll.scroll_vertical = 100000
+	await _settle()
+	var day_actions: Control = app.day_action_scroll.get_child(0).get_child(0)
+	var last_action: Control = day_actions.get_child(day_actions.get_child_count() - 1)
+	_check("Last day action can be scrolled into view", app.day_action_scroll.get_global_rect().encloses(last_action.get_global_rect()))
+	await _click_at(last_action.get_global_rect().get_center(), Vector2.ZERO, app.day_action_dialog)
+	_check("Day popup buttons respond after scrolling", app.note_dialog.visible)
+	app.note_dialog.hide()
 	app.day_action_dialog.hide()
+	app._save_and_close_main_view()
+	await _settle()
+	app.main_scroll.ensure_control_visible(app.start_work_button)
+	await _settle()
+	await _click_at(app.start_work_button.get_global_rect().get_center(), Vector2(0, -50))
+	_check("Dragging over work button does not start work", app.work_start_unix == 0)
+	app.main_scroll.ensure_control_visible(app.start_work_button)
+	await _settle()
+	await _click_at(app.start_work_button.get_global_rect().get_center())
+	_check("Clean press and release starts work", app.work_start_unix > 0)
+	_clean()
+	app.calendar_scroll.scroll_vertical = 0
+	await _settle()
+	var next_month_button: Button
+	for button in app.navigation_buttons:
+		if is_instance_valid(button) and button.is_visible_in_tree() and button.text == ">":
+			next_month_button = button
+	var navigation_before := Vector2i(app.current_year, app.current_month)
+	await _click_at(next_month_button.get_global_rect().get_center(), Vector2(45, 0))
+	_check("Dragging across month button does not navigate", navigation_before == Vector2i(app.current_year, app.current_month))
+	await _click_at(next_month_button.get_global_rect().get_center())
+	_check("Clean month button click navigates", navigation_before != Vector2i(app.current_year, app.current_month))
+	app._enter_calendar_only_mode()
+	await _settle()
+	await _click_at(app.return_today_button.get_global_rect().get_center())
+	var local_today := Time.get_datetime_dict_from_system()
+	_check("Today shortcut works in calendar-only mode", app.current_year == local_today.year and app.current_month == local_today.month)
+	_clean()
+	root.content_scale_size = Vector2i(720, 960)
+	root.size = Vector2i(720, 960)
+	await _settle()
+	app.current_year = 2026
+	app.current_month = 8
+	app._accept_calendar_page()
+	app._rebuild_calendar()
+	await _settle()
+	_check("Short viewport keeps options reachable", app.main_scroll.size.y >= app.settings_toggle_button.size.y and app.main_scroll.get_global_rect().end.y <= app.get_viewport_rect().size.y)
+	var header_position: Vector2 = app.header_bar.global_position
+	app.calendar_scroll.scroll_vertical = 100000
+	await _settle()
+	_check("Calendar scrolling leaves header fixed", app.header_bar.global_position == header_position)
+	root.content_scale_size = Vector2i(720, 1280)
+	root.size = Vector2i(720, 1280)
+	await _settle()
 
 	_clean()
 	var config_path := ProjectSettings.globalize_path(Main.SETTINGS_PATH)

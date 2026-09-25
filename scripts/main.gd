@@ -90,6 +90,7 @@ var calendar_root: VBoxContainer
 var options_root: VBoxContainer
 var months_box: VBoxContainer
 var return_today_button: Button
+var return_today_overlay: MarginContainer
 var profile_button: Button
 var profile_overlay: VBoxContainer
 var profile_panel: PanelContainer
@@ -145,6 +146,7 @@ var work_hours_toggle_button: Button
 var monthly_work_total_label: Label
 var day_action_hours_label: Label
 var day_action_dialog: AcceptDialog
+var day_action_scroll: ScrollContainer
 var manual_hours_dialog: ConfirmationDialog
 var manual_hours_spin: SpinBox
 var manual_minutes_spin: SpinBox
@@ -250,7 +252,6 @@ func _input(event: InputEvent) -> void:
 
 
 func _gui_input(event: InputEvent) -> void:
-	_track_scroll_touch(event)
 	if _consume_horizontal_drag(event, true):
 		return
 	if _consume_calendar_only_drag(event):
@@ -261,14 +262,12 @@ func _gui_input(event: InputEvent) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	_track_scroll_touch(event)
 	if _event_is_drag_motion(event):
 		_block_touch_drag_actions()
 		_lock_horizontal_scroll_deferred()
 
 
 func _on_main_scroll_gui_input(event: InputEvent) -> void:
-	_track_scroll_touch(event)
 	if _consume_horizontal_drag(event, true):
 		return
 	if event is InputEventScreenDrag or event is InputEventPanGesture:
@@ -282,7 +281,6 @@ func _on_main_scroll_gui_input(event: InputEvent) -> void:
 
 
 func _on_calendar_scroll_gui_input(event: InputEvent) -> void:
-	_track_scroll_touch(event)
 	if _consume_horizontal_drag(event, true):
 		return
 	if _event_is_drag_motion(event):
@@ -361,6 +359,7 @@ func _build_ui() -> void:
 	root.custom_minimum_size = Vector2(PORTRAIT_WIDTH, 0)
 	root.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	root.add_theme_constant_override("separation", 18)
+	root.minimum_size_changed.connect(_fit_calendar_height.call_deferred)
 	calendar_center.add_child(root)
 
 	main_scroll = ScrollContainer.new()
@@ -389,9 +388,11 @@ func _build_ui() -> void:
 	_sync_calendar_root_width()
 
 	header_bar = HBoxContainer.new()
-	header_bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	header_bar.custom_minimum_size.x = PORTRAIT_WIDTH
+	header_bar.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	header_bar.add_theme_constant_override("separation", 8)
-	root.add_child(header_bar)
+	screen_root.add_child(header_bar)
+	screen_root.move_child(header_bar, 0)
 
 	var undo_row := HBoxContainer.new()
 	undo_row.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
@@ -438,7 +439,8 @@ func _build_ui() -> void:
 
 	return_today_spacer = Control.new()
 	return_today_spacer.custom_minimum_size = Vector2(0, RETURN_TODAY_BUTTON_HEIGHT)
-	root.add_child(return_today_spacer)
+	screen_root.add_child(return_today_spacer)
+	screen_root.move_child(return_today_spacer, 1)
 
 	navigation_panel = _build_navigation_panel()
 	root.add_child(navigation_panel)
@@ -753,6 +755,7 @@ func _build_month_picker_panel() -> PanelContainer:
 
 func _add_return_today_overlay() -> void:
 	var overlay := MarginContainer.new()
+	return_today_overlay = overlay
 	overlay.set_anchors_preset(Control.PRESET_TOP_WIDE)
 	overlay.offset_left = 18.0
 	overlay.offset_right = -18.0
@@ -818,7 +821,7 @@ func _add_profile_overlay() -> void:
 	profile_button.text = "Profile"
 	_connect_tap(profile_button, Callable(self, "_toggle_profile_panel"))
 	_prepare_control(profile_button, 16, PROFILE_BUTTON_HEIGHT)
-	profile_button.custom_minimum_size.x = PROFILE_BUTTON_WIDTH
+	profile_button.custom_minimum_size.x = 100
 	profile_button.size_flags_horizontal = Control.SIZE_SHRINK_END
 	profile_overlay.add_child(profile_button)
 
@@ -953,7 +956,7 @@ func _sync_calendar_touch_shield() -> void:
 	if _range_months() > 1:
 		calendar_touch_shield.visible = false
 		return
-	if calendar_only_mode:
+	if calendar_only_mode and calendar_scroll.vertical_scroll_mode == ScrollContainer.SCROLL_MODE_DISABLED:
 		var viewport_rect := get_viewport_rect()
 		calendar_touch_shield.position = viewport_rect.position
 		calendar_touch_shield.size = viewport_rect.size
@@ -1198,12 +1201,20 @@ func _build_day_action_dialog() -> void:
 	day_action_dialog.add_theme_stylebox_override("panel", _dialog_style())
 	add_child(day_action_dialog)
 
+	day_action_scroll = ScrollContainer.new()
+	day_action_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	day_action_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	day_action_scroll.scroll_deadzone = TOUCH_SCROLL_DEADZONE_MENU
+	day_action_dialog.add_child(day_action_scroll)
+	_style_scrollbar(day_action_scroll)
+
 	var margin := MarginContainer.new()
+	margin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	margin.add_theme_constant_override("margin_left", 14)
 	margin.add_theme_constant_override("margin_right", 14)
 	margin.add_theme_constant_override("margin_top", 14)
 	margin.add_theme_constant_override("margin_bottom", 14)
-	day_action_dialog.add_child(margin)
+	day_action_scroll.add_child(margin)
 
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 10)
@@ -1257,6 +1268,7 @@ func _build_day_action_dialog() -> void:
 	var close_button := day_action_dialog.get_ok_button()
 	close_button.text = "Zamknij"
 	_prepare_control(close_button, 22, 66)
+	close_button.focus_mode = Control.FOCUS_ALL
 	close_button.custom_minimum_size.x = 360
 
 
@@ -1304,6 +1316,7 @@ func _build_manual_hours_dialog() -> void:
 	var ok_button := manual_hours_dialog.get_ok_button()
 	ok_button.text = "Dodaj"
 	_prepare_control(ok_button, 18, 48)
+	ok_button.focus_mode = Control.FOCUS_ALL
 
 	var cancel_button := manual_hours_dialog.get_cancel_button()
 	cancel_button.text = "Anuluj"
@@ -1566,9 +1579,13 @@ func _apply_main_view_mode(saved: bool) -> void:
 	if header_bar != null:
 		header_bar.visible = not calendar_only_mode
 	if return_today_spacer != null:
-		return_today_spacer.visible = not calendar_only_mode
+		return_today_spacer.visible = true
+		return_today_spacer.custom_minimum_size.y = CALENDAR_ONLY_RETURN_HEIGHT if calendar_only_mode else RETURN_TODAY_BUTTON_HEIGHT
 	if return_today_button != null:
-		return_today_button.visible = not calendar_only_mode
+		return_today_button.visible = true
+		move_child(return_today_overlay, get_child_count() - 1)
+		return_today_overlay.offset_top = CALENDAR_ONLY_RETURN_TOP if calendar_only_mode else RETURN_TODAY_BUTTON_TOP
+		return_today_overlay.offset_bottom = return_today_overlay.offset_top + RETURN_TODAY_BUTTON_HEIGHT
 	if profile_overlay != null:
 		profile_overlay.visible = not calendar_only_mode
 	if reset_settings_button != null:
@@ -1587,6 +1604,7 @@ func _apply_main_view_mode(saved: bool) -> void:
 		_set_profile_panel_visible(false)
 	_apply_day_tools_visibility()
 	_update_undo_buttons()
+	_fit_calendar_height.call_deferred()
 
 
 func _update_main_scroll_touch_mode() -> void:
@@ -1608,12 +1626,33 @@ func _update_calendar_scroll_touch_mode() -> void:
 	var multi_month_view := _range_months() > 1
 	calendar_scroll.scroll_deadzone = TOUCH_SCROLL_DEADZONE_MENU
 	calendar_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	calendar_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO if multi_month_view else ScrollContainer.SCROLL_MODE_DISABLED
 	calendar_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL if multi_month_view else Control.SIZE_SHRINK_BEGIN
 	calendar_scroll.size_flags_stretch_ratio = 3.0 if multi_month_view else 1.0
-	if not multi_month_view:
-		calendar_scroll.scroll_vertical = 0
+	if multi_month_view:
+		calendar_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+		calendar_scroll.custom_minimum_size.y = 0
+	else:
+		_fit_calendar_height.call_deferred()
 	_lock_horizontal_scroll_deferred()
+
+
+func _fit_calendar_height() -> void:
+	if calendar_root == null or main_scroll == null or _range_months() > 1:
+		return
+	var available_height := get_viewport_rect().size.y - 38.0
+	for fixed_control in [header_bar, return_today_spacer]:
+		if fixed_control != null and fixed_control.visible:
+			available_height -= fixed_control.get_combined_minimum_size().y + 12.0
+	if not calendar_only_mode:
+		available_height -= minf(260.0, get_viewport_rect().size.y * 0.25) + 12.0
+	var content_height := calendar_root.get_combined_minimum_size().y
+	var height_limit := maxf(180.0, available_height)
+	var needs_scroll := content_height > height_limit
+	calendar_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO if needs_scroll else ScrollContainer.SCROLL_MODE_DISABLED
+	calendar_scroll.custom_minimum_size.y = minf(content_height, height_limit)
+	if not needs_scroll:
+		calendar_scroll.scroll_vertical = 0
+	_sync_calendar_touch_shield()
 
 
 func _sync_calendar_root_width() -> void:
@@ -1633,7 +1672,10 @@ func _sync_calendar_root_width() -> void:
 		calendar_root.custom_minimum_size.x = root_width
 	if options_root != null:
 		options_root.custom_minimum_size.x = root_width
+	if header_bar != null:
+		header_bar.custom_minimum_size.x = root_width
 	_lock_horizontal_scroll_deferred()
+	_fit_calendar_height.call_deferred()
 
 
 func _update_undo_buttons() -> void:
@@ -2832,7 +2874,10 @@ func _open_day_actions(year: int, month: int, day: int) -> void:
 	_select_day(year, month, day)
 	day_action_dialog.title = selected_day_key
 	_update_selected_day_hours_label()
-	day_action_dialog.popup_centered()
+	day_action_scroll.scroll_vertical = 0
+	var available := Vector2i(get_viewport_rect().size) - Vector2i(36, 80)
+	day_action_dialog.min_size = Vector2i(mini(640, available.x), mini(720, available.y))
+	day_action_dialog.popup_centered(Vector2i(mini(640, available.x), mini(980, available.y)))
 
 
 func _select_day(year: int, month: int, day: int) -> void:
@@ -3707,16 +3752,13 @@ func _connect_day_tool_tap(button: BaseButton, action: Callable) -> void:
 	_register_scroll_safe_control(button)
 	button.mouse_filter = Control.MOUSE_FILTER_STOP
 	button.action_mode = BaseButton.ACTION_MODE_BUTTON_RELEASE
-	button.button_down.connect(func() -> void:
-		_run_day_tool_button_action(button, action)
-	)
 	button.pressed.connect(func() -> void:
 		_run_day_tool_button_action(button, action)
 	)
 
 
 func _run_day_tool_button_action(button: BaseButton, action: Callable) -> void:
-	if not is_instance_valid(button):
+	if not is_instance_valid(button) or touch_drag_cancelled:
 		return
 
 	var now_msec := int(Time.get_ticks_msec())
@@ -3753,7 +3795,7 @@ func _connect_day_cell_tap(button: BaseButton, action: Callable) -> void:
 	_register_scroll_safe_control(button)
 	button.action_mode = BaseButton.ACTION_MODE_BUTTON_RELEASE
 	button.pressed.connect(func() -> void:
-		if touch_drag_cancelled:
+		if touch_drag_cancelled or calendar_only_mode:
 			return
 		action.call()
 	)
@@ -3769,7 +3811,6 @@ func _prepare_calendar_drag_blocker(control: Control) -> void:
 
 
 func _handle_calendar_area_input(event: InputEvent) -> void:
-	_track_scroll_touch(event)
 	if _consume_horizontal_drag(event, true):
 		return
 	if _event_is_drag_motion(event):
@@ -3906,7 +3947,7 @@ func _run_navigation_button_action(action: Callable) -> void:
 
 
 func _run_navigation_button_action_for_button(button: BaseButton, action: Callable) -> void:
-	if not is_instance_valid(button):
+	if not is_instance_valid(button) or touch_drag_cancelled:
 		return
 
 	var now_msec := int(Time.get_ticks_msec())
@@ -3924,13 +3965,21 @@ func _register_scroll_safe_control(control: Control) -> void:
 
 	control.set_meta("scroll_safe_registered", true)
 	control.mouse_filter = Control.MOUSE_FILTER_PASS
-	control.gui_input.connect(_track_scroll_touch)
+	control.gui_input.connect(_track_popup_touch.bind(control))
 
 	if control is BaseButton:
 		var button := control as BaseButton
 		scroll_safe_buttons.append(button)
 		button.focus_mode = Control.FOCUS_NONE
 		button.action_mode = BaseButton.ACTION_MODE_BUTTON_RELEASE
+
+
+func _track_popup_touch(event: InputEvent, control: Control) -> void:
+	# Root input already uses viewport coordinates; popup events need conversion.
+	if control.get_viewport() == get_viewport():
+		return
+	var transformed := event.xformed_by(control.get_global_transform_with_canvas())
+	_track_scroll_touch(transformed)
 
 
 func _tap_is_blocked() -> bool:
@@ -3980,6 +4029,8 @@ func _track_scroll_touch(event: InputEvent) -> void:
 
 func _consume_calendar_only_drag(event: InputEvent) -> bool:
 	if not calendar_only_mode or not _event_is_drag_motion(event):
+		return false
+	if not _event_is_horizontal_drag(event) and calendar_scroll.vertical_scroll_mode == ScrollContainer.SCROLL_MODE_AUTO:
 		return false
 
 	_block_touch_drag_actions()
@@ -4081,6 +4132,8 @@ func _begin_touch_tracking(position: Vector2) -> void:
 	touch_start_position = position
 	touch_drag_total = Vector2.ZERO
 	touch_drag_cancelled = false
+	navigation_blocked_until_msec = -10000
+	last_drag_release_msec = -10000
 
 
 func _update_touch_tracking(position: Vector2) -> void:
@@ -4755,9 +4808,19 @@ func _button_return_to_today() -> void:
 	_accept_calendar_page()
 	_refresh_today_day_index()
 	_rebuild_calendar()
+	_scroll_to_today.call_deferred()
 	if main_scroll != null:
 		main_scroll.set_deferred("scroll_vertical", 0)
 	_save_settings_to_disk()
+
+
+func _scroll_to_today() -> void:
+	await get_tree().process_frame
+	for target in day_touch_targets:
+		var day_index := ScheduleCalculator.day_index_from_date(int(target["year"]), int(target["month"]), int(target["day"]))
+		if day_index == today_day_index and is_instance_valid(target["button"]):
+			calendar_scroll.ensure_control_visible(target["button"])
+			return
 
 
 func _open_month_from_overview(year: int, month: int) -> void:
