@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#101a28">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Kalendarz Kierowcy">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="index.apple-touch-icon.png">
+  <title>Kalendarz Kierowcy — beta na iPhone’a</title>
+  <style>
+    * { box-sizing:border-box; } html,body { margin:0; width:100%; height:100%; background:#101a28; color:#edf3f8; font-family:Arial,sans-serif; }
+    body { overflow:hidden; overscroll-behavior:none; }
+    #surface { position:fixed; inset:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); display:flex; justify-content:center; }
+    canvas { display:block; width:100%; height:100%; max-width:600px; touch-action:none; outline:none; }
+    #intro { position:fixed; inset:0; z-index:2; overflow:auto; background:#101a28; padding:max(24px,env(safe-area-inset-top)) 24px max(24px,env(safe-area-inset-bottom)); }
+    .card { max-width:470px; margin:10vh auto 24px; } h1 { font-size:32px; line-height:1.15; margin:12px 0 24px; } p,li { font-size:17px; line-height:1.55; } li { margin:14px 0; }
+    .eyebrow { color:#f0bb68; font-size:14px; } .muted { color:#b2c0cf; } button,a { color:inherit; } button { min-height:50px; padding:12px 18px; border:0; border-radius:9px; background:#f0bb68; color:#101a28; font:700 17px Arial; cursor:pointer; } button:disabled{opacity:.6;cursor:wait} button:focus-visible,a:focus-visible{outline:3px solid white;outline-offset:4px}
+    #progress { width:100%; height:12px; accent-color:#f0bb68; } #status { white-space:pre-line; } [hidden] { display:none!important; }
+    #notice { position:fixed; bottom:max(12px,env(safe-area-inset-bottom)); left:12px; right:12px; z-index:3; margin:auto; max-width:570px; padding:12px; background:#273b4e; border:1px solid #7891a8; border-radius:8px; font-size:15px; }
+  </style>
+</head>
+<body>
+  <div id="surface"><canvas id="canvas" tabindex="0" aria-label="Kalendarz Kierowcy">Twoja przeglądarka nie obsługuje kalendarza.</canvas></div>
+  <section id="intro"><div class="card">
+    <p class="eyebrow">KALENDARZ KIEROWCY · BETA</p>
+    <h1>Twój kalendarz na iPhonie</h1>
+    <div id="install" hidden><ol><li>W Safari wybierz <strong>Udostępnij → Dodaj do ekranu początkowego</strong> (lub głównego).</li><li>Jeśli widzisz „Otwórz jako aplikację”, włącz tę opcję i wybierz <strong>Dodaj</strong>.</li><li>Otwórz nową ikonę. Dopiero tam wpisz swój kod na 30 dni.</li></ol><p class="muted">To wersja webowa tego samego kalendarza. Otwieraj ją zawsze z tej ikony, aby korzystać z tego samego zapisu.</p></div>
+    <p id="hint" class="muted">Pierwsze uruchomienie wymaga internetu. Przygotuj kod otrzymany od organizatora testów.</p>
+    <button id="start" type="button">Otwórz kalendarz</button>
+    <progress id="progress" hidden></progress><p id="status" role="status"></p>
+    <p class="muted">Godziny i profile zapisujemy na tym urządzeniu. Pobieraj kopię w menu „Wersja beta i aktualizacje”. Nie usuwaj aplikacji ani danych Safari.</p>
+    <a href="/">Wróć do strony testów</a>
+  </div></section>
+  <p id="notice" role="status" hidden></p>
+  <input id="backup" type="file" accept=".dkcal,.txt,text/plain" hidden>
+  <noscript>Włącz JavaScript w Safari, aby uruchomić kalendarz.</noscript>
+  <script src="$GODOT_URL"></script>
+  <script>
+    const config = $GODOT_CONFIG;
+    // The build script points the engine at its immutable, compressed R2 asset.
+    const engine = new Engine(config);
+    const intro = document.getElementById('intro');
+    const status = document.getElementById('status');
+    const start = document.getElementById('start');
+    const progress = document.getElementById('progress');
+    const canvas = document.getElementById('canvas');
+    const surface = document.getElementById('surface');
+    const notice = document.getElementById('notice');
+    const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    const standalone = navigator.standalone || matchMedia('(display-mode: standalone)').matches;
+    let registration, importCallback;
+    function notify(text) { notice.textContent=text; notice.hidden=false; }
+    function sizeCanvas() {
+      const keyboardInset=window.visualViewport ? Math.max(0,innerHeight-window.visualViewport.height) : 0;
+      surface.style.bottom=keyboardInset>100?`${keyboardInset}px`:'env(safe-area-inset-bottom)';
+      const width=Math.min(surface.clientWidth,600); canvas.width=720; canvas.height=Math.round(surface.clientHeight*720/Math.max(width,1));
+    }
+    sizeCanvas(); addEventListener('resize',sizeCanvas); window.visualViewport?.addEventListener('resize',sizeCanvas);
+    const backupInput=document.getElementById('backup');
+    window.DriverWeb={
+      ready() { intro.hidden=true; },
+      chooseBackup(callback) { importCallback=callback; backupInput.value=''; backupInput.click(); },
+      async checkUpdate(callback) {
+        if (!registration) { callback('Aktualizacje wymagają internetu oraz otwarcia aplikacji przez bezpieczny link.'); return; }
+        try {
+          await registration.update();
+          callback(registration.waiting || registration.installing ? 'Aktualizacja jest pobierana lub gotowa. Poczekaj na komunikat, pobierz kopię, zamknij wszystkie okna kalendarza i otwórz go ponownie. Dane pozostają zapisane.' : 'Nie znaleziono nowszej wersji. Nie usuwaj aplikacji ani danych Safari.');
+        } catch { callback('Nie udało się sprawdzić aktualizacji. Połącz się z internetem i spróbuj ponownie.'); }
+      }
+    };
+    backupInput.addEventListener('change',async()=>{
+      const file=backupInput.files[0]; if(!file)return;
+      if(file.size>3000000){notify('Kopia jest za duża (maks. 3 MB). Niczego nie zmieniono.');return;}
+      try{importCallback(await file.text());}catch{notify('Nie udało się odczytać pliku. Niczego nie zmieniono.');}
+    });
+    async function startCalendar() {
+      start.disabled=true; status.textContent='Ładowanie kalendarza…'; progress.hidden=false;
+      try {
+        if(!window.isSecureContext) throw Error('Otwórz bezpieczny link HTTPS otrzymany od organizatora.');
+        if(Engine.getMissingFeatures({threads:false}).length) throw Error('Ta przeglądarka nie obsługuje wymaganej grafiki. Zaktualizuj iOS i otwórz link w Safari.');
+        if(!window.indexedDB) throw Error('Trwały zapis nie jest dostępny. Wyłącz tryb prywatny i uruchom kalendarz z ikony.');
+        const persistence=await new Promise((resolve,reject)=>{const r=indexedDB.open('driver-calendar-storage-check',1);r.onerror=()=>reject(Error('Nie można zapisywać danych. Sprawdź ustawienia Safari.'));r.onsuccess=()=>{r.result.close();resolve(true);};});
+        if(persistence && navigator.storage?.persist) navigator.storage.persist().catch(()=>{});
+        await engine.startGame({canvasResizePolicy:0,onProgress:(n,total)=>{if(total){progress.max=total;progress.value=n;}}});
+        // Godot calls DriverWeb.ready after loading its stored calendar and activation.
+        if('serviceWorker' in navigator && window.isSecureContext){
+          registration=await navigator.serviceWorker.register('service-worker.js',{scope:'./',updateViaCache:'none'});
+          const watch=(worker)=>{if(!worker)return;worker.addEventListener('statechange',()=>{if(worker.state==='installed'){notify(navigator.serviceWorker.controller?'Aktualizacja gotowa. Pobierz kopię i zamknij wszystkie okna kalendarza. Nowa wersja uruchomi się przy kolejnym otwarciu.':'Kalendarz zapisany do pracy offline. Dostęp bez internetu: do 72 godzin od potwierdzenia kodu.');}});};
+          watch(registration.installing); registration.addEventListener('updatefound',()=>watch(registration.installing));
+          if(registration.waiting)notify('Aktualizacja gotowa. Zamknij wszystkie okna kalendarza i otwórz ponownie.');
+        }
+      }catch(error){status.textContent=error.message||'Nie udało się uruchomić. Sprawdź połączenie i otwórz aplikację ponownie.';progress.hidden=true;start.disabled=false;}
+    }
+    start.addEventListener('click',startCalendar);
+    if(isIOS&&!standalone){document.getElementById('install').hidden=false;start.hidden=true;document.getElementById('hint').hidden=true;}
+    else if(standalone){startCalendar();}
+    notice.addEventListener('click',()=>{notice.hidden=true;});
+  </script>
+</body>
+</html>
