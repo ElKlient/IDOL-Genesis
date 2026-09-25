@@ -33,6 +33,7 @@ func _settle() -> void:
 
 
 func _clean() -> void:
+	app.active_profile_index = 0
 	app._restore_calendar_state(baseline.duplicate(true))
 	app.saved_profiles.clear()
 	app.profile_count = 3
@@ -107,13 +108,21 @@ func _run() -> void:
 	_check("Monthly hours total is correct", app._worked_seconds_for_month(2026, 9) == 30600)
 	app.notes["2026-09-25"] = "Audit note"
 	app._on_save_profile_pressed()
+	app.selected_profile_index = 2
+	app._on_load_profile_pressed()
+	_check("Empty profile has no previous hours", app.worked_seconds_by_day.is_empty(), str(app.worked_seconds_by_day))
 	app.worked_seconds_by_day["2026-09-25"] = 60
-	app.notes.clear()
+	app.notes["2026-09-25"] = "Second profile"
+	app._save_settings_to_disk()
+	app.selected_profile_index = 1
 	app._on_load_profile_pressed()
 	_check("Saved profile restores hours and notes", app.worked_seconds_by_day.get("2026-09-25", 0) == 30600 and app.notes.get("2026-09-25", "") == "Audit note")
 	app.selected_profile_index = 2
 	app._on_load_profile_pressed()
-	_check("Empty profile has no previous hours", app.worked_seconds_by_day.is_empty(), str(app.worked_seconds_by_day))
+	_check("Active profile autosaves its own edits", app.worked_seconds_by_day.get("2026-09-25", 0) == 60 and app.notes.get("2026-09-25", "") == "Second profile")
+	app.selected_profile_index = 1
+	app._save_settings_to_disk()
+	_check("Selecting another slot does not copy data into it", app.saved_profiles["1"]["worked_seconds_by_day"].get("2026-09-25", 0) == 30600)
 
 	_clean()
 	app.notes["2026-09-25"] = "Reset recovery"
@@ -137,12 +146,24 @@ func _run() -> void:
 	var original_start: int = app.work_start_unix
 	app._on_start_work_pressed()
 	_check("Second start preserves active shift", app.work_start_unix == original_start, "lost_seconds=%d" % (app.work_start_unix - original_start))
+	app.selected_profile_index = 2
+	app._on_load_profile_pressed()
+	_check("Profile loading preserves running shift", app.work_start_unix == original_start and app.active_profile_index == 0)
 	_clean()
 	app.work_start_unix = int(Time.get_unix_time_from_system()) - 8 * 3600
 	app._on_save_profile_pressed()
 	app._confirm_end_work()
 	app._on_load_profile_pressed()
 	_check("Loading a profile does not resurrect completed shift", app.work_start_unix == 0, "start_unix=%d hours=%s" % [app.work_start_unix, app.worked_seconds_by_day])
+	_check("Completed shift remains in active profile", not app.worked_seconds_by_day.is_empty() and not app.saved_profiles["1"]["worked_seconds_by_day"].is_empty())
+	_clean()
+	var legacy_profile: Dictionary = baseline.duplicate(true)
+	legacy_profile["work_start_unix"] = 100000
+	legacy_profile["pause_start_unix"] = 200000
+	legacy_profile["worked_seconds_by_day"] = {"2026-09-25": 7200}
+	app.saved_profiles["1"] = legacy_profile
+	app._on_load_profile_pressed()
+	_check("Legacy profile loads data without stale timers", app.work_start_unix == 0 and app.pause_start_unix == 0 and app.worked_seconds_by_day.get("2026-09-25", 0) == 7200)
 
 	_clean()
 	app.pause_start_unix = int(Time.get_unix_time_from_system()) - 3 * 3600

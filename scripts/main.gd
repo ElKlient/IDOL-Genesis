@@ -186,6 +186,7 @@ var undo_snapshot: Dictionary = {}
 var restoring_undo_state := false
 var profile_count := DEFAULT_PROFILE_COUNT
 var selected_profile_index := 1
+var active_profile_index := 0
 var saved_profiles: Dictionary = {}
 var profile_panel_visible := false
 var month_picker_visible := false
@@ -1645,6 +1646,7 @@ func _save_settings_to_disk() -> void:
 	if schedule_option == null:
 		return
 
+	_sync_active_profile()
 	var config := ConfigFile.new()
 	config.set_value("ui", "main_view_saved", main_view_saved)
 	config.set_value("ui", "calendar_only_mode", calendar_only_mode)
@@ -1658,6 +1660,7 @@ func _save_settings_to_disk() -> void:
 	config.set_value("undo_reset", "snapshot", reset_undo_snapshot.duplicate(true))
 	config.set_value("profiles", "count", profile_count)
 	config.set_value("profiles", "selected", selected_profile_index)
+	config.set_value("profiles", "active", active_profile_index)
 	config.set_value("profiles", "items", saved_profiles.duplicate(true))
 	config.set_value("calendar", "current_year", current_year)
 	config.set_value("calendar", "current_month", current_month)
@@ -1707,6 +1710,7 @@ func _load_settings_from_disk() -> void:
 	profile_count = maxi(DEFAULT_PROFILE_COUNT, int(config.get_value("profiles", "count", DEFAULT_PROFILE_COUNT)))
 	selected_profile_index = clampi(int(config.get_value("profiles", "selected", 1)), 1, profile_count)
 	_load_saved_profiles(config.get_value("profiles", "items", {}))
+	active_profile_index = clampi(int(config.get_value("profiles", "active", 0)), 0, profile_count)
 	_refresh_profile_options()
 	_set_profile_panel_visible(false)
 	current_year = int(config.get_value("calendar", "current_year", current_year))
@@ -1802,6 +1806,7 @@ func _app_state_snapshot() -> Dictionary:
 		"calendar": _calendar_state_snapshot(),
 		"profile_count": profile_count,
 		"selected_profile_index": selected_profile_index,
+		"active_profile_index": active_profile_index,
 		"saved_profiles": saved_profiles.duplicate(true),
 		"profile_panel_visible": profile_panel_visible,
 		"reset_undo_available": reset_undo_available,
@@ -1887,6 +1892,7 @@ func _restore_app_state_snapshot(snapshot: Dictionary) -> void:
 	profile_count = maxi(DEFAULT_PROFILE_COUNT, int(snapshot.get("profile_count", DEFAULT_PROFILE_COUNT)))
 	selected_profile_index = int(snapshot.get("selected_profile_index", 1))
 	_load_saved_profiles(snapshot.get("saved_profiles", {}))
+	active_profile_index = clampi(int(snapshot.get("active_profile_index", 0)), 0, profile_count)
 	selected_profile_index = clampi(selected_profile_index, 1, profile_count)
 	reset_undo_available = bool(snapshot.get("reset_undo_available", false))
 	_load_reset_undo_snapshot(snapshot.get("reset_undo_snapshot", {}))
@@ -1944,6 +1950,8 @@ func _refresh_profile_options() -> void:
 
 
 func _profile_label(index: int) -> String:
+	if index == active_profile_index:
+		return "Profil %d - aktywny" % index
 	var state := "zapisany" if saved_profiles.has(_profile_key(index)) else "pusty"
 	return "Profil %d - %s" % [index, state]
 
@@ -1971,7 +1979,9 @@ func _update_profile_actions() -> void:
 		profile_delete_button.disabled = not can_delete_profile
 		profile_delete_button.text = "Usuń profil" if selected_profile_index > DEFAULT_PROFILE_COUNT else "Usuń zapis profilu"
 	if profile_status_label != null:
-		if has_saved_profile:
+		if selected_profile_index == active_profile_index:
+			profile_status_label.text = "Profil %d jest aktywny. Zmiany zapisują się automatycznie." % selected_profile_index
+		elif has_saved_profile:
 			profile_status_label.text = "Profil %d jest zapisany. Możesz go wczytać albo nadpisać." % selected_profile_index
 		else:
 			profile_status_label.text = "Profil %d jest pusty. Wczytaj go, żeby zacząć czysty kalendarz." % selected_profile_index
@@ -1991,7 +2001,9 @@ func _on_profile_selected(index: int) -> void:
 
 func _on_save_profile_pressed() -> void:
 	_capture_undo_state()
-	saved_profiles[_selected_profile_key()] = _calendar_state_snapshot()
+	_sync_active_profile()
+	active_profile_index = selected_profile_index
+	saved_profiles[_selected_profile_key()] = _profile_snapshot(_calendar_state_snapshot())
 	_refresh_profile_options()
 	_set_profile_panel_visible(true)
 	if profile_status_label != null:
@@ -2000,19 +2012,29 @@ func _on_save_profile_pressed() -> void:
 
 
 func _on_load_profile_pressed() -> void:
+	if work_start_unix > 0 or pause_start_unix > 0:
+		profile_status_label.text = "Zakończ pracę lub wyzeruj licznik pauzy przed wczytaniem profilu."
+		return
+
 	var loaded_index := selected_profile_index
 	var status_text := ""
-	_capture_undo_state()
+	_sync_active_profile()
+	var undo_before := _app_state_snapshot()
+	active_profile_index = loaded_index
 	if _selected_profile_saved():
-		var snapshot: Dictionary = saved_profiles[_selected_profile_key()].duplicate(true)
+		var snapshot := _profile_snapshot(saved_profiles[_selected_profile_key()])
 		reset_undo_available = false
 		reset_undo_snapshot.clear()
 		_restore_calendar_state(snapshot)
 		status_text = "Wczytano profil %d." % loaded_index
 	else:
-		_reset_calendar_settings()
+		_reset_calendar_settings(false)
 		selected_profile_index = loaded_index
 		status_text = "Wczytano pusty kalendarz w profilu %d." % loaded_index
+	reset_undo_available = false
+	reset_undo_snapshot.clear()
+	_sync_active_profile()
+	_store_undo_snapshot(undo_before)
 	_refresh_profile_options()
 	_set_profile_panel_visible(true)
 	if profile_status_label != null:
@@ -2029,6 +2051,10 @@ func _on_delete_profile_pressed() -> void:
 
 	_capture_undo_state()
 	var deleted_index := selected_profile_index
+	if active_profile_index == deleted_index:
+		active_profile_index = 0
+	elif remove_slot and active_profile_index > deleted_index:
+		active_profile_index -= 1
 	saved_profiles.erase(_profile_key(deleted_index))
 	if remove_slot:
 		for index in range(deleted_index + 1, profile_count + 1):
@@ -2060,6 +2086,19 @@ func _on_add_profile_pressed() -> void:
 	if profile_status_label != null:
 		profile_status_label.text = "Dodano profil %d. Możesz go zapisać." % selected_profile_index
 	_save_settings_to_disk()
+
+
+func _profile_snapshot(calendar: Dictionary) -> Dictionary:
+	var snapshot := calendar.duplicate(true)
+	# Profiles hold calendar data; live timers belong to the current session.
+	for key in ["work_start_unix", "work_end_unix", "pause_start_unix", "last_work_duration_seconds", "last_work_end_unix"]:
+		snapshot[key] = 0
+	return snapshot
+
+
+func _sync_active_profile() -> void:
+	if active_profile_index > 0:
+		saved_profiles[_profile_key(active_profile_index)] = _profile_snapshot(_calendar_state_snapshot())
 
 
 func _calendar_state_snapshot() -> Dictionary:
@@ -2298,7 +2337,7 @@ func _undo_calendar_reset() -> void:
 	_save_settings_to_disk()
 
 
-func _reset_calendar_settings() -> void:
+func _reset_calendar_settings(persist: bool = true) -> void:
 	reset_undo_snapshot = _calendar_state_snapshot()
 	reset_undo_available = true
 	undo_available = false
@@ -2321,6 +2360,7 @@ func _reset_calendar_settings() -> void:
 	start_input.set_meta("last_text", start_input.text)
 	manual_overrides.clear()
 	notes.clear()
+	worked_seconds_by_day.clear()
 	work_start_unix = 0
 	work_end_unix = 0
 	pause_start_unix = 0
@@ -2356,7 +2396,8 @@ func _reset_calendar_settings() -> void:
 	_update_undo_buttons()
 	if main_scroll != null:
 		main_scroll.set_deferred("scroll_vertical", 0)
-	_save_settings_to_disk()
+	if persist:
+		_save_settings_to_disk()
 
 
 func _apply_settings(close_settings_after_save: bool = false, adopt_pending_cycle: bool = false) -> bool:
@@ -4441,6 +4482,8 @@ func _date_for_month_cell(year: int, month: int, cell_index: int, first_offset: 
 
 
 func _on_start_work_pressed() -> void:
+	if work_start_unix > 0:
+		return
 	_capture_undo_state()
 	work_start_unix = int(Time.get_unix_time_from_system())
 	work_end_unix = 0
@@ -4481,6 +4524,8 @@ func _confirm_end_work() -> void:
 
 
 func _on_start_pause_pressed() -> void:
+	if pause_start_unix > 0:
+		return
 	_capture_undo_state()
 	pause_start_unix = int(Time.get_unix_time_from_system())
 	_update_work_timer()
