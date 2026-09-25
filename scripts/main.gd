@@ -37,6 +37,8 @@ const COLOR_VACATION := Color(0.40, 0.48, 0.58, 0.86)
 const PORTRAIT_WIDTH := 640
 const TILE_COLUMNS := 7
 const SETTINGS_PATH := "user://driver_calendar.cfg"
+const SETTINGS_BACKUP_PATH := "user://driver_calendar.cfg.bak"
+const SETTINGS_TEMP_PATH := "user://driver_calendar.cfg.tmp"
 const TOUCH_DRAG_CANCEL_DISTANCE := 14.0
 const TAP_BLOCK_AFTER_DRAG_MS := 450
 const NAVIGATION_TAP_MAX_MS := 900
@@ -189,6 +191,9 @@ var selected_profile_index := 1
 var active_profile_index := 0
 var saved_profiles: Dictionary = {}
 var profile_panel_visible := false
+var storage_notice_dialog: AcceptDialog
+var storage_load_failed := false
+var storage_write_failed := false
 var month_picker_visible := false
 var touch_start_position := Vector2.ZERO
 var touch_drag_total := Vector2.ZERO
@@ -1400,9 +1405,12 @@ func _save_and_close_main_view() -> void:
 		return
 
 	_store_undo_snapshot(undo_before)
+	var was_saved := main_view_saved
 	main_view_saved = true
 	calendar_only_mode = false
-	_save_settings_to_disk()
+	if not _save_settings_to_disk():
+		main_view_saved = was_saved
+		return
 	_apply_main_view_mode(true)
 
 
@@ -1642,12 +1650,16 @@ func _on_reset_undo_pressed() -> void:
 	_undo_calendar_reset()
 
 
-func _save_settings_to_disk() -> void:
+func _save_settings_to_disk() -> bool:
 	if schedule_option == null:
-		return
+		return false
+	if storage_load_failed:
+		_report_save_error(ERR_FILE_CORRUPT)
+		return false
 
 	_sync_active_profile()
 	var config := ConfigFile.new()
+	config.set_value("format", "version", 1)
 	config.set_value("ui", "main_view_saved", main_view_saved)
 	config.set_value("ui", "calendar_only_mode", calendar_only_mode)
 	config.set_value("ui", "cycle_pending_apply", cycle_pending_apply)
@@ -1684,15 +1696,70 @@ func _save_settings_to_disk() -> void:
 	config.set_value("work", "last_end_unix", last_work_end_unix)
 	config.set_value("work", "pause_selected", pause_option.selected)
 
-	var error := config.save(SETTINGS_PATH)
+	var error := _write_settings_config(config)
 	if error != OK:
-		push_warning("Nie udało się zapisać ustawień kalendarza: %d" % error)
+		_report_save_error(error)
+		return false
+	storage_write_failed = false
+	return true
+
+
+func _write_settings_config(config: ConfigFile) -> Error:
+	var error := config.save(SETTINGS_TEMP_PATH)
+	if error != OK:
+		return error
+	var verified := ConfigFile.new()
+	if verified.load(SETTINGS_TEMP_PATH) != OK or not verified.has_section("calendar"):
+		return ERR_FILE_CORRUPT
+
+	# Keep the previous readable save intact until both replacements are ready.
+	var previous := ConfigFile.new()
+	if previous.load(SETTINGS_PATH) == OK and previous.has_section("calendar"):
+		error = DirAccess.copy_absolute(SETTINGS_PATH, SETTINGS_BACKUP_PATH + ".tmp")
+		if error != OK:
+			return error
+		error = DirAccess.rename_absolute(SETTINGS_BACKUP_PATH + ".tmp", SETTINGS_BACKUP_PATH)
+		if error != OK:
+			return error
+	return DirAccess.rename_absolute(SETTINGS_TEMP_PATH, SETTINGS_PATH)
+
+
+func _report_save_error(error: Error) -> void:
+	var message := "Nie zapisano zmian. Sprawdź wolne miejsce w telefonie i spróbuj ponownie. Nie zamykaj aplikacji."
+	if storage_load_failed:
+		message = "Nie można odczytać kalendarza ani jego kopii. Pliki zachowano; zapis zmian jest wstrzymany."
+	if profile_status_label != null:
+		profile_status_label.text = message
+	if not storage_write_failed:
+		_show_storage_notice(message)
+	storage_write_failed = true
+	push_warning("Nie udało się zapisać kalendarza: %d" % error)
+
+
+func _show_storage_notice(message: String) -> void:
+	if storage_notice_dialog == null:
+		storage_notice_dialog = AcceptDialog.new()
+		storage_notice_dialog.title = "Zapis kalendarza"
+		storage_notice_dialog.dialog_autowrap = true
+		storage_notice_dialog.min_size = Vector2i(480, 220)
+		add_child(storage_notice_dialog)
+	storage_notice_dialog.dialog_text = message
+	storage_notice_dialog.call_deferred("popup_centered", Vector2i(580, 240))
 
 
 func _load_settings_from_disk() -> void:
 	var config := ConfigFile.new()
-	if config.load(SETTINGS_PATH) != OK:
-		return
+	storage_load_failed = false
+	var error := config.load(SETTINGS_PATH)
+	if error != OK or not config.has_section("calendar"):
+		config = ConfigFile.new()
+		var backup_error := config.load(SETTINGS_BACKUP_PATH)
+		if backup_error != OK or not config.has_section("calendar"):
+			if error != ERR_FILE_NOT_FOUND or backup_error != ERR_FILE_NOT_FOUND:
+				storage_load_failed = true
+				_report_save_error(ERR_FILE_CORRUPT)
+			return
+		_show_storage_notice("Odzyskano poprzedni zapis kalendarza z kopii zapasowej. Sprawdź ostatnio wprowadzone zmiany.")
 
 	main_view_saved = bool(config.get_value("ui", "main_view_saved", false))
 	calendar_only_mode = bool(config.get_value("ui", "calendar_only_mode", false))
@@ -2006,9 +2073,8 @@ func _on_save_profile_pressed() -> void:
 	saved_profiles[_selected_profile_key()] = _profile_snapshot(_calendar_state_snapshot())
 	_refresh_profile_options()
 	_set_profile_panel_visible(true)
-	if profile_status_label != null:
+	if _save_settings_to_disk() and profile_status_label != null:
 		profile_status_label.text = "Zapisano profil %d." % selected_profile_index
-	_save_settings_to_disk()
 
 
 func _on_load_profile_pressed() -> void:

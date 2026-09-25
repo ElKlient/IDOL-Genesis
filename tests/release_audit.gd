@@ -34,6 +34,10 @@ func _settle() -> void:
 
 func _clean() -> void:
 	app.active_profile_index = 0
+	app.storage_load_failed = false
+	app.storage_write_failed = false
+	if app.storage_notice_dialog != null:
+		app.storage_notice_dialog.hide()
 	app._restore_calendar_state(baseline.duplicate(true))
 	app.saved_profiles.clear()
 	app.profile_count = 3
@@ -61,7 +65,8 @@ func _capture(name: String) -> void:
 func _run() -> void:
 	print("ENGINE | %s | display=%s" % [Engine.get_version_info().string, DisplayServer.get_name()])
 	print("ISOLATED_DATA | %s" % OS.get_user_data_dir())
-	DirAccess.remove_absolute(ProjectSettings.globalize_path(Main.SETTINGS_PATH))
+	for path in [Main.SETTINGS_PATH, Main.SETTINGS_BACKUP_PATH, Main.SETTINGS_TEMP_PATH, Main.SETTINGS_BACKUP_PATH + ".tmp"]:
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
 	root.size = Vector2i(720, 1280)
 	root.content_scale_size = Vector2i(720, 1280)
 	root.content_scale_mode = Window.CONTENT_SCALE_MODE_CANVAS_ITEMS
@@ -238,6 +243,34 @@ func _run() -> void:
 	app._on_save_profile_pressed()
 	_check("Save failure is not reported as success", not app.profile_status_label.text.begins_with("Zapisano"), app.profile_status_label.text)
 	DirAccess.remove_absolute(config_path)
+
+	_clean()
+	app.notes["2026-09-25"] = "Previous good save"
+	app._save_settings_to_disk()
+	app.notes["2026-09-25"] = "Latest good save"
+	app._save_settings_to_disk()
+	var before_failure := FileAccess.get_file_as_string(Main.SETTINGS_PATH)
+	var backup_before_failure := FileAccess.get_file_as_string(Main.SETTINGS_BACKUP_PATH)
+	DirAccess.make_dir_absolute(ProjectSettings.globalize_path(Main.SETTINGS_TEMP_PATH))
+	app.notes["2026-09-25"] = "Must not replace a good save"
+	_check("Failed temporary write preserves current and backup files", not app._save_settings_to_disk() and FileAccess.get_file_as_string(Main.SETTINGS_PATH) == before_failure and FileAccess.get_file_as_string(Main.SETTINGS_BACKUP_PATH) == backup_before_failure)
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(Main.SETTINGS_TEMP_PATH))
+	DirAccess.make_dir_absolute(ProjectSettings.globalize_path(Main.SETTINGS_BACKUP_PATH + ".tmp"))
+	_check("Failed backup replacement preserves current save", not app._save_settings_to_disk() and FileAccess.get_file_as_string(Main.SETTINGS_PATH) == before_failure)
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(Main.SETTINGS_BACKUP_PATH + ".tmp"))
+	var damaged := ConfigFile.new()
+	damaged.save(Main.SETTINGS_PATH)
+	app.notes.clear()
+	app._load_settings_from_disk()
+	_check("Unreadable current data recovers previous backup", app.notes.get("2026-09-25", "") == "Previous good save" and not app.storage_load_failed)
+	_check("Recovered calendar can be saved again", app._save_settings_to_disk())
+	damaged.save(Main.SETTINGS_PATH)
+	damaged.save(Main.SETTINGS_BACKUP_PATH)
+	app._load_settings_from_disk()
+	_check("Unrecoverable files are not overwritten by empty state", app.storage_load_failed and not app._save_settings_to_disk() and FileAccess.get_file_as_string(Main.SETTINGS_PATH).is_empty())
+	await _settle()
+	if app.storage_notice_dialog != null:
+		app.storage_notice_dialog.hide()
 
 	print("RESULT | passed=%d failed=%d" % [passed, failed])
 	# Legacy settings controls are intentionally outside the scene tree in main.gd.
