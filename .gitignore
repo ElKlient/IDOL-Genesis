@@ -1,4 +1,12 @@
 .godot/
 .import/
-export_presets.cfg
+# Export presets contain only public settings. Signing credentials stay outside Git.
+*.keystore
+*.jks
+*.apk
+*.aab
+build/
+.signing/
+*.gd.uid
+*.svg.import
 *.tmp

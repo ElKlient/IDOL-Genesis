@@ -267,7 +267,10 @@ func _request_access(kind: String) -> void:
 func _request_completed(result: int, response_code: int, _headers: PackedStringArray, body: PackedByteArray) -> void:
 	var nonce := pending_nonce
 	pending_nonce = ""
-	var value: Variant = JSON.parse_string(body.get_string_from_utf8())
+	var parser := JSON.new()
+	var value: Variant = null
+	if not body.is_empty() and parser.parse(body.get_string_from_utf8()) == OK:
+		value = parser.data
 	if result != HTTPRequest.RESULT_SUCCESS or response_code != 200 or not value is Dictionary:
 		last_refresh_ticks = Time.get_ticks_msec() - (REFRESH_SECONDS - 300) * 1000
 		status_label.text = "Nie udało się potwierdzić dostępu. Spróbuj ponownie po połączeniu z internetem. Dane kalendarza są zachowane."
@@ -307,7 +310,10 @@ func _check_update() -> void:
 
 
 func _update_completed(result: int, response_code: int, _headers: PackedStringArray, body: PackedByteArray) -> void:
-	var data: Variant = JSON.parse_string(body.get_string_from_utf8())
+	var parser := JSON.new()
+	var data: Variant = null
+	if not body.is_empty() and parser.parse(body.get_string_from_utf8()) == OK:
+		data = parser.data
 	if result != HTTPRequest.RESULT_SUCCESS or response_code != 200 or not data is Dictionary:
 		update_label.text = "Sprawdzenie aktualizacji niedostępne. Spróbuj później."
 		return
