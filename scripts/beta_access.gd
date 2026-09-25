@@ -255,7 +255,7 @@ func _request_access(kind: String) -> void:
 		body["code"] = code_input.text.strip_edges()
 	else:
 		body["session_token"] = session_token
-	var error := http.request(String(release["service_url"]) + "/api/beta/" + kind, ["Content-Type: application/json"], HTTPClient.METHOD_POST, JSON.stringify(body))
+	var error := http.request(String(release["service_url"]) + "/api/beta/" + kind, ["Content-Type: application/json", "User-Agent: KalendarzKierowcyBeta/0.1.0"], HTTPClient.METHOD_POST, JSON.stringify(body))
 	if error != OK:
 		pending_nonce = ""
 		status_label.text = "Nie udało się połączyć. Sprawdź internet i spróbuj ponownie."
@@ -304,7 +304,7 @@ func _request_completed(result: int, response_code: int, _headers: PackedStringA
 
 func _check_update() -> void:
 	update_label.text = "Sprawdzanie aktualizacji…"
-	var error := update_http.request(String(release["service_url"]) + "/api/releases/latest")
+	var error := update_http.request(String(release["service_url"]) + "/api/releases/latest", ["User-Agent: KalendarzKierowcyBeta/0.1.0"])
 	if error != OK:
 		update_label.text = "Nie udało się sprawdzić aktualizacji. Spróbuj ponownie."
 
