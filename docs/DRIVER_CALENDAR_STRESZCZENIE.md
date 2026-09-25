@@ -96,6 +96,12 @@ Przy konflikcie:
 
 ## Aktualny stan aplikacji
 
+25.09.2026: dodano drugi eksport tego samego projektu na iPhone przez Safari/PWA.
+Instrukcja i ograniczenia: `docs/DRIVER_CALENDAR_IPHONE.md`. To wersja webowa,
+nie IPA/TestFlight. Ten sam system kodów 30 dni; kopia do pliku i import;
+aktualizacje webowe zachowują IndexedDB i wchodzą po zamknięciu okien.
+Nie twierdzić, że sprawdzono fizyczny iPhone — testuje kolega użytkownika.
+
 Aktualizacja 25.09.2026: przygotowano bete Android z kodami na 30 dni od
 pierwszej aktywacji, podpisanymi zgodami offline do 72h, panelem wlasciciela
 i publikowaniem aktualizacji APK. Najpierw przeczytac `docs/DRIVER_CALENDAR_BETA.md`.
@@ -215,6 +221,7 @@ Zapis danych:
 - `driver_calendar.cfg` jest podmieniany przez zweryfikowany plik `.tmp`; `.bak` zachowuje poprzedni poprawny zapis.
 - Nieudany zapis pokazuje komunikat zamiast pozornego sukcesu. Nieczytelny plik glowny jest odzyskiwany z kopii.
 - Gdy oba pliki sa nieczytelne, aplikacja blokuje zapis pustego stanu. Eksport/import poza aplikacje pozostaje do zrobienia.
+- W wersji webowej dostępny jest eksport/import pliku `.dkcal`; Android ma nadal kopię tekstową `DKCAL1:`.
 
 ## Aktualizacja po audycie 25.09.2026
 

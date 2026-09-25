@@ -1,5 +1,8 @@
 # Kalendarz Kierowcy — beta na Androida
 
+Wersja dla testerów na iPhonie (Safari/PWA) korzysta z tego samego panelu i kodów.
+Instalacja, zapis i publikowanie: `docs/DRIVER_CALENDAR_IPHONE.md`.
+
 ## Dostęp dla testerów
 
 - Strona: https://kalendarz-kierowcy-beta.sethoyt.chatgpt.site
