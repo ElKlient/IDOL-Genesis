@@ -96,6 +96,28 @@ Przy konflikcie:
 
 ## Aktualny stan aplikacji
 
+26.09.2026: lokalna wersja Godot/Termux — dwie poprawki na prośbę użytkownika.
+Temat kodów odłożony; nie publikowano nowego APK ani wersji strony na iPhone.
+
+- Godziny na kafelkach: czytelny format `13:15`, `13:30`, `13:00`; większa
+  czcionka i wysokość kafelka uwzględniająca napis oraz dolny pasek akcentu.
+  Rozmiar trzeba przeliczać po wejściu do drzewa, gdy znany jest rzeczywisty font.
+- Zapis nadal przechowuje sekundy, bez zaokrąglania do kwadransów/półgodzin.
+  Zakończona zmiana trafia do zapamiętanego dnia rozpoczęcia; wpis ręczny do
+  wybranego dnia. Ukrywanie godzin nie kasuje zapisu, kasowanie dnia usuwa napis.
+- Kalendarz i dolne narzędzia przewijają się razem w jednym ScrollContainer.
+  `main_scroll` i `calendar_scroll` wskazują teraz ten sam obiekt. Nagłówek,
+  powrót do dzisiaj i Profile pozostają u góry. Tryb tylko kalendarz ukrywa
+  `options_root`, nigdy wspólny scroll. Paski przewijania są niewidoczne.
+- WAŻNE: nie przypisywać `scroll_horizontal = 0` co klatkę ani odroczonym
+  setterem bez sprawdzenia wartości. Setter Godota przerywa również pionowy
+  gest. Blokada sprawdza, czy wartość wymaga zmiany; poziomy swipe nadal blokowany.
+- Panel narzędzi, nawigacja i przyciski przepuszczają gest do wspólnego scrolla.
+  Przeciąganie nie uruchamia pracy i nie zmienia miesiąca.
+- Godot 4.4.1 headless: `tests/calendar_mobile_audit.gd` 19 PASS i
+  `tests/release_audit.gd` 48 PASS. Testy obejmują geometrię i syntetyczne
+  zdarzenia dotyku/myszy, nie fizyczny Android. Dane użytkownika są nietknięte.
+
 25.09.2026: dodano drugi eksport tego samego projektu na iPhone przez Safari/PWA.
 Instrukcja i ograniczenia: `docs/DRIVER_CALENDAR_IPHONE.md`. To wersja webowa,
 nie IPA/TestFlight. Ten sam system kodów 30 dni; kopia do pliku i import;
