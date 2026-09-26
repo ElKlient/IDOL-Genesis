@@ -2838,7 +2838,8 @@ func _fill_day_tile(button: Button, key: String, day: int, day_index: int, state
 	margin.add_theme_constant_override("margin_left", 4)
 	margin.add_theme_constant_override("margin_right", 4)
 	margin.add_theme_constant_override("margin_top", 4)
-	margin.add_theme_constant_override("margin_bottom", 4)
+	# Keep the time above the accent stripe, with room for every line.
+	margin.add_theme_constant_override("margin_bottom", 10)
 	button.add_child(margin)
 
 	var box := VBoxContainer.new()
@@ -2863,7 +2864,15 @@ func _fill_day_tile(button: Button, key: String, day: int, day_index: int, state
 	if show_worked_hours and worked_seconds_by_day.has(key):
 		var worked_text := _format_worked_hours_tile(int(worked_seconds_by_day[key]))
 		if not worked_text.is_empty():
-			box.add_child(_tile_label(worked_text, _tile_work_hours_font_size(), Color(0.62, 0.92, 0.64)))
+			var hours_label := _tile_label(worked_text, _tile_work_hours_font_size(), Color(0.62, 0.92, 0.64))
+			hours_label.name = "WorkedHours"
+			box.add_child(hours_label)
+	# A Button does not inherit the minimum size of its child containers.
+	# Recalculate after entering the tree, when the actual theme/font is known.
+	var fit_tile := func() -> void:
+		button.custom_minimum_size.y = maxf(_day_cell_height(), margin.get_combined_minimum_size().y)
+	margin.minimum_size_changed.connect(fit_tile)
+	fit_tile.call_deferred()
 
 	var accent := Panel.new()
 	accent.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -3528,10 +3537,10 @@ func _tile_badge_font_size() -> int:
 func _tile_work_hours_font_size() -> int:
 	match _range_months():
 		3, 6:
-			return 9
+			return 10
 		12:
-			return 9
-	return 12
+			return 10
+	return 20
 
 
 func _selected_pause_hours() -> int:
@@ -4571,11 +4580,9 @@ func _format_worked_hours_tile(seconds: int) -> String:
 	var safe_seconds: int = maxi(0, seconds)
 	var hours := int(safe_seconds / 3600)
 	var minutes := int((safe_seconds % 3600) / 60)
-	if hours <= 0 and minutes <= 0:
+	if safe_seconds == 0:
 		return ""
-	if minutes == 0:
-		return "%dh" % hours
-	return "%dh%02d" % [hours, minutes]
+	return "%d:%02d" % [hours, minutes]
 
 
 func _format_countdown(seconds: int) -> String:
