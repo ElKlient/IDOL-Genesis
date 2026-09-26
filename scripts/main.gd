@@ -344,20 +344,26 @@ func _build_ui() -> void:
 	safe_margin.add_child(screen_root)
 
 	calendar_scroll = ScrollContainer.new()
+	# Calendar and tools share one scrolling page; keep both existing references.
+	main_scroll = calendar_scroll
 	calendar_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	calendar_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	calendar_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
 	calendar_scroll.scroll_deadzone = TOUCH_SCROLL_DEADZONE_MENU
 	calendar_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	calendar_scroll.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	calendar_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	calendar_scroll.clip_contents = true
 	calendar_scroll.resized.connect(_sync_calendar_root_width)
-	calendar_scroll.gui_input.connect(_on_calendar_scroll_gui_input)
+	calendar_scroll.gui_input.connect(_on_main_scroll_gui_input)
 	screen_root.add_child(calendar_scroll)
+	_style_main_scrollbar()
 
 	var calendar_center := CenterContainer.new()
 	calendar_center.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	calendar_center.clip_contents = true
 	calendar_scroll.add_child(calendar_center)
+	var page := VBoxContainer.new()
+	page.add_theme_constant_override("separation", 18)
+	calendar_center.add_child(page)
 
 	_add_return_today_overlay()
 	_add_reset_undo_overlay()
@@ -370,32 +376,14 @@ func _build_ui() -> void:
 	root.custom_minimum_size = Vector2(PORTRAIT_WIDTH, 0)
 	root.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	root.add_theme_constant_override("separation", 18)
-	root.minimum_size_changed.connect(_fit_calendar_height.call_deferred)
-	calendar_center.add_child(root)
-
-	main_scroll = ScrollContainer.new()
-	main_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	main_scroll.scroll_deadzone = TOUCH_SCROLL_DEADZONE_MENU
-	main_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	main_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	main_scroll.clip_contents = true
-	main_scroll.resized.connect(_sync_calendar_root_width)
-	main_scroll.gui_input.connect(_on_main_scroll_gui_input)
-	screen_root.add_child(main_scroll)
-	_lock_horizontal_scroll_deferred()
-	_style_main_scrollbar()
-	_style_calendar_scrollbar()
-
-	var options_center := CenterContainer.new()
-	options_center.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	options_center.clip_contents = true
-	main_scroll.add_child(options_center)
+	root.minimum_size_changed.connect(_sync_calendar_touch_shield.call_deferred)
+	page.add_child(root)
 
 	options_root = VBoxContainer.new()
 	options_root.custom_minimum_size = Vector2(PORTRAIT_WIDTH, 0)
 	options_root.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	options_root.add_theme_constant_override("separation", 18)
-	options_center.add_child(options_root)
+	page.add_child(options_root)
 	_sync_calendar_root_width()
 
 	header_bar = HBoxContainer.new()
@@ -454,6 +442,7 @@ func _build_ui() -> void:
 	screen_root.move_child(return_today_spacer, 1)
 
 	navigation_panel = _build_navigation_panel()
+	navigation_panel.mouse_filter = Control.MOUSE_FILTER_PASS
 	root.add_child(navigation_panel)
 
 	summary_label = _make_label("", 21, COLOR_TEXT)
@@ -967,7 +956,8 @@ func _sync_calendar_touch_shield() -> void:
 	if _range_months() > 1:
 		calendar_touch_shield.visible = false
 		return
-	if calendar_only_mode and calendar_scroll.vertical_scroll_mode == ScrollContainer.SCROLL_MODE_DISABLED:
+	var scroll_bar := main_scroll.get_v_scroll_bar()
+	if calendar_only_mode and scroll_bar.max_value <= scroll_bar.page:
 		var viewport_rect := get_viewport_rect()
 		calendar_touch_shield.position = viewport_rect.position
 		calendar_touch_shield.size = viewport_rect.size
@@ -1069,6 +1059,7 @@ func _build_profile_panel() -> PanelContainer:
 
 func _build_day_tools_panel() -> PanelContainer:
 	var panel := _panel()
+	panel.mouse_filter = Control.MOUSE_FILTER_PASS
 	var box := _panel_box(panel)
 
 	var header := HBoxContainer.new()
@@ -1569,10 +1560,9 @@ func _apply_main_view_mode(saved: bool) -> void:
 	if not saved:
 		calendar_only_mode = false
 	_update_main_scroll_touch_mode()
-	_update_calendar_scroll_touch_mode()
 
-	if main_scroll != null:
-		main_scroll.visible = not calendar_only_mode
+	if options_root != null:
+		options_root.visible = not calendar_only_mode
 	if navigation_panel != null:
 		navigation_panel.visible = not calendar_only_mode
 	if quick_navigation_panel != null:
@@ -1615,7 +1605,7 @@ func _apply_main_view_mode(saved: bool) -> void:
 		_set_profile_panel_visible(false)
 	_apply_day_tools_visibility()
 	_update_undo_buttons()
-	_fit_calendar_height.call_deferred()
+	_sync_calendar_touch_shield.call_deferred()
 
 
 func _update_main_scroll_touch_mode() -> void:
@@ -1624,57 +1614,17 @@ func _update_main_scroll_touch_mode() -> void:
 
 	main_scroll.scroll_deadzone = TOUCH_SCROLL_DEADZONE_MENU
 	main_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	main_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED if calendar_only_mode else ScrollContainer.SCROLL_MODE_AUTO
-	if calendar_only_mode:
-		main_scroll.scroll_vertical = 0
+	main_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
 	_lock_horizontal_scroll_deferred()
-
-
-func _update_calendar_scroll_touch_mode() -> void:
-	if calendar_scroll == null:
-		return
-
-	var multi_month_view := _range_months() > 1
-	calendar_scroll.scroll_deadzone = TOUCH_SCROLL_DEADZONE_MENU
-	calendar_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	calendar_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL if multi_month_view else Control.SIZE_SHRINK_BEGIN
-	calendar_scroll.size_flags_stretch_ratio = 3.0 if multi_month_view else 1.0
-	if multi_month_view:
-		calendar_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
-		calendar_scroll.custom_minimum_size.y = 0
-	else:
-		_fit_calendar_height.call_deferred()
-	_lock_horizontal_scroll_deferred()
-
-
-func _fit_calendar_height() -> void:
-	if calendar_root == null or main_scroll == null or _range_months() > 1:
-		return
-	var available_height := get_viewport_rect().size.y - 38.0
-	for fixed_control in [header_bar, return_today_spacer]:
-		if fixed_control != null and fixed_control.visible:
-			available_height -= fixed_control.get_combined_minimum_size().y + 12.0
-	if not calendar_only_mode:
-		available_height -= minf(260.0, get_viewport_rect().size.y * 0.25) + 12.0
-	var content_height := calendar_root.get_combined_minimum_size().y
-	var height_limit := maxf(180.0, available_height)
-	var needs_scroll := content_height > height_limit
-	calendar_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO if needs_scroll else ScrollContainer.SCROLL_MODE_DISABLED
-	calendar_scroll.custom_minimum_size.y = minf(content_height, height_limit)
-	if not needs_scroll:
-		calendar_scroll.scroll_vertical = 0
-	_sync_calendar_touch_shield()
 
 
 func _sync_calendar_root_width() -> void:
 	if calendar_root == null and options_root == null:
 		return
 
-	var available_width := get_viewport_rect().size.x - 36.0 - SCROLLBAR_TOUCH_WIDTH
-	if calendar_scroll != null and calendar_scroll.size.x > 0.0:
-		available_width = calendar_scroll.size.x - SCROLLBAR_TOUCH_WIDTH
-	elif main_scroll != null and main_scroll.size.x > 0.0:
-		available_width = main_scroll.size.x - SCROLLBAR_TOUCH_WIDTH
+	var available_width := get_viewport_rect().size.x - 36.0
+	if main_scroll != null and main_scroll.size.x > 0.0:
+		available_width = main_scroll.size.x
 	if available_width <= 0.0:
 		return
 
@@ -1686,7 +1636,7 @@ func _sync_calendar_root_width() -> void:
 	if header_bar != null:
 		header_bar.custom_minimum_size.x = root_width
 	_lock_horizontal_scroll_deferred()
-	_fit_calendar_height.call_deferred()
+	_sync_calendar_touch_shield.call_deferred()
 
 
 func _update_undo_buttons() -> void:
@@ -2609,7 +2559,7 @@ func _rebuild_calendar() -> void:
 		child.queue_free()
 
 	var month_count := _range_months()
-	_update_calendar_scroll_touch_mode()
+	_update_main_scroll_touch_mode()
 	var range_start_month := _visible_range_start_month()
 	var counts := _count_visible_months(current_year, range_start_month, month_count)
 
@@ -3786,7 +3736,7 @@ func _connect_tap(button: BaseButton, action: Callable) -> void:
 
 func _connect_day_tool_tap(button: BaseButton, action: Callable) -> void:
 	_register_scroll_safe_control(button)
-	button.mouse_filter = Control.MOUSE_FILTER_STOP
+	button.mouse_filter = Control.MOUSE_FILTER_PASS
 	button.action_mode = BaseButton.ACTION_MODE_BUTTON_RELEASE
 	button.pressed.connect(func() -> void:
 		_run_day_tool_button_action(button, action)
@@ -3810,7 +3760,7 @@ func _connect_navigation_tap(button: BaseButton, action: Callable) -> void:
 	_register_scroll_safe_control(button)
 	if not navigation_buttons.has(button):
 		navigation_buttons.append(button)
-	button.mouse_filter = Control.MOUSE_FILTER_STOP
+	button.mouse_filter = Control.MOUSE_FILTER_PASS
 	button.action_mode = BaseButton.ACTION_MODE_BUTTON_RELEASE
 	button.pressed.connect(func() -> void:
 		_run_navigation_button_action_for_button(button, action)
@@ -4066,7 +4016,7 @@ func _track_scroll_touch(event: InputEvent) -> void:
 func _consume_calendar_only_drag(event: InputEvent) -> bool:
 	if not calendar_only_mode or not _event_is_drag_motion(event):
 		return false
-	if not _event_is_horizontal_drag(event) and calendar_scroll.vertical_scroll_mode == ScrollContainer.SCROLL_MODE_AUTO:
+	if not _event_is_horizontal_drag(event) and main_scroll.vertical_scroll_mode != ScrollContainer.SCROLL_MODE_DISABLED:
 		return false
 
 	_block_touch_drag_actions()
@@ -4490,12 +4440,7 @@ func _on_main_scroll_vertical_changed(_value: float) -> void:
 
 func _lock_horizontal_scroll_deferred() -> void:
 	_lock_horizontal_scroll()
-	if main_scroll != null:
-		main_scroll.set_deferred("scroll_horizontal", 0)
-		main_scroll.get_h_scroll_bar().set_deferred("value", 0)
-	if calendar_scroll != null:
-		calendar_scroll.set_deferred("scroll_horizontal", 0)
-		calendar_scroll.get_h_scroll_bar().set_deferred("value", 0)
+	_lock_horizontal_scroll.call_deferred()
 
 
 func _lock_horizontal_scroll() -> void:
@@ -4510,9 +4455,14 @@ func _lock_horizontal_scroll_container(scroll_container: ScrollContainer) -> voi
 		return
 
 	var horizontal_bar := scroll_container.get_h_scroll_bar()
-	scroll_container.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	scroll_container.scroll_horizontal = 0
-	horizontal_bar.value = 0
+	if scroll_container.horizontal_scroll_mode != ScrollContainer.SCROLL_MODE_DISABLED:
+		scroll_container.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	# Setting either scroll offset cancels Godot's active drag, even for zero.
+	# Do not interrupt a vertical finger gesture just to reassign the same value.
+	if scroll_container.scroll_horizontal != 0:
+		scroll_container.scroll_horizontal = 0
+	if horizontal_bar.value != 0:
+		horizontal_bar.value = 0
 	horizontal_bar.visible = false
 	horizontal_bar.custom_minimum_size.y = 0
 	horizontal_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE

@@ -251,7 +251,9 @@ func _run() -> void:
 	await _capture("04-timer")
 	app._apply_range_selection(3, 0)
 	await _settle()
-	_check("Year view enables vertical scrolling", app.calendar_scroll.vertical_scroll_mode == ScrollContainer.SCROLL_MODE_AUTO)
+	app.main_scroll.scroll_vertical = 200
+	await _settle()
+	_check("Year view scrolls without a visible scrollbar", app.main_scroll.scroll_vertical > 0 and not app.main_scroll.get_v_scroll_bar().visible)
 	await _capture("05-year")
 	_clean()
 	app.work_start_unix = int(Time.get_unix_time_from_datetime_string("2026-09-30T23:00:00"))
