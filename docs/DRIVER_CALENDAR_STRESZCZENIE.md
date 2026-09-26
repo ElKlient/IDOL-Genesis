@@ -96,6 +96,29 @@ Przy konflikcie:
 
 ## Aktualny stan aplikacji
 
+26.09.2026: przełączanie profili zachowuje bieżącą pracę i pauzę.
+
+- Usunięto blokadę wczytywania profilu podczas pracy/pauzy. Jeden bieżący licznik
+  należy do sesji, a przeglądany profil zmienia tylko kalendarz. Zachowane są
+  znaczniki czasu, dzień rozpoczęcia, wybrana długość pauzy i ostatnia zmiana.
+- `work_profile_index` zapamiętuje profil rozpoczęcia pracy i jest zapisywany
+  w sekcji `work/profile_index`. Zakończenie pracy podczas oglądania innego
+  profilu dopisuje sekundy do profilu źródłowego. Stare zapisy domyślnie używają
+  aktywnego profilu; stare liczniki z zapisanych profili nadal nie są wskrzeszane.
+- Przed opuszczeniem kalendarza bez przypisanego profilu zapisuje się on do
+  wolnego slotu. Zapis pod innym profilem nie przenosi trwającej zmiany.
+  Profil trwającej pracy jest chroniony przed usunięciem; usunięcie wcześniejszego
+  slotu aktualizuje jego numer. Pauza jest wspólna i nie wymaga osobnego procesu
+  w tle: upływ liczy się z zapisanego czasu również po ponownym uruchomieniu.
+- Godot 4.4.1 headless: `tests/release_audit.gd` **66 PASS, 0 FAIL**, w tym
+  18 nowych kontroli przełączania, zapisu/odczytu, właściciela godzin i starych
+  danych. Fizyczny Android nadal testuje użytkownik. Bez nowego APK/PWA.
+- Potwierdzona przyczyna poprzednio niewidocznych poprawek: `git pull` na telefonie
+  był zatrzymany przez lokalnie zmieniony `project.godot` (Godot Android 4.7.2).
+  Po zamknięciu Godota: `git stash push -m "Kopia ustawien Godota" -- project.godot`,
+  potem `git pull --ff-only origin driver-shift-calendar`. Nie przywracać starego
+  pliku automatycznym `stash pop`. Użytkownik potwierdził godziny i wspólny scroll.
+
 26.09.2026: lokalna wersja Godot/Termux — dwie poprawki na prośbę użytkownika.
 Temat kodów odłożony; nie publikowano nowego APK ani wersji strony na iPhone.
 
@@ -221,7 +244,7 @@ Profile:
 - Domyslne puste profile 1-3 zostaja jako bezpieczne miejsca.
 - Aktywny profil zapisuje zmiany automatycznie; zaznaczenie slotu na liscie samo nie zmienia aktywnego profilu.
 - Profil przechowuje widok, cykle, reczne dni, notatki i godziny, bez aktywnych licznikow pracy/pauzy.
-- Wczytywanie profilu podczas pracy lub trwajacej pauzy jest blokowane. Stare profile nie przywracaja zakonczonych licznikow.
+- Wczytywanie i zapisywanie profilu nie przerywa bieżącej pracy/pauzy. Stare profile nie przywracają zakończonych liczników; godziny trwającej zmiany trafiają do profilu jej rozpoczęcia.
 - Biezacy stan aplikacji osobno zachowuje aktywny licznik po ponownym uruchomieniu.
 
 Godziny pracy i pauzy:

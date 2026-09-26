@@ -185,7 +185,7 @@ func _run() -> void:
 	_check("Second start preserves active shift", app.work_start_unix == original_start, "lost_seconds=%d" % (app.work_start_unix - original_start))
 	app.selected_profile_index = 2
 	app._on_load_profile_pressed()
-	_check("Profile loading preserves running shift", app.work_start_unix == original_start and app.active_profile_index == 0)
+	_check("Profile loading switches calendar and preserves running shift", app.work_start_unix == original_start and app.active_profile_index == 2 and app.work_profile_index == 1)
 	_clean()
 	app.work_start_unix = int(Time.get_unix_time_from_system()) - 8 * 3600
 	app._on_save_profile_pressed()
@@ -203,6 +203,7 @@ func _run() -> void:
 	app.saved_profiles["1"] = legacy_profile
 	app._on_load_profile_pressed()
 	_check("Legacy profile loads data without stale timers", app.work_start_unix == 0 and app.pause_start_unix == 0 and app.worked_seconds_by_day.get("2026-09-25", 0) == 7200)
+	_test_profile_timer_switching()
 
 	_clean()
 	app.pause_start_unix = int(Time.get_unix_time_from_system()) - 3 * 3600
@@ -380,3 +381,102 @@ func _run() -> void:
 	app.free()
 	await process_frame
 	quit(1 if failed > 0 else 0)
+
+
+func _test_profile_timer_switching() -> void:
+	_clean()
+	app.notes["2026-09-25"] = "Driver"
+	app._on_save_profile_pressed()
+	var colleague: Dictionary = baseline.duplicate(true)
+	colleague["notes"] = {"2026-09-25": "Colleague"}
+	colleague["pause_selected"] = 3
+	# Old profiles may contain obsolete timestamps; they must never replace live ones.
+	colleague["work_start_unix"] = 100000
+	colleague["pause_start_unix"] = 200000
+	app.saved_profiles["2"] = colleague
+	app._on_pause_selected(1)
+	app._on_start_pause_pressed()
+	app.pause_start_unix -= 3 * 3600
+	var pause_start: int = app.pause_start_unix
+	app.selected_profile_index = 2
+	app._on_load_profile_pressed()
+	_check("Saved colleague profile loads during rest without changing its deadline", app.active_profile_index == 2 and app.notes.get("2026-09-25") == "Colleague" and app.pause_start_unix == pause_start and app._selected_pause_hours() == 11 and app.work_start_unix == 0)
+	_check("Rest remains visible while viewing another profile", app.pause_result_label.visible and app.pause_result_label.text.contains("11h") and app.rest_after_work_label.text.contains(app._format_unix_time(pause_start + 11 * 3600)))
+	app.selected_profile_index = 3
+	app._on_load_profile_pressed()
+	_check("Empty profile loads without clearing ongoing rest", app.active_profile_index == 3 and app.notes.is_empty() and app.pause_start_unix == pause_start and app._selected_pause_hours() == 11)
+	app._undo_last_action()
+	_check("Undo profile switch keeps the same live rest", app.active_profile_index == 2 and app.pause_start_unix == pause_start and app._selected_pause_hours() == 11)
+	app.selected_profile_index = 3
+	app._on_save_profile_pressed()
+	_check("Save as another profile preserves rest without copying a live timer", app.active_profile_index == 3 and app.pause_start_unix == pause_start and app.saved_profiles["3"].pause_start_unix == 0)
+	app.pause_start_unix = 0
+	app._set_option_selected(app.pause_option, 0)
+	app.saved_profiles.clear()
+	app._load_settings_from_disk()
+	_check("Disk reload while viewing another profile resumes original rest", app.active_profile_index == 3 and app.pause_start_unix == pause_start and app._selected_pause_hours() == 11)
+	app.selected_profile_index = 1
+	app._on_load_profile_pressed()
+	_check("Returning to own profile preserves its calendar and rest", app.notes.get("2026-09-25") == "Driver" and app.pause_start_unix == pause_start)
+	app._confirm_clear_pause_time()
+	app.selected_profile_index = 3
+	app._on_load_profile_pressed()
+	_check("Cleared rest does not return from saved profiles", app.pause_start_unix == 0)
+
+	_clean()
+	app._on_save_profile_pressed()
+	app.worked_seconds_by_day["2026-09-25"] = 900
+	app._on_start_work_pressed()
+	app.work_start_unix -= 8 * 3600 + 47
+	app.work_start_day_key = "2026-09-25"
+	var shift_start: int = app.work_start_unix
+	app.selected_profile_index = 2
+	app._on_load_profile_pressed()
+	app.worked_seconds_by_day["2026-09-25"] = 600
+	app.selected_profile_index = 3
+	app._on_save_profile_pressed()
+	_check("Save as during work retains original shift owner", app.work_profile_index == 1 and app.work_start_unix == shift_start and app.active_profile_index == 3)
+	app.work_start_unix = 0
+	app.work_profile_index = 0
+	app.work_start_day_key = ""
+	app.saved_profiles.clear()
+	app._load_settings_from_disk()
+	_check("Disk reload retains shift owner and original start date", app.work_start_unix == shift_start and app.work_profile_index == 1 and app.work_start_day_key == "2026-09-25" and app.active_profile_index == 3)
+	app.selected_profile_index = 1
+	app._on_delete_profile_pressed()
+	_check("Running shift owner cannot be deleted while another profile is viewed", app.saved_profiles.has("1") and app.work_profile_index == 1)
+	app._confirm_end_work()
+	var shift_seconds: int = app.last_work_end_unix - shift_start
+	_check("Ending shift credits original profile with exact seconds", app.saved_profiles["1"].worked_seconds_by_day.get("2026-09-25", 0) == 900 + shift_seconds and app.worked_seconds_by_day.get("2026-09-25", 0) == 600 and app.saved_profiles["3"].worked_seconds_by_day.get("2026-09-25", 0) == 600)
+	var resulting_pause: int = app.pause_start_unix
+	app._on_load_profile_pressed()
+	_check("Own calendar shows completed shift and keeps new rest", app.worked_seconds_by_day.get("2026-09-25", 0) == 900 + shift_seconds and app.pause_start_unix == resulting_pause and app.work_start_unix == 0)
+	app._confirm_end_work()
+	_check("Completed shift is not counted twice", app.worked_seconds_by_day.get("2026-09-25", 0) == 900 + shift_seconds)
+
+	_clean()
+	app.notes["2026-09-25"] = "Initially unnamed calendar"
+	app.worked_seconds_by_day["2026-09-25"] = 120
+	app._on_start_work_pressed()
+	app.work_start_unix -= 1800
+	app.work_start_day_key = "2026-09-25"
+	shift_start = app.work_start_unix
+	app._on_load_profile_pressed()
+	_check("Leaving unnamed calendar saves it in a free slot without overwriting target", app.active_profile_index == 1 and app.work_profile_index == 2 and app.notes.is_empty() and app.saved_profiles["2"].notes.get("2026-09-25") == "Initially unnamed calendar")
+	app._confirm_end_work()
+	_check("Shift started before first profile save still reaches original calendar", app.saved_profiles["2"].worked_seconds_by_day.get("2026-09-25", 0) == 120 + app.last_work_end_unix - shift_start and app.worked_seconds_by_day.is_empty())
+
+	_clean()
+	app.profile_count = 5
+	app.selected_profile_index = 5
+	app._on_save_profile_pressed()
+	app._on_start_work_pressed()
+	app.work_start_unix -= 60
+	app.work_start_day_key = "2026-09-25"
+	app.selected_profile_index = 1
+	app._on_load_profile_pressed()
+	app.selected_profile_index = 4
+	app._on_delete_profile_pressed()
+	_check("Removing an earlier slot remaps the running shift owner", app.profile_count == 4 and app.work_profile_index == 4 and app.saved_profiles.has("4"))
+	app._confirm_end_work()
+	_check("Remapped profile receives completed work", app.saved_profiles["4"].worked_seconds_by_day.get("2026-09-25", 0) >= 60 and app.worked_seconds_by_day.is_empty())

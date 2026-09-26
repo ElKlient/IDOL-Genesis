@@ -174,6 +174,7 @@ var selected_day_number: int = 0
 var selected_note_key: String = ""
 var work_start_unix: int = 0
 var work_start_day_key := ""
+var work_profile_index := 0
 var work_end_unix: int = 0
 var pause_start_unix: int = 0
 var last_work_duration_seconds: int = 0
@@ -1704,6 +1705,7 @@ func _save_settings_to_disk() -> bool:
 	config.set_value("calendar", "worked_seconds_by_day", worked_seconds_by_day.duplicate(true))
 	config.set_value("work", "start_unix", work_start_unix)
 	config.set_value("work", "start_day_key", work_start_day_key)
+	config.set_value("work", "profile_index", work_profile_index)
 	config.set_value("work", "end_unix", work_end_unix)
 	config.set_value("work", "pause_start_unix", pause_start_unix)
 	config.set_value("work", "last_duration_seconds", last_work_duration_seconds)
@@ -1837,6 +1839,7 @@ func _load_settings_from_disk() -> void:
 
 	work_start_unix = int(config.get_value("work", "start_unix", 0))
 	work_start_day_key = String(config.get_value("work", "start_day_key", ""))
+	work_profile_index = clampi(int(config.get_value("work", "profile_index", active_profile_index)), 0, profile_count)
 	work_end_unix = int(config.get_value("work", "end_unix", 0))
 	pause_start_unix = int(config.get_value("work", "pause_start_unix", 0))
 	last_work_duration_seconds = int(config.get_value("work", "last_duration_seconds", 0))
@@ -2096,6 +2099,8 @@ func _on_profile_selected(index: int) -> void:
 
 func _on_save_profile_pressed() -> void:
 	_capture_undo_state()
+	if work_start_unix > 0 and work_profile_index == 0:
+		work_profile_index = active_profile_index if active_profile_index > 0 else selected_profile_index
 	_sync_active_profile()
 	active_profile_index = selected_profile_index
 	saved_profiles[_selected_profile_key()] = _profile_snapshot(_calendar_state_snapshot())
@@ -2106,13 +2111,19 @@ func _on_save_profile_pressed() -> void:
 
 
 func _on_load_profile_pressed() -> void:
-	var pause_running := pause_start_unix > 0 and int(Time.get_unix_time_from_system()) < pause_start_unix + _selected_pause_hours() * 3600
-	if work_start_unix > 0 or pause_running:
-		profile_status_label.text = "Zakończ pracę lub wyzeruj licznik pauzy przed wczytaniem profilu."
-		return
-
 	var loaded_index := selected_profile_index
 	var status_text := ""
+	var auto_saved_index := 0
+	# Keep an unnamed calendar in a free slot before leaving it, too.
+	if active_profile_index == 0:
+		var free_index := 1
+		while free_index == loaded_index or saved_profiles.has(_profile_key(free_index)):
+			free_index += 1
+		profile_count = maxi(profile_count, free_index)
+		active_profile_index = free_index
+		auto_saved_index = free_index
+	if work_start_unix > 0 and work_profile_index == 0:
+		work_profile_index = active_profile_index
 	_sync_active_profile()
 	var undo_before := _app_state_snapshot()
 	active_profile_index = loaded_index
@@ -2120,12 +2131,14 @@ func _on_load_profile_pressed() -> void:
 		var snapshot := _profile_snapshot(saved_profiles[_selected_profile_key()])
 		reset_undo_available = false
 		reset_undo_snapshot.clear()
-		_restore_calendar_state(snapshot)
+		_restore_calendar_state(snapshot, true)
 		status_text = "Wczytano profil %d." % loaded_index
 	else:
-		_reset_calendar_settings(false)
+		_reset_calendar_settings(false, true)
 		selected_profile_index = loaded_index
 		status_text = "Wczytano pusty kalendarz w profilu %d." % loaded_index
+	if auto_saved_index > 0:
+		status_text += " Poprzedni kalendarz zapisano w profilu %d." % auto_saved_index
 	reset_undo_available = false
 	reset_undo_snapshot.clear()
 	_sync_active_profile()
@@ -2143,9 +2156,14 @@ func _on_delete_profile_pressed() -> void:
 	if not _selected_profile_saved() and not remove_slot:
 		_update_profile_actions()
 		return
+	if work_start_unix > 0 and selected_profile_index == work_profile_index:
+		profile_status_label.text = "Ten profil ma trwającą pracę. Możesz przeglądać inne profile; usuń go po zakończeniu zmiany."
+		return
 
 	_capture_undo_state()
 	var deleted_index := selected_profile_index
+	if remove_slot and work_profile_index > deleted_index:
+		work_profile_index -= 1
 	if active_profile_index == deleted_index:
 		active_profile_index = 0
 	elif remove_slot and active_profile_index > deleted_index:
@@ -2189,6 +2207,7 @@ func _profile_snapshot(calendar: Dictionary) -> Dictionary:
 	for key in ["work_start_unix", "work_end_unix", "pause_start_unix", "last_work_duration_seconds", "last_work_end_unix"]:
 		snapshot[key] = 0
 	snapshot["work_start_day_key"] = ""
+	snapshot["work_profile_index"] = 0
 	return snapshot
 
 
@@ -2223,6 +2242,7 @@ func _calendar_state_snapshot() -> Dictionary:
 		"worked_seconds_by_day": worked_seconds_by_day.duplicate(true),
 		"work_start_unix": work_start_unix,
 		"work_start_day_key": work_start_day_key,
+		"work_profile_index": work_profile_index,
 		"work_end_unix": work_end_unix,
 		"pause_start_unix": pause_start_unix,
 		"last_work_duration_seconds": last_work_duration_seconds,
@@ -2231,7 +2251,7 @@ func _calendar_state_snapshot() -> Dictionary:
 	}
 
 
-func _restore_calendar_state(snapshot: Dictionary) -> void:
+func _restore_calendar_state(snapshot: Dictionary, preserve_live_timers: bool = false) -> void:
 	main_view_saved = bool(snapshot.get("main_view_saved", false))
 	calendar_only_mode = bool(snapshot.get("calendar_only_mode", false))
 	if calendar_only_mode:
@@ -2248,7 +2268,8 @@ func _restore_calendar_state(snapshot: Dictionary) -> void:
 	_set_option_selected(schedule_option, _valid_option_index(schedule_option, int(snapshot.get("schedule_selected", 0))))
 	_set_option_selected(range_option, _valid_option_index(range_option, int(snapshot.get("range_selected", 0))))
 	_sync_quick_range_option()
-	_set_option_selected(pause_option, _valid_option_index(pause_option, int(snapshot.get("pause_selected", 0))))
+	if not preserve_live_timers:
+		_set_option_selected(pause_option, _valid_option_index(pause_option, int(snapshot.get("pause_selected", 0))))
 	_set_spin_value(system_work_spin, int(snapshot.get("work_days", int(system_work_spin.value))))
 	_set_spin_value(system_home_spin, int(snapshot.get("home_days", int(system_home_spin.value))))
 	_set_spin_value(custom_length_spin, int(snapshot.get("custom_length", int(custom_length_spin.value))))
@@ -2268,12 +2289,14 @@ func _restore_calendar_state(snapshot: Dictionary) -> void:
 	_load_dictionary_as_strings(notes, snapshot.get("notes", {}))
 	_load_dictionary_as_ints(worked_seconds_by_day, snapshot.get("worked_seconds_by_day", {}))
 
-	work_start_unix = int(snapshot.get("work_start_unix", 0))
-	work_start_day_key = String(snapshot.get("work_start_day_key", ""))
-	work_end_unix = int(snapshot.get("work_end_unix", 0))
-	pause_start_unix = int(snapshot.get("pause_start_unix", 0))
-	last_work_duration_seconds = int(snapshot.get("last_work_duration_seconds", 0))
-	last_work_end_unix = int(snapshot.get("last_work_end_unix", 0))
+	if not preserve_live_timers:
+		work_start_unix = int(snapshot.get("work_start_unix", 0))
+		work_start_day_key = String(snapshot.get("work_start_day_key", ""))
+		work_profile_index = int(snapshot.get("work_profile_index", active_profile_index))
+		work_end_unix = int(snapshot.get("work_end_unix", 0))
+		pause_start_unix = int(snapshot.get("pause_start_unix", 0))
+		last_work_duration_seconds = int(snapshot.get("last_work_duration_seconds", 0))
+		last_work_end_unix = int(snapshot.get("last_work_end_unix", 0))
 	_restore_work_panel_text()
 	_update_work_hours_panel()
 	if not _apply_settings(false, false):
@@ -2445,7 +2468,7 @@ func _undo_calendar_reset() -> void:
 	_save_settings_to_disk()
 
 
-func _reset_calendar_settings(persist: bool = true) -> void:
+func _reset_calendar_settings(persist: bool = true, preserve_live_timers: bool = false) -> void:
 	reset_undo_snapshot = _calendar_state_snapshot()
 	reset_undo_available = true
 	undo_available = false
@@ -2459,7 +2482,8 @@ func _reset_calendar_settings(persist: bool = true) -> void:
 	_set_option_selected(schedule_option, 0)
 	_set_option_selected(range_option, 0)
 	_sync_quick_range_option()
-	_set_option_selected(pause_option, 0)
+	if not preserve_live_timers:
+		_set_option_selected(pause_option, 0)
 	_set_spin_value(system_work_spin, 14)
 	_set_spin_value(system_home_spin, 7)
 	_set_spin_value(custom_length_spin, 21)
@@ -2469,17 +2493,16 @@ func _reset_calendar_settings(persist: bool = true) -> void:
 	manual_overrides.clear()
 	notes.clear()
 	worked_seconds_by_day.clear()
-	work_start_unix = 0
-	work_start_day_key = ""
-	work_end_unix = 0
-	pause_start_unix = 0
-	last_work_duration_seconds = 0
-	last_work_end_unix = 0
-	work_status_label.text = "Tu później aplikacja policzy czas pracy."
-	_update_work_timer()
+	if not preserve_live_timers:
+		work_start_unix = 0
+		work_start_day_key = ""
+		work_profile_index = 0
+		work_end_unix = 0
+		pause_start_unix = 0
+		last_work_duration_seconds = 0
+		last_work_end_unix = 0
+	_restore_work_panel_text()
 	_update_work_hours_panel()
-	pause_result_label.visible = false
-	pause_result_label.text = ""
 
 	weekly_rest_toggle.set_pressed_no_signal(true)
 	weekly_rest_previous_pressed = true
@@ -4621,6 +4644,7 @@ func _on_start_work_pressed() -> void:
 	_capture_undo_state()
 	work_start_unix = int(Time.get_unix_time_from_system())
 	work_start_day_key = _date_key_from_unix_time(work_start_unix)
+	work_profile_index = active_profile_index
 	work_end_unix = 0
 	pause_start_unix = 0
 	_update_work_timer()
@@ -4635,6 +4659,8 @@ func _on_end_work_pressed() -> void:
 
 	if work_finish_dialog != null:
 		work_finish_dialog.dialog_text = "Zakończyć zmianę, zapisać godziny i rozpocząć pauzę %dh?" % _selected_pause_hours()
+		if work_profile_index > 0 and work_profile_index != active_profile_index:
+			work_finish_dialog.dialog_text += "\nGodziny zostaną zapisane w profilu %d." % work_profile_index
 		work_finish_dialog.popup_centered()
 		return
 
@@ -4653,6 +4679,7 @@ func _confirm_end_work() -> void:
 	show_worked_hours = true
 	work_start_unix = 0
 	work_start_day_key = ""
+	work_profile_index = 0
 	work_end_unix = 0
 	pause_start_unix = finished_unix
 	_restore_work_panel_text()
@@ -4710,6 +4737,14 @@ func _save_worked_seconds_for_day(start_unix: int, duration_seconds: int) -> voi
 	var key := _date_key_from_unix_time(start_unix)
 	if start_unix == work_start_unix and not ScheduleCalculator.parse_date(work_start_day_key).is_empty():
 		key = work_start_day_key
+	# A viewed colleague's calendar must not receive the driver's running shift.
+	if start_unix == work_start_unix and work_profile_index > 0 and work_profile_index != active_profile_index:
+		var owner: Dictionary = saved_profiles[_profile_key(work_profile_index)]
+		var hours: Dictionary = owner.get("worked_seconds_by_day", {}).duplicate(true)
+		hours[key] = int(hours.get(key, 0)) + duration_seconds
+		owner["worked_seconds_by_day"] = hours
+		owner["show_worked_hours"] = true
+		return
 	_add_worked_seconds_for_day_key(key, duration_seconds)
 
 
