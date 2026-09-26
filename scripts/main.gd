@@ -142,6 +142,7 @@ var start_work_button: Button
 var end_work_button: Button
 var start_pause_button: Button
 var work_timer_label: Label
+var work_elapsed_label: Label
 var rest_after_work_label: Label
 var pause_option: OptionButton
 var pause_result_label: Label
@@ -1100,6 +1101,12 @@ func _build_day_tools_panel() -> PanelContainer:
 	day_tools_toggle.size_flags_horizontal = Control.SIZE_SHRINK_END
 	_register_scroll_safe_control(day_tools_toggle)
 	header.add_child(day_tools_toggle)
+
+	work_elapsed_label = _make_label("Czas pracy --:--:--", 23, COLOR_TEXT)
+	work_elapsed_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	work_elapsed_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	work_elapsed_label.custom_minimum_size.y = 42
+	box.add_child(work_elapsed_label)
 
 	day_tools_body = VBoxContainer.new()
 	day_tools_body.add_theme_constant_override("separation", 8)
@@ -2344,6 +2351,15 @@ func _update_work_timer() -> void:
 	if start_pause_button != null:
 		start_pause_button.disabled = pause_start_unix > 0
 	var now_unix := int(Time.get_unix_time_from_system())
+	if work_elapsed_label != null:
+		# Count from the persisted start, without the 15h plan or a 24h wrap.
+		if work_start_unix > 0:
+			var elapsed_end := work_end_unix if work_end_unix > 0 else now_unix
+			work_elapsed_label.text = "Czas pracy %s" % _format_countdown(elapsed_end - work_start_unix)
+		elif last_work_end_unix > 0:
+			work_elapsed_label.text = "Ostatnia praca %s" % _format_countdown(last_work_duration_seconds)
+		else:
+			work_elapsed_label.text = "Czas pracy --:--:--"
 	var pause_hours := _selected_pause_hours()
 	rest_after_work_label.visible = true
 	if pause_start_unix > 0:
@@ -2371,8 +2387,12 @@ func _update_work_timer() -> void:
 	var remaining_text := _format_countdown(remaining_seconds)
 	var end_clock := _format_unix_clock(limit_end_unix)
 	work_timer_label.visible = true
-	work_timer_label.add_theme_color_override("font_color", Color(0.62, 0.92, 0.64))
-	work_timer_label.text = "Do planu 15h %s\nPlanowany koniec %s" % [remaining_text, end_clock]
+	if now_unix >= limit_end_unix:
+		work_timer_label.add_theme_color_override("font_color", Color(0.96, 0.58, 0.22))
+		work_timer_label.text = "Ponad plan 15h +%s\nPlanowany koniec %s" % [_format_countdown(now_unix - limit_end_unix), end_clock]
+	else:
+		work_timer_label.add_theme_color_override("font_color", Color(0.62, 0.92, 0.64))
+		work_timer_label.text = "Do planu 15h %s\nPlanowany koniec %s" % [remaining_text, end_clock]
 
 	if work_status_label != null:
 		work_status_label.text = "Zmiana rozpoczęta: %s. Plan 15h kończy się: %s. Zostało: %s." % [

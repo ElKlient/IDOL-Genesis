@@ -99,6 +99,22 @@ Przy konflikcie:
 
 ## Aktualny stan aplikacji
 
+26.09.2026: widoczny rzeczywisty czas pracy także ponad plan 15h.
+
+- Pod licznikami planu/pauzy, nad przyciskami pracy, jest osobny licznik
+  `Czas pracy HH:MM:SS`. Liczy od istniejącego `work_start_unix`, bez limitu
+  15h i bez zawijania po 24h; pozostaje widoczny po schowaniu przycisków.
+- Po osiągnięciu planu odliczanie zmienia się na pomarańczowe
+  `Ponad plan 15h +HH:MM:SS`. Praca nadal kończy się ręcznie.
+- Po zakończeniu licznik pokazuje `Ostatnia praca HH:MM:SS`; kolejny start
+  zaczyna od zera. Pełny czas nadal zapisuje się w dniu/profilu rozpoczęcia.
+  Format zapisu i zachowanie aktywnych liczników przy zmianie profilu bez zmian.
+- Godot 4.4.1 headless: `tests/release_audit.gd` **83 PASS, 0 FAIL**;
+  `tests/calendar_mobile_audit.gd` **19 PASS, 0 FAIL**. Sprawdzono próg 15h,
+  17h30, 19h15, 27h, zmianę profilu, odczyt zapisu, geometrię licznika i pełny
+  zapis długiej zmiany. Fizyczny Android nadal testuje użytkownik.
+- Łatka dotyczy źródeł Godot/Termux; nie publikowano nowego APK/PWA.
+
 26.09.2026: przełączanie profili zachowuje bieżącą pracę i pauzę.
 
 - Usunięto blokadę wczytywania profilu podczas pracy/pauzy. Jeden bieżący licznik
@@ -253,7 +269,9 @@ Profile:
 Godziny pracy i pauzy:
 
 - `Rozpocznij prace` uruchamia licznik z planem 15h. To plan, nie kalkulator zgodnosci z przepisami.
-- Panel pokazuje pozostaly czas planu i prognoze wybranej dlugosci pauzy.
+- Panel pokazuje rzeczywisty czas pracy, pozostaly czas planu (po 15h: czas
+  ponad plan) i prognoze wybranej dlugosci pauzy. Po zakonczeniu zostaje wynik
+  ostatniej zmiany.
 - `Zakoncz prace` pyta o potwierdzenie, zapisuje godziny do dnia rozpoczecia i od razu rozpoczyna wybrana pauze.
 - Start aktywnej pracy lub pauzy nie zeruje licznika. Rozpoczecie pauzy podczas pracy wymaga potwierdzenia zakonczenia zmiany.
 - Data rozpoczecia jest zapamietywana przy starcie; godziny nie sa dzielone o polnocy. Podsumowanie miesiaca opisuje te regule.

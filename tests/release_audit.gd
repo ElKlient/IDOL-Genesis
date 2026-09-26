@@ -204,6 +204,7 @@ func _run() -> void:
 	app._on_load_profile_pressed()
 	_check("Legacy profile loads data without stale timers", app.work_start_unix == 0 and app.pause_start_unix == 0 and app.worked_seconds_by_day.get("2026-09-25", 0) == 7200)
 	_test_profile_timer_switching()
+	await _test_elapsed_work_timer()
 
 	_clean()
 	app.pause_start_unix = int(Time.get_unix_time_from_system()) - 3 * 3600
@@ -381,6 +382,47 @@ func _run() -> void:
 	app.free()
 	await process_frame
 	quit(1 if failed > 0 else 0)
+
+
+func _test_elapsed_work_timer() -> void:
+	_clean()
+	app._update_work_timer()
+	_check("Idle elapsed timer does not imply an active shift", app.work_elapsed_label.text == "Czas pracy --:--:--")
+	app._on_save_profile_pressed()
+	app._on_start_work_pressed()
+	_check("New shift starts elapsed counter at zero", app.work_elapsed_label.text.begins_with("Czas pracy 00:00:"))
+	# Exercise both sides of the plan boundary and durations beyond one day.
+	for sample in [[8 * 3600 + 15 * 60, "08:15:"], [15 * 3600, "15:00:"], [17 * 3600 + 30 * 60, "17:30:"], [19 * 3600 + 15 * 60, "19:15:"], [27 * 3600, "27:00:"]]:
+		app.work_start_unix = int(Time.get_unix_time_from_system()) - int(sample[0])
+		app._update_work_timer()
+		_check("Elapsed counter shows %s without stopping or wrapping" % sample[1], app.work_elapsed_label.text.begins_with("Czas pracy " + sample[1]) and app.work_end_unix == 0 and app.pause_start_unix == 0)
+		if int(sample[0]) == 15 * 3600:
+			_check("15h boundary switches countdown to plan overrun", app.work_timer_label.text.begins_with("Ponad plan 15h +00:00:"))
+		if int(sample[0]) == 17 * 3600 + 30 * 60:
+			_check("17h30 shift shows 2h30 beyond plan", app.work_timer_label.text.begins_with("Ponad plan 15h +02:30:"))
+	app.work_start_unix = int(Time.get_unix_time_from_system()) - 19 * 3600 - 15 * 60 - 37
+	app.work_start_day_key = "2026-09-25"
+	var original_start: int = app.work_start_unix
+	app.selected_profile_index = 2
+	app._on_load_profile_pressed()
+	_check("Elapsed counter continues on another profile", app.work_elapsed_label.text.begins_with("Czas pracy 19:15:") and app.work_start_unix == original_start)
+	app.work_start_unix = 0
+	app._load_settings_from_disk()
+	app._update_work_timer()
+	_check("Reload restores elapsed counter beyond 15h", app.work_elapsed_label.text.begins_with("Czas pracy 19:15:") and app.work_start_unix == original_start)
+	await _settle()
+	var elapsed_rect: Rect2 = app.work_elapsed_label.get_global_rect()
+	_check("Elapsed timer fits below header and above work buttons", app.day_tools_panel.get_global_rect().encloses(elapsed_rect) and elapsed_rect.position.y >= app.work_timer_label.get_parent().get_parent().get_global_rect().end.y and elapsed_rect.end.y <= app.start_work_button.get_global_rect().position.y)
+	_check("Plan overrun text fits inside the panel", app.day_tools_panel.get_global_rect().encloses(app.work_timer_label.get_global_rect()))
+	app._on_day_tools_toggled(false)
+	_check("Elapsed timer stays visible with work buttons collapsed", app.work_elapsed_label.is_visible_in_tree())
+	app._confirm_end_work()
+	var duration: int = app.last_work_end_unix - original_start
+	_check("Long shift records every second in its source profile", duration >= 19 * 3600 + 15 * 60 + 37 and app.saved_profiles["1"].worked_seconds_by_day.get("2026-09-25", 0) == duration and app.worked_seconds_by_day.is_empty())
+	_check("End work freezes the elapsed result and starts selected rest", app.work_elapsed_label.text.begins_with("Ostatnia praca 19:15:") and app.pause_start_unix == app.last_work_end_unix and app.work_start_unix == 0)
+	app._on_start_work_pressed()
+	_check("Next shift resets elapsed display and returns to countdown", app.work_elapsed_label.text.begins_with("Czas pracy 00:00:") and app.work_timer_label.text.begins_with("Do planu 15h "))
+	_clean()
 
 
 func _test_profile_timer_switching() -> void:
