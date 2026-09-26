@@ -1,5 +1,11 @@
 # Kalendarz Kierowcy - prompt dla nastepnego czatu
 
+Najpierw przeczytaj `docs/DRIVER_CALENDAR_RAPORT_PRZEKAZANIA.md` (pełna historia,
+zgody, linki i workflow) oraz `docs/DRIVER_CALENDAR_STRESZCZENIE.md` (bieżący stan).
+Raport z 26.09 wyjaśnia też blokadę pull przez `project.godot`, wspólny scroll
+oraz liczniki działające przy przełączaniu profili. Aktualizacja źródeł nie
+publikuje automatycznie nowej APK ani PWA.
+
 Skopiuj ten plik albo ponizszy prompt do nowego czatu, gdy obecny zaczyna lagowac.
 
 ## Gotowy prompt do wklejenia

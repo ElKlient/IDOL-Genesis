@@ -2,6 +2,9 @@
 
 To jest stala notatka startowa dla kolejnego agenta pracujacego nad aplikacja Godot **Kalendarz Kierowcy**.
 
+Pełna historia, linki pobierania, stan APK/PWA, zgody i instrukcje przekazania:
+`docs/DRIVER_CALENDAR_RAPORT_PRZEKAZANIA.md` (aktualizacja 26.09.2026).
+
 Jesli uzytkownik napisze w dowolnym czacie: **STRESZCZENIE**, agent ma dac aktualne streszczenie dla nastepnego agenta: stan aplikacji, branch, workflow, ostatnie zmiany, zasady wspolpracy i najwazniejsze priorytety.
 
 ## Repo i branch

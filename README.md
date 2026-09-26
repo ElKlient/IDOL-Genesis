@@ -4,9 +4,9 @@ Prosty kalendarz dla kierowcow jezdzacych w systemach pracy typu 2/1, 2/2, 3/1 a
 
 ## Dla kolejnego kontenera
 
-Przed latkami przeczytaj `NEXT_CHAT_PROMPT.md`. Tam jest aktualny workflow, roznica miedzy kalendarzem kierowcy i `apps/wspolny-kalendarz`, komendy Termuxa oraz diagnoza problemu "na ekranie nadal widze stare menu".
+Najpierw przeczytaj [pełny raport przekazania](docs/DRIVER_CALENDAR_RAPORT_PRZEKAZANIA.md) i [aktualne streszczenie](docs/DRIVER_CALENDAR_STRESZCZENIE.md). Raport zawiera historię, zgody, linki APK/iPhone, stan opublikowanych wydań i workflow. `NEXT_CHAT_PROMPT.md` jest dodatkową instrukcją pracy.
 
-## MVP
+## Historyczny zakres MVP (aktualne działanie opisuje raport)
 
 - pionowy, kafelkowy kalendarz pod telefon:
   - siedem kafelkow w rzedzie, jak tydzien w kalendarzu,
