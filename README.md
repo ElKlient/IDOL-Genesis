@@ -6,6 +6,10 @@ Prosty kalendarz dla kierowcow jezdzacych w systemach pracy typu 2/1, 2/2, 3/1 a
 
 Najpierw przeczytaj [pełny raport przekazania](docs/DRIVER_CALENDAR_RAPORT_PRZEKAZANIA.md) i [aktualne streszczenie](docs/DRIVER_CALENDAR_STRESZCZENIE.md). Raport zawiera historię, zgody, linki APK/iPhone, stan opublikowanych wydań i workflow. `NEXT_CHAT_PROMPT.md` jest dodatkową instrukcją pracy.
 
+Instrukcja dla agenta pracującego nad **inną, nową aplikacją**:
+[Workflow Termux / Godot / GitHub](docs/WORKFLOW_NOWA_APLIKACJA.md).
+To notatka do przekazania; nowy projekt ma być oddzielony od istniejących aplikacji.
+
 ## Historyczny zakres MVP (aktualne działanie opisuje raport)
 
 - pionowy, kafelkowy kalendarz pod telefon:
