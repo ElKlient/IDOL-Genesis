@@ -1,4 +1,4 @@
-# Żelazny Świt — przekazanie projektu 0.1.6
+# Żelazny Świt — przekazanie projektu 0.1.7
 
 ## Cel i zgody
 
@@ -440,3 +440,94 @@ kontakcie znajduje się z przodu i nad ziemią. Pięć zrzutów prawdziwego rend
 (postój i cztery kontakty) obejrzano. Dotychczasowy zapis pozostał identyczny
 bajt w bajt; testy pracowały bez wysyłania raportów. To testy Linux/OpenGL,
 nie próba nowej wersji na fizycznym telefonie.
+
+## Wersja 0.1.7 — żywy podgląd, dotykowa kamera i Pierdolnięcie Miecza
+
+Użytkownik pokazał działającą 0.1.6 i poprosił o obracany, animowany model
+w oknie ekwipunku oraz wizualizację przyszłej grafiki. Następnie doprecyzował
+kierunek referencją klasycznego azjatyckiego MMORPG: naturalna sylwetka,
+wyraziste warstwowe zbroje i szeroki miecz, z własnym stylem oraz projektami.
+To aktualny kierunek zamiast oczekiwania na wybór A/B/C. Pokazano koncepcję
+wioski w tym klimacie i ekwipunku z realistycznym wojownikiem. To ilustracje
+docelowego kierunku; nie przedstawiaj ich jako działających modeli ani renderu
+telefonu. Ta wersja nadal używa dotychczasowej geometrii postaci i wioski.
+
+### Podgląd ekwipunku
+
+`ui/character_preview.gd` to samodzielny Control z jednym zachowanym
+SubViewport 320×320, `own_world_3d`, własną kamerą, światłami i CharacterVisual.
+Nie tworzy Hero, fizyki, dźwięku ani kopii całego świata; nie zmienia GameState.
+MSAA, dodatkowe cienie i sky są wyłączone. Render `UPDATE_ONCE` żądany do 30 Hz,
+ukrycie/focus out zatrzymuje tick, render i płomień. Instancja jest parkowana
+pod HUD i przywracana przy bezpiecznej, odroczonej przebudowie panelu, więc
+wybór karty, założenie przedmiotu, zmiana złota i ponowne otwarcie zachowują
+obrót oraz jeden viewport. Nie odtwarzaj go przy każdym sygnale `changed`.
+
+Ekwipunek ma dwie kolumny: portret z lewej, statystyki/plecak/akcje z prawej.
+Sterowanie: przeciąganie palcem/myszą, W LEWO, RESET, W PRAWO, POSTÓJ, CIOS, BIEG.
+Pokazuje aktualnie założony sprzęt i aktywny płomień miecza; nie zadaje obrażeń.
+Kadr domyślny 3,8 powiększa postać. Cios poszerza kadr do 5,3 lub 6,0 przy
+płomieniu, aby mieścić całe ostrze i iskry, po czym kadr wraca do wartości
+spoczynku. To wyłącznie kamera portretu, niezależna od preferencji gry.
+
+### Sterowanie kamerą i dotyk
+
+`ui/camera_orbit_pad.gd` zajmuje pole pod minimapą, nad umiejętnościami po
+prawej. Przesunięcie w poziomie zmienia yaw o −0,22°/px z zawijaniem, w pionie
+pitch o +0,16°/px w granicach 38–65°. Zoom pozostaje, zapis używa istniejącego
+opóźnienia preferencji. Można chodzić lewym palcem i obracać kamerę prawym.
+Panel, śmierć i respawn blokują sterowanie. Sygnał HUD `camera_orbit_requested`
+obsługuje `main.orbit_camera`.
+
+QA wykrył, że Godot potrafi wysłać emulowany MouseButton przed właściwym
+ScreenTouch. Dotychczasowy joystick przejmował wtedy palec jako mysz −2.
+Joystick i RPGTouchPad odrzucają teraz emulowane urządzenia, zachowują indeks
+prawdziwego palca i czyszczą stan po cancel/focus/hide/disable oraz utraconym
+zwolnieniu myszy. Główne wybieranie celu ignoruje syntetyczny MouseButton;
+prawdziwy dotyk świata nadal obsługuje własny ScreenTouch.
+
+### Nowa umiejętność
+
+Nazwa zgodna z prośbą: **Pierdolnięcie Miecza**. Osobny przycisk ognia obok
+Wiru stali oraz klawisz F. Cooldown 20 s, blokada ruchu/ataków 1 s, kontakt
+po 0,48 s. Bohater podnosi miecz oburącz i wbija go w ziemię. Własna animacja
+używa dwóch segmentów IK ramion, aby druga dłoń pozostała na rękojeści;
+kontakt końca ostrza jest 7 cm nad gruntem dla każdego tieru broni.
+
+Na kontakt powstaje rozszerzający się krąg ognia i iskier, pojedyncze AoE
+w promieniu 4 m z obrażeniami `attack_power*1.65+10`, następnie płonące ostrze
+na 12 s. Bonus +30% dotyczy tylko zwykłych ciosów, w tym czwartego; Wir stali
+i początkowe AoE mają własne obrażenia. Buff nie jest zapisywany w GameState
+ani pliku postaci; śmierć i ratunkowy teleport usuwają go. Panel otwarty przed
+kontaktem anuluje akcję bez obrażeń/efektu, zachowując już rozpoczęty cooldown.
+Serial akcji oraz synchroniczny sygnał widoczności panelu anulują także
+otwarcie i zamknięcie pomiędzy krokami fizyki. Sygnał HUD `fire_skill_requested`
+i metoda `set_fire_skill_cooldown` nie przebudowują interfejsu co klatkę.
+
+`scripts/sword_fire_effect.gd`: czerwone/żółte płomienie, gorący rdzeń ostrza,
+białe iskry, dwa draw calle. `scripts/fire_impact.gd`: błysk, spiralny żar,
+rozszerzający się pierścień, 28 języków ognia i 24 iskry w czterech siatkach;
+efekt sam znika po 1,15 s. Bez tekstur z internetu, świateł, GPU particles,
+pełnoekranowego rozmycia i alokacji w pętli. Barwy ulepszenia nie są nadpisywane.
+Geometria jest ograniczona, materiały efektów są niezależne od ekwipunku.
+
+W HUD **v0.1.7**. Aktualizacja zwykłym pull gałęzi po zachowaniu lokalnego
+`project.godot` w stash, bez resetowania postaci ani prywatnej diagnostyki.
+
+Weryfikacja 0.1.7 w Godot 4.4.1/Compatibility/Mesa: import i start bez błędów,
+podgląd 32/32 headless i 34/34 OpenGL, ogień/kamera 38/38 headless i 41/41
+OpenGL (ostatni dodany warunek emulowanego wybierania celu sprawdzono headless),
+UI flow 17/17 OpenGL, integracja 51/51, kowal odroczony 26/26, combo 55/55.
+Wszystkie właściwe sprawdzenia przeszły. Zbadano rzeczywiste wejście dotyku,
+myszy i dwóch palców, aktualizację sprzętu bez odtwarzania viewportu, brak
+aktywności ukrytego podglądu i zachowanie postępu. Testy nie wysyłały raportów.
+
+Kadrowanie obejmuje osiem obrotów i jedenaście próbek każdego pełnego zamachu;
+dodatkowy pomiar wizualny objął 24 obroty i 21 próbek, również z płomieniami.
+Podczas dwuręcznego slamu odchyłka dłoni od rękojeści wyniosła do 2,8 cm
+(wewnątrz rękawicy), a koniec ostrza pozostał 7 cm nad gruntem we wszystkich
+czterech tierach broni i czterech kierunkach. Obejrzano rzeczywiste zrzuty
+podglądu 1280×720/1600×720, podniesionego miecza, kręgu ognia i płonącego ostrza.
+Premia wygasła po rzeczywistych 12 s, oczekujące trafienia były anulowane
+przez panel/śmierć, a sprzęt zachował bazowe materiały ulepszeń. To weryfikacja
+Linux/OpenGL; nowa wersja wymaga jeszcze próby użytkownika na jego Androidzie.

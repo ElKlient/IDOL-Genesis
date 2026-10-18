@@ -1,4 +1,4 @@
-# Żelazny Świt — 0.1.6
+# Żelazny Świt — 0.1.7
 
 Oryginalna, jednoosobowa gra akcji RPG 3D na telefon, napisana w Godocie 4.4+.
 Sterowanie dotykowe w poziomie. Mały grywalny wycinek: wioska Brzeziny, wojownik,
@@ -61,10 +61,13 @@ ponownie — do aktualizacji służy następny blok.
 
 ## Sterowanie
 
-Telefon: lewy joystick; po prawej atak, umiejętność, mikstura i rozmowa w pobliżu NPC.
+Telefon: lewy joystick; po prawej atak, dwie umiejętności, mikstura i rozmowa w pobliżu NPC.
+Przeciągnij palcem w polu **KAMERA** nad umiejętnościami, aby obracać i pochylać
+widok. Możesz jednocześnie chodzić lewym joystickiem.
 Dotknij przeciwnika, by wybrać cel. Przycisk plecaka otwiera przedmioty i statystyki.
 
 Komputer: **WASD/strzałki** — ruch, **Spacja** — atak, **R** — Wir stali,
+**F** — Pierdolnięcie Miecza, przeciąganie w polu KAMERA — obrót widoku,
 **Q** — mikstura, **E** — rozmowa, **I** — plecak, **Tab** — zmiana celu,
 **Esc** — zamknięcie panelu. Android Wstecz zamyka panel lub otwiera ustawienia.
 
@@ -105,7 +108,7 @@ Potem otwórz ten sam `games/zelazny-swit/project.godot` i naciśnij ▶.
 Polecenie zachowuje ewentualne lokalne zmiany `project.godot` w `git stash list`.
 Nie przywraca ich automatycznie: nowa wersja zawiera wymagane ustawienia mobilne
 i autoload diagnostyki. Zapis postaci oraz prywatna konfiguracja raportów zostają.
-Nie używaj resetowania ani usuwania folderu. W HUD pod zdrowiem sprawdź numer **v0.1.6**.
+Nie używaj resetowania ani usuwania folderu. W HUD pod zdrowiem sprawdź numer **v0.1.7**.
 
 ## Uruchamianie i zakres
 
@@ -118,7 +121,32 @@ Nie używaj resetowania ani usuwania folderu. W HUD pod zdrowiem sprawdź numer 
 - Udostępniony jest projekt do uruchomienia w Godocie, nie gotowy instalator APK.
 - Użytkownik potwierdził chodzenie, walkę, zabijanie potworów i ulepszanie
   przedmiotów na swoim telefonie oraz zaakceptował zbliżenie kamery 0.1.5.
-  Nowa walka 0.1.6 wymaga jego próby po aktualizacji.
+  Zrzuty użytkownika pokazują także uruchomioną 0.1.6. Funkcje 0.1.7 wymagają
+  jego próby po aktualizacji.
+
+## Aktualizacja 0.1.7 — podgląd postaci, kamera i ogień
+
+**EKWIPUNEK** pokazuje żywą postać 3D w osobnym okienku. Przeciągaj po modelu,
+aby obracać go o 360°. **W LEWO** i **W PRAWO** obracają widok, **RESET** go ustawia,
+a **POSTÓJ**, **BIEG** i **CIOS** pokazują animacje. Podgląd nosi założony miecz
+i zbroję, reaguje na zmianę wyposażenia i zachowuje obrót podczas wybierania
+przedmiotów. Po zamknięciu okna przestaje renderować.
+
+**Pierdolnięcie Miecza** to nowa, osobna umiejętność wojownika. Bohater chwyta
+miecz oburącz, uderza w ziemię i wywołuje krąg ognia. Trafienie zadaje obrażenia
+wrogom w pobliżu i podpala ostrze na **12 sekund**: płomienie oraz jasne iskry
+towarzyszą zwykłym ciosom, które zyskują **30% obrażeń**. Odnowienie wynosi
+**20 sekund**. Wir stali zachowuje dotychczasowe działanie. Umiejętność nie
+zużywa złota ani przedmiotów i nie zapisuje premii jako statystyki ekwipunku.
+
+Przyciskiem **KAMERA** po prawej sterujesz widokiem bez otwierania menu:
+przeciąganie na boki obraca, a w pionie zmienia wysokość. Przybliżenie nadal
+ustawiasz w Menu → KAMERA; obrót zapisuje się w tych samych preferencjach.
+
+Pokazane wizualizacje wioski i realistycznego wojownika to koncepcje docelowej
+grafiki. Kierunek wskazany przez użytkownika: klasyczne azjatyckie MMORPG,
+naturalna sylwetka, efektowne warstwowe zbroje i szeroki miecz, z własnymi
+projektami. W 0.1.7 działa podgląd oraz nowe efekty na dotychczasowym modelu.
 
 ## Aktualizacja 0.1.6 — ruch i cztery ciosy
 
@@ -128,9 +156,10 @@ przeciwnika, przerywając jego przygotowany atak. Odrzut podlega kolizjom świat
 Postój ma subtelny oddech i przenoszenie ciężaru, a ruch korzysta z osobnych
 stawów łokci i kolan. To aktualizacja animacji dotychczasowej postaci.
 
-Nowy, bardziej realistyczny model i wygląd zbroi są osobnym etapem po wyborze
-użytkownika spośród pokazanych koncepcji A/B/C. Plansza koncepcyjna nie jest
-zrzutem gry ani gotowym modelem 3D. Obecna wersja zachowuje wyposażenie i postęp.
+Nowy, bardziej realistyczny model i wygląd zbroi są osobnym etapem. Po planszy
+A/B/C użytkownik wskazał kierunek klasycznego azjatyckiego MMORPG. Plansze
+koncepcyjne nie są zrzutami gry ani gotowymi modelami 3D. Obecna wersja zachowuje
+wyposażenie i postęp.
 
 Dokładny raport weryfikacji i informacje dla kolejnego agenta: [docs/STRESZCZENIE.md](docs/STRESZCZENIE.md).
 

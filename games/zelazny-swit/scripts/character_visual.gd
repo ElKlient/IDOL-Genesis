@@ -2,6 +2,10 @@ class_name CharacterVisual
 extends Node3D
 ## Original low-poly warrior assembled from small mobile-friendly primitives.
 
+const SwordFireScript = preload("res://scripts/sword_fire_effect.gd")
+const FIRE_SLAM_DURATION: float = 1.0
+const FIRE_SLAM_CONTACT: float = 0.48
+
 var body: Node3D
 var left_arm: Node3D
 var right_arm: Node3D
@@ -41,6 +45,10 @@ var attack_elapsed: float = -1.0
 var attack_duration: float = 0.45
 var combo_index: int = 0
 var skill_attack: bool = false
+var fire_slam_attack: bool = false
+var sword_fire: Node3D
+var sword_burning: bool = false
+var _fire_slam_track: Array = []
 var flash_time: float = 0.0
 var weapon_tier: int = 0
 var armor_tier: int = 0
@@ -49,6 +57,7 @@ var upgrade_level: int = 0
 func _ready() -> void:
 	_build()
 	set_equipment(weapon_tier, armor_tier, upgrade_level)
+	set_sword_flame(sword_burning)
 
 func _material(color: Color, metallic: float = 0.0, roughness: float = 0.7) -> StandardMaterial3D:
 	var mat := StandardMaterial3D.new()
@@ -172,6 +181,9 @@ func _build() -> void:
 	_box(sword, Vector3(0.025, 0.63, 0.062), Vector3(0, -0.60, 0), trim_material)
 	_cylinder(sword, 0.0, 0.084, 0.20, Vector3(0, -1.105, 0), blade_material, Vector3(0, 0, PI))
 	_sphere(sword, 0.056, 0.08, Vector3(0, -0.21, -0.067), glow_material)
+	sword_fire = SwordFireScript.new()
+	sword_fire.name = "SwordFire"
+	sword.add_child(sword_fire)
 	advanced_weapon = _pivot(sword, Vector3.ZERO)
 	for side: int in [-1, 1]:
 		_box(advanced_weapon, Vector3(0.28, 0.07, 0.12), Vector3(side * 0.25, -0.25, 0), trim_material, Vector3(0, 0, side * -0.5))
@@ -270,12 +282,35 @@ func set_equipment(new_weapon_tier: int, new_armor_tier: int, upgrade: int = 0) 
 	glow_material.emission = [Color("75abb3"), Color("36c8ff"), Color("55e1ff"), Color("ff6544")][weapon_tier]
 
 func start_attack(combo: int = 0, skill: bool = false) -> void:
+	fire_slam_attack = false
 	combo_index = posmod(combo, 4)
 	skill_attack = skill
 	attack_elapsed = 0.0
 	attack_duration = 0.68 if skill else (0.62 if combo_index == 3 else 0.46)
 	if is_instance_valid(torso):
 		_attack_origin = _capture_pose()
+
+func start_fire_slam() -> void:
+	skill_attack = false
+	fire_slam_attack = true
+	attack_elapsed = 0.0
+	attack_duration = FIRE_SLAM_DURATION
+	locomotion_blend = 0.0
+	if is_instance_valid(torso):
+		_attack_origin = _capture_pose()
+
+func cancel_fire_slam() -> void:
+	if not fire_slam_attack:
+		return
+	fire_slam_attack = false
+	attack_elapsed = -1.0
+	if is_instance_valid(torso):
+		tick(0.0,0.0)
+
+func set_sword_flame(burning: bool) -> void:
+	sword_burning = burning
+	if is_instance_valid(sword_fire):
+		sword_fire.set_burning(burning)
 
 func is_attacking() -> bool:
 	return attack_elapsed >= 0.0
@@ -336,6 +371,18 @@ func _build_combat_tracks() -> void:
 			_keyframe(0.62)
 		]
 	]
+	# Original two-handed ignition: gather, raise, plant, and recover. The
+	# hand targets below keep the palms on one hilt throughout the strike.
+	_fire_slam_track = [
+		_keyframe(0.0),
+		_keyframe(0.18,{"hips":Vector3(-3,0,0),"torso":Vector3(-12,0,0),"left_leg":Vector3(6,-4,-4),"right_leg":Vector3(-7,4,4),"left_knee":Vector3(-12,0,0),"right_knee":Vector3(-15,0,0),"offset":Vector3(0,-0.035,0.025)}),
+		_keyframe(0.35,{"hips":Vector3(-5,0,0),"torso":Vector3(-17,0,0),"left_leg":Vector3(7,-4,-4),"right_leg":Vector3(-8,4,4),"left_knee":Vector3(-14,0,0),"right_knee":Vector3(-17,0,0),"offset":Vector3(0,-0.045,0.035)}),
+		_keyframe(0.39,{"hips":Vector3(-3,0,0),"torso":Vector3(-11,0,0),"left_leg":Vector3(7,-4,-4),"right_leg":Vector3(-8,4,4),"left_knee":Vector3(-14,0,0),"right_knee":Vector3(-17,0,0),"offset":Vector3(0,-0.045,0.02)}),
+		_keyframe(FIRE_SLAM_CONTACT,{"hips":Vector3(6,0,0),"torso":Vector3(-26,0,0),"left_leg":Vector3(14,-4,-4),"right_leg":Vector3(-11,4,4),"left_knee":Vector3(-20,0,0),"right_knee":Vector3(-25,0,0),"offset":Vector3(0,-0.075,-0.045)}),
+		_keyframe(0.60,{"hips":Vector3(5,0,0),"torso":Vector3(-22,0,0),"left_leg":Vector3(12,-4,-3),"right_leg":Vector3(-10,4,3),"left_knee":Vector3(-17,0,0),"right_knee":Vector3(-21,0,0),"offset":Vector3(0,-0.06,-0.035)}),
+		_keyframe(0.82,{"hips":Vector3(1,0,0),"torso":Vector3(-5,0,0),"left_knee":Vector3(-7,0,0),"right_knee":Vector3(-9,0,0),"offset":Vector3(0,-0.015,-0.01)}),
+		_keyframe(FIRE_SLAM_DURATION)
+	]
 
 func _capture_pose() -> Dictionary:
 	# A completed full skill turn is the neutral orientation, not a request
@@ -350,6 +397,9 @@ func _interpolated(pose_a: Dictionary,pose_b: Dictionary,key: String,weight: flo
 
 func _apply_cut_pose() -> void:
 	var track: Array = _combat_tracks[combo_index]
+	_apply_track_pose(track)
+
+func _apply_track_pose(track: Array) -> void:
 	var previous: Dictionary = track[0]
 	var following: Dictionary = track.back()
 	for index: int in range(1,track.size()):
@@ -378,6 +428,62 @@ func _apply_cut_pose() -> void:
 	left_knee.rotation = left_knee.rotation.lerp(_interpolated(previous,following,"left_knee",alpha),stance_weight)
 	right_knee.rotation = right_knee.rotation.lerp(_interpolated(previous,following,"right_knee",alpha),stance_weight)
 	head.rotation = Vector3(-torso.rotation.x*0.35,-torso.rotation.y*0.38,-torso.rotation.z*0.25)
+
+func _apply_fire_slam_pose() -> void:
+	_apply_track_pose(_fire_slam_track)
+	var impact_height: float = 0.07+1.205*sword.scale.y*cos(0.12)
+	var keys: Array = [
+		[0.0,Vector3(0.0,1.36,-0.30),1.05],
+		[0.18,Vector3(-0.06,1.70,-0.20),3.25],
+		[0.35,Vector3(-0.06,1.75,-0.10),3.48],
+		[0.39,Vector3(-0.06,1.75,-0.10),3.42],
+		[FIRE_SLAM_CONTACT,Vector3(0.0,impact_height,-0.32),0.12],
+		[0.60,Vector3(0.0,impact_height+0.025,-0.31),0.16],
+		[0.82,Vector3(0.0,1.40,-0.28),0.95],
+		[FIRE_SLAM_DURATION,Vector3(0.22,1.30,-0.37),0.94]
+	]
+	var first: Array = keys[0]
+	var second: Array = keys.back()
+	for i: int in range(1,keys.size()):
+		second = keys[i]
+		if attack_elapsed <= float(second[0]):
+			first = keys[i-1]
+			break
+	var alpha: float = clampf((attack_elapsed-float(first[0]))/maxf(float(second[0])-float(first[0]),0.001),0.0,1.0)
+	alpha = alpha*alpha*(3.0-2.0*alpha)
+	var wrist_target: Vector3 = (first[1] as Vector3).lerp(second[1],alpha)
+	var sword_angle: float = lerpf(float(first[2]),float(second[2]),alpha)
+	var grip_weight: float = minf(clampf(attack_elapsed/0.12,0.0,1.0),clampf((FIRE_SLAM_DURATION-attack_elapsed)/0.15,0.0,1.0))
+	grip_weight = grip_weight*grip_weight*(3.0-2.0*grip_weight)
+	_solve_arm(right_arm,right_forearm,to_global(wrist_target),1.0,grip_weight)
+	var blade_basis: Basis = global_basis.orthonormalized()*Basis.from_euler(Vector3(sword_angle,0.0,0.0))
+	var wrist_basis: Basis = blade_basis*sword.basis.orthonormalized().inverse()
+	right_wrist.global_basis = Basis(right_wrist.global_basis.get_rotation_quaternion().slerp(wrist_basis.get_rotation_quaternion(),grip_weight))
+	# The second palm grips the lower handle, above the crossguard. It is
+	# solved against the actual sword transform, including equipment scale.
+	_solve_arm(left_arm,left_forearm,sword.to_global(Vector3(0,-0.14,0)),-1.0,grip_weight)
+
+func _solve_arm(upper: Node3D,lower: Node3D,target: Vector3,side: float,weight: float) -> void:
+	var shoulder: Vector3 = upper.global_position
+	var upper_length: float = lower.position.length()
+	var hand_offset: Vector3 = Vector3(0,-0.30,-0.015)
+	var lower_length: float = hand_offset.length()
+	var delta: Vector3 = target-shoulder
+	var distance: float = clampf(delta.length(),absf(upper_length-lower_length)+0.001,upper_length+lower_length-0.001)
+	var direction: Vector3 = delta.normalized() if delta.length_squared() > 0.00001 else Vector3.DOWN
+	var pole: Vector3 = global_basis.orthonormalized()*Vector3(side,0.12,0.24)
+	var bend: Vector3 = pole-direction*pole.dot(direction)
+	if bend.length_squared() < 0.00001:
+		bend = direction.cross(Vector3.FORWARD)
+	bend = bend.normalized()
+	var along: float = (upper_length*upper_length-lower_length*lower_length+distance*distance)/(2.0*distance)
+	var perpendicular: float = sqrt(maxf(0.0,upper_length*upper_length-along*along))
+	var elbow: Vector3 = shoulder+direction*along+bend*perpendicular
+	var upper_basis: Basis = Basis(Quaternion(Vector3.DOWN,(elbow-shoulder).normalized()))
+	upper.global_basis = Basis(upper.global_basis.get_rotation_quaternion().slerp(upper_basis.get_rotation_quaternion(),weight))
+	var reachable_hand: Vector3 = shoulder+direction*distance
+	var lower_basis: Basis = Basis(Quaternion(hand_offset.normalized(),(reachable_hand-lower.global_position).normalized()))
+	lower.global_basis = Basis(lower.global_basis.get_rotation_quaternion().slerp(lower_basis.get_rotation_quaternion(),weight))
 
 func tick(delta: float, moving: float) -> void:
 	if not is_instance_valid(torso):
@@ -411,7 +517,9 @@ func tick(delta: float, moving: float) -> void:
 	if attack_elapsed >= 0.0:
 		attack_elapsed = minf(attack_elapsed+delta,attack_duration)
 		var t: float = attack_elapsed/attack_duration
-		if skill_attack:
+		if fire_slam_attack:
+			_apply_fire_slam_pose()
+		elif skill_attack:
 			var spin: float = clampf((t-0.12)/0.76,0,1)
 			spin = spin*spin*(3.0-2.0*spin)
 			body.rotation.y = spin*TAU
@@ -431,6 +539,7 @@ func tick(delta: float, moving: float) -> void:
 			_apply_cut_pose()
 		if t >= 1.0:
 			attack_elapsed = -1.0
+			fire_slam_attack = false
 	if flash_time > 0.0:
 		flash_time -= delta
 		if flash_time <= 0.0:

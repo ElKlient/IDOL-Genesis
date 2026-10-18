@@ -11,6 +11,8 @@ var _weapon_tier: int = 0
 var _armor_tier: int = 0
 var _upgrade: int = 0
 var _death_angle: float = 0.0
+var attack_locked_time: float = 0.0
+var _sword_burning: bool = false
 
 func _ready() -> void:
 	collision_layer = 2
@@ -27,6 +29,7 @@ func _ready() -> void:
 	visual.armor_tier = _armor_tier
 	visual.upgrade_level = _upgrade
 	add_child(visual)
+	visual.set_sword_flame(_sword_burning)
 	var shadow := MeshInstance3D.new()
 	var disk := CylinderMesh.new()
 	disk.top_radius = 0.57
@@ -44,16 +47,21 @@ func _ready() -> void:
 	add_child(shadow)
 
 func _physics_process(delta: float) -> void:
+	var planted: bool = attack_locked_time > 0.0
+	attack_locked_time = maxf(0.0, attack_locked_time - delta)
 	var requested := Vector3(move_input.x, 0.0, move_input.y)
 	if requested.length() > 1.0:
 		requested = requested.normalized()
-	if dead:
+	if dead or planted:
 		requested = Vector3.ZERO
+	if dead:
+		cancel_fire_slam()
+		set_sword_flame(false)
 	var speed: float = MOVE_SPEED
 	if is_instance_valid(visual) and visual.is_attacking():
 		speed *= 0.52
-	velocity.x = move_toward(velocity.x, requested.x * speed, delta * 24.0)
-	velocity.z = move_toward(velocity.z, requested.z * speed, delta * 24.0)
+	velocity.x = 0.0 if planted else move_toward(velocity.x, requested.x * speed, delta * 24.0)
+	velocity.z = 0.0 if planted else move_toward(velocity.z, requested.z * speed, delta * 24.0)
 	if not is_on_floor():
 		velocity.y -= delta * 22.0
 	else:
@@ -68,8 +76,27 @@ func _physics_process(delta: float) -> void:
 		visual.rotation.z = _death_angle
 
 func play_attack(combo: int = 0, skill: bool = false) -> void:
-	if not dead and is_instance_valid(visual):
+	if not dead and attack_locked_time <= 0.0 and is_instance_valid(visual):
 		visual.start_attack(combo, skill)
+
+func play_fire_slam() -> void:
+	if dead or not is_instance_valid(visual):
+		return
+	attack_locked_time = maxf(attack_locked_time, 1.0)
+	move_input = Vector2.ZERO
+	velocity.x = 0.0
+	velocity.z = 0.0
+	visual.start_fire_slam()
+
+func cancel_fire_slam() -> void:
+	attack_locked_time = 0.0
+	if is_instance_valid(visual):
+		visual.cancel_fire_slam()
+
+func set_sword_flame(burning: bool) -> void:
+	_sword_burning = burning
+	if is_instance_valid(visual):
+		visual.set_sword_flame(burning)
 
 func set_equipment(weapon_tier: int, armor_tier: int, upgrade: int = 0) -> void:
 	_weapon_tier = weapon_tier
@@ -83,6 +110,8 @@ func receive_hit() -> void:
 		visual.hit_flash()
 
 func reset_to(pos: Vector3) -> void:
+	cancel_fire_slam()
+	set_sword_flame(false)
 	global_position = pos
 	velocity = Vector3.ZERO
 	move_input = Vector2.ZERO

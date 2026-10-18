@@ -3,6 +3,8 @@ class_name GameHUD
 
 signal attack_requested
 signal skill_requested
+signal fire_skill_requested
+signal camera_orbit_requested(delta: Vector2)
 signal potion_requested
 signal interact_requested
 signal close_requested
@@ -21,6 +23,11 @@ var screen: Control
 var joystick: RPGJoystick
 var attack_pad: RPGTouchPad
 var skill_pad: RPGTouchPad
+var fire_pad: RPGTouchPad
+var camera_pad: CameraOrbitPad
+var fire_skill_text: Label
+var fire_status_text: Label
+var fire_glyph: Control
 var potion_pad: RPGTouchPad
 var context_button: Button
 var hp_bar: ProgressBar
@@ -63,6 +70,33 @@ var _camera_values: Dictionary = {}
 var _camera_sliders: Dictionary = {}
 var _camera_value_labels: Dictionary = {}
 var _camera_grip: Texture2D
+# Keep this single preview alive while cards and modal panels rebuild around it.
+var character_preview: Control
+var _preview_equipment_signature: String = ""
+var _inventory_scroll: ScrollContainer
+var _inventory_scroll_offset: int = 0
+var _sword_flame_active: bool = false
+
+class FireSwordGlyph extends Control:
+	func _ready() -> void:
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+		resized.connect(queue_redraw)
+
+	func _draw() -> void:
+		var unit: float = minf(size.x,size.y)/80.0
+		draw_set_transform(size*0.5,0.0,Vector2(unit,unit))
+		# Three nested flames keep the ability readable at phone button size.
+		draw_colored_polygon(PackedVector2Array([Vector2(-20,24),Vector2(-29,11),Vector2(-24,-5),Vector2(-17,4),Vector2(-19,-20),Vector2(-7,-9),Vector2(1,-36),Vector2(9,-15),Vector2(19,-24),Vector2(16,-4),Vector2(26,-10),Vector2(28,10),Vector2(18,25)]),Color("d9472f"))
+		draw_colored_polygon(PackedVector2Array([Vector2(-16,21),Vector2(-20,8),Vector2(-11,12),Vector2(-12,-8),Vector2(-3,1),Vector2(2,-24),Vector2(10,-3),Vector2(18,-9),Vector2(16,10),Vector2(20,13),Vector2(12,24)]),Color("ff9d3f"))
+		draw_colored_polygon(PackedVector2Array([Vector2(-9,20),Vector2(-12,8),Vector2(-4,12),Vector2(1,-10),Vector2(7,5),Vector2(12,0),Vector2(10,21)]),Color("ffdf80"))
+		draw_colored_polygon(PackedVector2Array([Vector2(-3,12),Vector2(-3,-21),Vector2(0,-29),Vector2(3,-21),Vector2(3,12)]),Color("fff5cf"))
+		draw_line(Vector2(-10,13),Vector2(10,13),Color("5d3227"),4,true)
+		draw_line(Vector2(0,14),Vector2(0,27),Color("5d3227"),5,true)
+		draw_circle(Vector2(0,28),3,Color("ffe1a0"))
+		for spark: Vector2 in [Vector2(-27,-22),Vector2(24,-29),Vector2(29,24)]:
+			draw_line(spark-Vector2(0,2),spark+Vector2(0,2),Color("fff5d6"),1.5,true)
+			draw_line(spark-Vector2(2,0),spark+Vector2(2,0),Color("fff5d6"),1.5,true)
+		draw_set_transform(Vector2.ZERO)
 
 func _ready() -> void:
 	layer = 10
@@ -96,7 +130,12 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 
 func _notification(what: int) -> void:
+	if what == NOTIFICATION_APPLICATION_FOCUS_IN:
+		if modal_open and modal_mode == "inventory" and is_instance_valid(character_preview):
+			character_preview.call("set_preview_active",true)
 	if what == NOTIFICATION_APPLICATION_FOCUS_OUT:
+		if is_instance_valid(character_preview):
+			character_preview.call("set_preview_active",false)
 		attack_held = false
 		move_vector = Vector2.ZERO
 		if is_instance_valid(joystick):
@@ -107,6 +146,10 @@ func _notification(what: int) -> void:
 			skill_pad._release()
 		if is_instance_valid(potion_pad):
 			potion_pad._release()
+		if is_instance_valid(fire_pad):
+			fire_pad._release()
+		if is_instance_valid(camera_pad):
+			camera_pad.cancel_drag()
 
 func _build_hud() -> void:
 	screen = Control.new()
@@ -172,6 +215,13 @@ func _build_hud() -> void:
 	map_title.position = Vector2(0,4)
 	map_title.size = Vector2(157,20)
 	minimap.add_child(map_title)
+	camera_pad = CameraOrbitPad.new()
+	camera_pad.name = "CameraOrbitPad"
+	camera_pad.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
+	camera_pad.position = Vector2(-181,216)
+	camera_pad.size = Vector2(157,100)
+	camera_pad.orbit_requested.connect(func(delta: Vector2) -> void: camera_orbit_requested.emit(delta))
+	screen.add_child(camera_pad)
 	var inventory: Button = _button("EKWIPUNEK",Vector2(152,48),false)
 	inventory.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
 	inventory.position = Vector2(-350,22)
@@ -212,6 +262,29 @@ func _build_hud() -> void:
 	skill_pad = _action_pad("skill",Vector2(-113,-287),78,Color("83d7cc"))
 	skill_pad.pressed.connect(func() -> void: skill_requested.emit())
 	_action_caption("WIR OSTRZA",Vector2(-134,-203),118)
+	fire_pad = _action_pad("fire",Vector2(-246,-323),78,Color("f7974f"))
+	fire_pad.name = "FireSkillPad"
+	fire_pad.pressed.connect(func() -> void: fire_skill_requested.emit())
+	var fire_icon: FireSwordGlyph = FireSwordGlyph.new()
+	fire_glyph = fire_icon
+	fire_icon.name = "FireSwordIcon"
+	fire_icon.position = fire_pad.size*0.17
+	fire_icon.size = fire_pad.size*0.66
+	fire_pad.add_child(fire_icon)
+	fire_skill_text = _action_caption("PIERDOLNIĘCIE\nMIECZA",Vector2(-286,-239),158)
+	fire_skill_text.name = "FireSkillCaption"
+	fire_skill_text.size.y = 36
+	fire_skill_text.add_theme_font_size_override("font_size",12)
+	fire_status_text = _action_caption("GOTOWE",Vector2(-267,-350),120)
+	fire_status_text.name = "FireSkillStatus"
+	fire_status_text.add_theme_color_override("font_color",Color("f6be77"))
+	for fire_label: Label in [fire_skill_text,fire_status_text]:
+		fire_label.add_theme_font_size_override("font_size",12)
+		fire_label.add_theme_constant_override("outline_size",3)
+		fire_label.add_theme_color_override("font_outline_color",Color("08191f"))
+		fire_label.add_theme_color_override("font_shadow_color",Color(0.01,0.025,0.03,0.95))
+		fire_label.add_theme_constant_override("shadow_offset_x",0)
+		fire_label.add_theme_constant_override("shadow_offset_y",2)
 	potion_pad = _action_pad("potion",Vector2(-276,-142),78,Color("da8e94"))
 	potion_pad.pressed.connect(func() -> void: potion_requested.emit())
 	potion_text = _action_caption("POTKA · 10",Vector2(-290,-58),106)
@@ -318,6 +391,31 @@ func set_skill_cooldown(remaining: float,total: float) -> void:
 	skill_pad.cooldown_ratio = clampf(remaining / maxf(total,0.01),0,1)
 	skill_pad.queue_redraw()
 
+func set_fire_skill_cooldown(remaining: float,total: float,buff: float) -> void:
+	if not is_instance_valid(fire_pad):
+		return
+	fire_pad.cooldown_ratio = clampf(remaining / maxf(total,0.01),0,1)
+	fire_pad.queue_redraw()
+	var status: String = "GOTOWE"
+	var status_color: Color = Color("f6be77")
+	if buff > 0.0:
+		status = "OGIEŃ · %d s" % int(ceilf(buff))
+		status_color = Color("ffd58d")
+	elif remaining > 0.0:
+		status = "ODNOWA · %d s" % int(ceilf(remaining))
+		status_color = MUTED
+	if fire_status_text.text != status:
+		fire_status_text.text = status
+	if fire_status_text.get_theme_color("font_color") != status_color:
+		fire_status_text.add_theme_color_override("font_color",status_color)
+	if is_instance_valid(fire_glyph):
+		fire_glyph.modulate.a = 0.45 if remaining > 0.0 and buff <= 0.0 else 1.0
+	var active: bool = buff > 0.0
+	if active != _sword_flame_active:
+		_sword_flame_active = active
+		if is_instance_valid(character_preview) and character_preview.has_method("set_sword_flame"):
+			character_preview.call("set_sword_flame",active)
+
 func set_world_positions(hero_pos: Vector3, enemies: Array, npcs: Dictionary) -> void:
 	minimap.hero_position = hero_pos
 	minimap.enemy_positions = enemies
@@ -326,6 +424,7 @@ func set_world_positions(hero_pos: Vector3, enemies: Array, npcs: Dictionary) ->
 
 func toast(text: String) -> void:
 	toast_label.text = text
+	_position_inventory_toast()
 	toast_timer = 3.8
 	toast_panel.modulate.a = 1.0
 	toast_panel.show()
@@ -340,6 +439,7 @@ func open_panel(mode: String) -> void:
 		_npc_access = mode if mode in ["shop","forge"] else ""
 	_panel_session_id += 1
 	_reset_confirmation = false
+	_park_inventory_preview()
 	modal_mode = mode
 	modal_open = true
 	_diagnostic_note("ui_panel_open",{"category":mode})
@@ -348,6 +448,9 @@ func open_panel(mode: String) -> void:
 	joystick.enabled = false
 	attack_pad.enabled = false
 	skill_pad.enabled = false
+	fire_pad.enabled = false
+	fire_pad._release()
+	camera_pad.enabled = false
 	potion_pad.enabled = false
 	context_button.hide()
 	overlay.show()
@@ -363,10 +466,14 @@ func close_panel() -> void:
 		_panel_session_id += 1
 	modal_open = false
 	_reset_confirmation = false
+	_park_inventory_preview()
+	_position_inventory_toast()
 	overlay.hide()
 	joystick.enabled = true
 	attack_pad.enabled = true
 	skill_pad.enabled = true
+	fire_pad.enabled = true
+	camera_pad.enabled = true
 	potion_pad.enabled = true
 
 func refresh() -> void:
@@ -405,6 +512,7 @@ func _rebuild_panel() -> void:
 	_diagnostic_note("ui_modal_rebuild_begin",{"category":modal_mode})
 	_diagnostics_status_label = null
 	_modal_generation += 1
+	_park_inventory_preview()
 	for child: Node in modal_body.get_children():
 		modal_body.remove_child(child)
 		child.queue_free()
@@ -431,52 +539,179 @@ func _rebuild_panel() -> void:
 	_diagnostic_note("ui_modal_rebuild_end",{"category":modal_mode})
 
 func _render_inventory() -> void:
-	var split: HBoxContainer = HBoxContainer.new()
-	split.add_theme_constant_override("separation",20)
+	var split := HBoxContainer.new()
+	split.name = "InventoryColumns"
+	split.add_theme_constant_override("separation",16)
 	split.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	modal_body.add_child(split)
-	var left: VBoxContainer = VBoxContainer.new()
-	left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	left.add_theme_constant_override("separation",10)
-	split.add_child(left)
-	left.add_child(_label("PLECAK  ·  wybierz przedmiot, aby go założyć",14,MUTED))
-	var grid: GridContainer = _inventory_grid(left,2)
+	# Two columns leave enough width for two full-size item cards on a phone.
+	var portrait_column := VBoxContainer.new()
+	portrait_column.name = "InventoryPortrait"
+	portrait_column.custom_minimum_size.x = 304
+	portrait_column.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	portrait_column.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	portrait_column.add_theme_constant_override("separation",6)
+	split.add_child(portrait_column)
+	portrait_column.add_child(_label("TWÓJ WOJOWNIK  ·  PRZECIĄGNIJ, BY OBRÓCIĆ",11,GOLD))
+	_attach_inventory_preview(portrait_column)
+	var rotation_row := HBoxContainer.new()
+	rotation_row.add_theme_constant_override("separation",6)
+	portrait_column.add_child(rotation_row)
+	_preview_button(rotation_row,"W LEWO","PreviewRotateLeft",func() -> void: _rotate_inventory_preview(-30.0))
+	_preview_button(rotation_row,"RESET","PreviewReset",func() -> void:
+		if is_instance_valid(character_preview):
+			character_preview.call("reset_view")
+	)
+	_preview_button(rotation_row,"W PRAWO","PreviewRotateRight",func() -> void: _rotate_inventory_preview(30.0))
+	var animation_row := HBoxContainer.new()
+	animation_row.add_theme_constant_override("separation",6)
+	portrait_column.add_child(animation_row)
+	_preview_button(animation_row,"POSTÓJ","PreviewIdle",func() -> void: _set_inventory_animation("idle"))
+	_preview_button(animation_row,"CIOS","PreviewAttack",func() -> void:
+		if is_instance_valid(character_preview):
+			character_preview.call("play_preview_attack")
+	)
+	_preview_button(animation_row,"BIEG","PreviewRun",func() -> void: _set_inventory_animation("run"))
+
+	var bag_column := VBoxContainer.new()
+	bag_column.name = "InventoryBag"
+	bag_column.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	bag_column.add_theme_constant_override("separation",8)
+	split.add_child(bag_column)
+	var stats_panel: PanelContainer = _panel(Color("162c32"),Color("354d47"),9,10)
+	stats_panel.name = "InventoryStats"
+	bag_column.add_child(stats_panel)
+	var stats_column := VBoxContainer.new()
+	stats_column.add_theme_constant_override("separation",5)
+	stats_panel.add_child(stats_column)
+	stats_column.add_child(_text("POZIOM %d   ·   ATAK %d   ·   OBRONA %d   ·   PŻ %d   ·   POTKI %d" % [GameState.level,GameState.attack_power(),GameState.defense(),GameState.max_health(),GameState.potions],15,CREAM))
+	var equipped_row := HBoxContainer.new()
+	equipped_row.add_theme_constant_override("separation",12)
+	stats_column.add_child(equipped_row)
+	for kind: String in ["weapon","armor"]:
+		var equipped_item: Dictionary = GameState.equipped(kind)
+		var equipment_name: String = GameState.item_name(equipped_item) if not equipped_item.is_empty() else "Brak"
+		var equipment_label: Label = _text(("BROŃ: " if kind == "weapon" else "ZBROJA: ") + equipment_name,14,GOLD)
+		equipment_label.name = "InventoryWeaponName" if kind == "weapon" else "InventoryArmorName"
+		equipped_row.add_child(equipment_label)
+	bag_column.add_child(_label("PLECAK  ·  wybierz przedmiot, aby go założyć",14,MUTED))
+	var grid: GridContainer = _inventory_grid(bag_column,2)
+	grid.name = "InventoryBagGrid"
+	_inventory_scroll = grid.get_parent() as ScrollContainer
+	_inventory_scroll.name = "InventoryBagScroll"
+	_restore_inventory_scroll.call_deferred(_inventory_scroll,_inventory_scroll_offset)
 	for item: Dictionary in GameState.inventory:
 		var card: RPGItemCard = _item_card(item,false,false)
 		card.selected.connect(_select_inventory)
 		grid.add_child(card)
 	if GameState.inventory.is_empty():
-		left.add_child(_label("Plecak jest pusty. Odwiedź handlarza.",18,CREAM))
-	var right: VBoxContainer = _sidebar(split,280)
-	right.add_child(_label("TWÓJ WOJOWNIK",13,GOLD))
-	right.add_child(_label("Atak %d   /   Obrona %d" % [GameState.attack_power(),GameState.defense()],20,CREAM))
-	right.add_child(_label("Życie %d   /   Potki %d" % [GameState.max_health(),GameState.potions],15,MUTED))
-	_hline(right)
-	for kind: String in ["weapon","armor"]:
-		var equipped_item: Dictionary = GameState.equipped(kind)
-		right.add_child(_label("BROŃ" if kind == "weapon" else "ZBROJA",11,GOLD))
-		right.add_child(_label(GameState.item_name(equipped_item) if not equipped_item.is_empty() else "Brak",17,CREAM))
-	_hline(right)
+		grid.add_child(_text("Plecak jest pusty. Odwiedź handlarza.",17,CREAM))
+	_render_inventory_actions(bag_column)
+
+func _render_inventory_actions(parent: VBoxContainer) -> void:
+	var panel: PanelContainer = _panel(Color("162c32"),Color("354d47"),9,10)
+	panel.name = "InventorySelectedActions"
+	parent.add_child(panel)
+	var column := VBoxContainer.new()
+	column.add_theme_constant_override("separation",6)
+	panel.add_child(column)
 	var selected: Dictionary = GameState.find_item(selected_uid)
-	if not selected.is_empty():
-		right.add_child(_label(GameState.item_name(selected),19,CREAM))
-		var is_equipped: bool = _is_equipped(selected)
-		var equip_button: Button = _button("ZAŁOŻONO" if is_equipped else "ZAŁÓŻ PRZEDMIOT",Vector2(260,48),false)
-		equip_button.disabled = is_equipped
-		equip_button.pressed.connect(func() -> void: GameState.equip(selected_uid))
-		right.add_child(equip_button)
-		var forge_button: Button = _button("PRZENIEŚ DO KOWALA",Vector2(260,44),true)
-		forge_button.text = "OTWÓRZ KUŹNIĘ" if _npc_access == "forge" else "GDZIE JEST KOWAL?"
-		forge_button.pressed.connect(func() -> void:
-			if _npc_access == "forge":
-				open_panel("forge")
-			else:
-				_close_panel()
-				toast("Born czeka przy kuźni po prawej stronie placu.")
-		)
-		right.add_child(forge_button)
-	else:
-		right.add_child(_text("Dotknij karty w plecaku. Broń i zbroję możesz zmieniać w każdej chwili.",15,MUTED))
+	if selected.is_empty():
+		column.add_child(_text("Dotknij karty w plecaku, aby założyć broń lub zbroję. Podgląd pokazuje aktualnie założony sprzęt.",15,MUTED))
+		return
+	var selected_name: Label = _text(GameState.item_name(selected),17,CREAM)
+	selected_name.name = "InventorySelectedName"
+	column.add_child(selected_name)
+	var action_row := HBoxContainer.new()
+	action_row.add_theme_constant_override("separation",8)
+	column.add_child(action_row)
+	var is_equipped: bool = _is_equipped(selected)
+	var equip_button: Button = _button("ZAŁOŻONO" if is_equipped else "ZAŁÓŻ PRZEDMIOT",Vector2(196,48),false)
+	equip_button.name = "InventoryEquip"
+	equip_button.add_theme_font_size_override("font_size",14)
+	equip_button.disabled = is_equipped
+	equip_button.pressed.connect(func() -> void: GameState.equip(selected_uid))
+	action_row.add_child(equip_button)
+	var forge_button: Button = _button("OTWÓRZ KUŹNIĘ" if _npc_access == "forge" else "GDZIE JEST KOWAL?",Vector2(210,48),true)
+	forge_button.add_theme_font_size_override("font_size",14)
+	forge_button.pressed.connect(func() -> void:
+		if _npc_access == "forge":
+			open_panel("forge")
+		else:
+			_close_panel()
+			toast("Born czeka przy kuźni po prawej stronie placu.")
+	)
+	action_row.add_child(forge_button)
+	if _npc_access == "shop":
+		var shop_button: Button = _button("DO HANDLARZA",Vector2(158,48),true)
+		shop_button.add_theme_font_size_override("font_size",14)
+		shop_button.pressed.connect(func() -> void: open_panel("shop"))
+		action_row.add_child(shop_button)
+
+func _attach_inventory_preview(parent: Control) -> void:
+	if not is_instance_valid(character_preview):
+		var preview_script: Script = load("res://ui/character_preview.gd")
+		character_preview = preview_script.new() as Control
+		character_preview.name = "CharacterPreview"
+		_preview_equipment_signature = ""
+		parent.add_child(character_preview)
+		if character_preview.has_method("set_sword_flame"):
+			character_preview.call("set_sword_flame",_sword_flame_active)
+	elif character_preview.get_parent() != parent:
+		character_preview.reparent(parent,false)
+	character_preview.custom_minimum_size = Vector2(304,264)
+	character_preview.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	character_preview.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_sync_inventory_preview_equipment()
+	character_preview.show()
+	character_preview.call("set_preview_active",true)
+
+func _park_inventory_preview() -> void:
+	if is_instance_valid(_inventory_scroll):
+		_inventory_scroll_offset = _inventory_scroll.scroll_vertical
+	_inventory_scroll = null
+	if not is_instance_valid(character_preview):
+		return
+	character_preview.call("set_preview_active",false)
+	character_preview.hide()
+	if is_instance_valid(screen) and character_preview.get_parent() != screen:
+		character_preview.reparent(screen,false)
+
+func _sync_inventory_preview_equipment() -> void:
+	var weapon: Dictionary = GameState.equipped("weapon")
+	var armor: Dictionary = GameState.equipped("armor")
+	var weapon_tier: int = int(weapon.get("tier",0))
+	var armor_tier: int = int(armor.get("tier",0))
+	var upgrade: int = int(weapon.get("upgrade",0))
+	var signature: String = "%d:%d:%d" % [weapon_tier,armor_tier,upgrade]
+	if signature != _preview_equipment_signature:
+		_preview_equipment_signature = signature
+		character_preview.call("set_equipment",weapon_tier,armor_tier,upgrade)
+
+func _preview_button(parent: HBoxContainer,text: String,node_name: String,action: Callable) -> void:
+	var button: Button = _button(text,Vector2(0,48),true)
+	button.name = node_name
+	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	button.add_theme_font_size_override("font_size",13)
+	button.pressed.connect(action)
+	parent.add_child(button)
+
+func _rotate_inventory_preview(degrees: float) -> void:
+	if modal_open and modal_mode == "inventory" and is_instance_valid(character_preview):
+		character_preview.call("rotate_preview",degrees)
+
+func _set_inventory_animation(mode: String) -> void:
+	if modal_open and modal_mode == "inventory" and is_instance_valid(character_preview):
+		character_preview.call("set_animation",mode)
+
+func _restore_inventory_scroll(scroll: ScrollContainer,offset: int) -> void:
+	await get_tree().process_frame
+	if is_instance_valid(scroll) and modal_open and modal_mode == "inventory" and scroll == _inventory_scroll:
+		scroll.scroll_vertical = offset
+
+func _exit_tree() -> void:
+	if is_instance_valid(character_preview):
+		character_preview.call("set_preview_active",false)
 
 func _select_inventory(uid: int) -> void:
 	selected_uid = uid
@@ -686,7 +921,13 @@ func _render_settings() -> void:
 	reset_button.pressed.connect(_confirm_reset)
 	col.add_child(reset_button)
 
+func _position_inventory_toast() -> void:
+	if is_instance_valid(toast_panel):
+		# Inventory action buttons occupy the bottom of the modal.
+		toast_panel.position = Vector2(-300,-62 if modal_open and modal_mode == "inventory" else -166)
+
 func _apply_modal_layout() -> void:
+	_position_inventory_toast()
 	var camera_mode: bool = modal_mode == "camera"
 	overlay.color = Color(0,0,0,0) if camera_mode else Color(0.015,0.035,0.045,0.84)
 	_modal_tabs.visible = not camera_mode

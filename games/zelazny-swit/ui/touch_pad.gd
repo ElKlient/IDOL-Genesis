@@ -7,11 +7,17 @@ signal released
 var glyph: String = "weapon"
 var accent: Color = Color("e8c17f")
 var is_down: bool = false
-var enabled: bool = true
+var enabled: bool = true:
+	set(value):
+		enabled = value
+		if not value and is_down:
+			_release()
 var finger: int = -999
 var caption: String = ""
 var cooldown_ratio: float = 0.0
 var icon: RPGItemIcon
+var _mouse_guard_until: int = 0
+var _application_focused: bool = true
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -22,6 +28,16 @@ func _ready() -> void:
 	resized.connect(_layout)
 	_layout()
 
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_APPLICATION_FOCUS_OUT or what == NOTIFICATION_APPLICATION_PAUSED:
+		_application_focused = false
+		if is_down:
+			_release()
+	elif what == NOTIFICATION_APPLICATION_FOCUS_IN or what == NOTIFICATION_APPLICATION_RESUMED:
+		_application_focused = true
+	elif what == NOTIFICATION_VISIBILITY_CHANGED and not is_visible_in_tree() and is_down:
+		_release()
+
 func _layout() -> void:
 	if is_instance_valid(icon):
 		icon.position = size * 0.2
@@ -29,13 +45,19 @@ func _layout() -> void:
 	queue_redraw()
 
 func _input(event: InputEvent) -> void:
-	if not enabled or not is_visible_in_tree():
+	if not enabled or not _application_focused or not is_visible_in_tree():
 		if is_down:
 			_release()
 		return
 	if event is InputEventScreenTouch:
+		if event.canceled:
+			if event.index == finger:
+				_release()
+				get_viewport().set_input_as_handled()
+			return
 		if event.pressed and finger == -999 and _contains(event.position):
 			finger = event.index
+			_mouse_guard_until = Time.get_ticks_msec()+250
 			is_down = true
 			pressed.emit()
 			queue_redraw()
@@ -44,6 +66,8 @@ func _input(event: InputEvent) -> void:
 			_release()
 			get_viewport().set_input_as_handled()
 	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+		if event.device < 0 or finger >= 0 or Time.get_ticks_msec() < _mouse_guard_until:
+			return
 		if event.pressed and finger == -999 and _contains(event.position):
 			finger = -2
 			is_down = true
@@ -52,11 +76,15 @@ func _input(event: InputEvent) -> void:
 			get_viewport().set_input_as_handled()
 		elif not event.pressed and finger == -2:
 			_release()
+	elif event is InputEventMouseMotion and finger == -2 and event.device >= 0 and event.button_mask & MOUSE_BUTTON_MASK_LEFT == 0:
+		_release()
 
 func _contains(point: Vector2) -> bool:
 	return point.distance_to(global_position + size*0.5) <= minf(size.x,size.y)*0.5
 
 func _release() -> void:
+	if finger >= 0:
+		_mouse_guard_until = Time.get_ticks_msec()+250
 	finger = -999
 	is_down = false
 	released.emit()

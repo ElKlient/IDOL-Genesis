@@ -6,8 +6,14 @@ const EnemyScript = preload("res://scripts/enemy.gd")
 const HUDScript = preload("res://ui/hud.gd")
 const AudioScript = preload("res://scripts/audio.gd")
 const CameraPreferencesScript = preload("res://scripts/camera_preferences.gd")
+const FireImpactScript = preload("res://scripts/fire_impact.gd")
 const CAMERA_DISTANCE: float = 17.0
 const CAMERA_FOCUS: Vector3 = Vector3(0,1.05,0)
+const FIRE_SKILL_COOLDOWN: float = 20.0
+const FIRE_BUFF_DURATION: float = 12.0
+const FIRE_ACTION_DURATION: float = 1.0
+const FIRE_IMPACT_DELAY: float = 0.48
+const FIRE_IMPACT_RADIUS: float = 4.0
 var world: Node3D
 var hero: CharacterBody3D
 var hud: CanvasLayer
@@ -22,6 +28,9 @@ var enemies: Array[Node3D] = []
 var target: Node3D
 var attack_cooldown: float = 0.0
 var skill_cooldown: float = 0.0
+var fire_skill_cooldown: float = 0.0
+var fire_buff_time: float = 0.0
+var _fire_action_time: float = 0.0
 var combo: int = 0
 var combo_time: float = 0.0
 var _attack_serial: int = 0
@@ -80,10 +89,18 @@ func _ready() -> void:
 	hud.setup(hero)
 	hud.attack_requested.connect(request_attack)
 	hud.skill_requested.connect(use_skill)
+	if hud.has_signal("fire_skill_requested"):
+		hud.connect("fire_skill_requested",use_fire_skill)
+	if hud.has_signal("camera_orbit_requested"):
+		hud.connect("camera_orbit_requested",orbit_camera)
 	hud.potion_requested.connect(use_potion)
 	hud.interact_requested.connect(interact)
 	if hud.has_signal("close_requested"):
 		hud.close_requested.connect(_close_modal)
+	# Cancel a windup synchronously even if a modal opens and closes in one frame.
+	var modal_overlay: CanvasItem = hud.get("overlay") as CanvasItem
+	if is_instance_valid(modal_overlay):
+		modal_overlay.visibility_changed.connect(_on_modal_visibility_changed)
 	GameState.message.connect(_on_message)
 	GameState.changed.connect(_on_state_changed)
 	last_level = GameState.level
@@ -112,6 +129,12 @@ func _physics_process(delta: float) -> void:
 		return
 	attack_cooldown = maxf(0.0,attack_cooldown-delta)
 	skill_cooldown = maxf(0.0,skill_cooldown-delta)
+	fire_skill_cooldown = maxf(0.0,fire_skill_cooldown-delta)
+	_fire_action_time = maxf(0.0,_fire_action_time-delta)
+	if fire_buff_time > 0.0:
+		fire_buff_time = maxf(0.0,fire_buff_time-delta)
+		if fire_buff_time <= 0.0 or hero.dead:
+			_clear_fire_buff()
 	combo_time -= delta
 	if combo_time <= 0.0:
 		combo = 0
@@ -120,9 +143,13 @@ func _physics_process(delta: float) -> void:
 		_attack_serial += 1
 		combo = 0
 		combo_time = 0.0
+		_cancel_fire_action()
 	_combat_was_blocked = blocked
+	if hero.dead:
+		_cancel_fire_action()
 	var movement: Vector2 = hud.move_vector
-	if not blocked:
+	var action_locked: bool = _fire_action_time > 0.0 or float(hero.attack_locked_time) > 0.0
+	if not blocked and not action_locked:
 		var keys: Vector2 = Vector2(float(Input.is_physical_key_pressed(KEY_D) or Input.is_physical_key_pressed(KEY_RIGHT))-float(Input.is_physical_key_pressed(KEY_A) or Input.is_physical_key_pressed(KEY_LEFT)), float(Input.is_physical_key_pressed(KEY_S) or Input.is_physical_key_pressed(KEY_DOWN))-float(Input.is_physical_key_pressed(KEY_W) or Input.is_physical_key_pressed(KEY_UP)))
 		if keys.length_squared() > 0:
 			movement = keys.normalized()
@@ -139,6 +166,9 @@ func _physics_process(delta: float) -> void:
 	hero.position.x = clampf(hero.position.x,-44.0,44.0)
 	hero.position.z = clampf(hero.position.z,-46.0,24.0)
 	if hero.position.y < -4.0:
+		_attack_serial += 1
+		_cancel_fire_action()
+		_clear_fire_buff()
 		hero.reset_to(world.spawn_position)
 	_update_context()
 	_update_target()
@@ -148,6 +178,8 @@ func _physics_process(delta: float) -> void:
 		GameState.save_game()
 	if hud.has_method("set_skill_cooldown"):
 		hud.set_skill_cooldown(skill_cooldown,7.0)
+	if hud.has_method("set_fire_skill_cooldown"):
+		hud.set_fire_skill_cooldown(fire_skill_cooldown,FIRE_SKILL_COOLDOWN,fire_buff_time)
 
 func _process(delta: float) -> void:
 	if not is_instance_valid(hero) or not is_instance_valid(camera):
@@ -165,11 +197,12 @@ func _unhandled_input(event: InputEvent) -> void:
 			KEY_I: hud.open_panel("inventory")
 			KEY_Q: use_potion()
 			KEY_R: use_skill()
+			KEY_F: use_fire_skill()
 			KEY_ESCAPE, KEY_BACK: _close_modal()
 			KEY_TAB: _cycle_target()
 	if hud.modal_open or respawning:
 		return
-	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
+	if event is InputEventMouseButton and event.device >= 0 and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
 		_pick_target(event.position)
 	elif event is InputEventScreenTouch and event.pressed:
 		_pick_target(event.position)
@@ -229,7 +262,7 @@ func _cycle_target() -> void:
 	_set_target(nearby[(index+1)%nearby.size()])
 
 func request_attack() -> void:
-	if not is_instance_valid(hud) or not is_instance_valid(hero) or hero.dead or hud.modal_open or respawning or attack_cooldown>0:
+	if not is_instance_valid(hud) or not is_instance_valid(hero) or hero.dead or hud.modal_open or respawning or attack_cooldown>0 or _fire_action_time>0.0 or float(hero.attack_locked_time)>0.0:
 		return
 	combo = (combo % 4) + 1
 	attack_cooldown = 0.64 if combo == 4 else 0.48
@@ -258,6 +291,10 @@ func _hit_after_windup(enemy: Node3D, step: int, attack_serial: int) -> void:
 		return
 	var critical: bool = randf()<0.14
 	var damage: int = GameState.attack_power()+randi_range(-2,3)
+	# The temporary flame blessing affects ordinary cuts, including the finisher.
+	# Wir stali and the fire impact retain their own independent damage values.
+	if fire_buff_time > 0.0:
+		damage = int(damage*1.3)
 	if step == 4:
 		damage = int(damage*1.4)
 	if critical:
@@ -272,7 +309,7 @@ func _hit_after_windup(enemy: Node3D, step: int, attack_serial: int) -> void:
 	audio.play_sfx("hit")
 
 func use_skill() -> void:
-	if not is_instance_valid(hud) or not is_instance_valid(hero) or hero.dead or hud.modal_open or respawning:
+	if not is_instance_valid(hud) or not is_instance_valid(hero) or hero.dead or hud.modal_open or respawning or _fire_action_time>0.0 or float(hero.attack_locked_time)>0.0:
 		return
 	if skill_cooldown>0:
 		hud.toast("Wir stali gotowy za %.1f s" % skill_cooldown)
@@ -292,6 +329,72 @@ func use_skill() -> void:
 	for enemy: Node3D in enemies.duplicate():
 		if is_instance_valid(enemy) and enemy.is_alive() and hero.position.distance_to(enemy.position)<4.2:
 			enemy.take_damage(int(GameState.attack_power()*1.8)+5,true)
+
+func use_fire_skill() -> void:
+	if not is_instance_valid(hud) or not is_instance_valid(hero) or hero.dead or hud.modal_open or respawning or _fire_action_time>0.0 or float(hero.attack_locked_time)>0.0:
+		return
+	if fire_skill_cooldown > 0.0:
+		hud.toast("Pierdolnięcie Miecza gotowe za %.1f s" % fire_skill_cooldown)
+		return
+	fire_skill_cooldown = FIRE_SKILL_COOLDOWN
+	_fire_action_time = FIRE_ACTION_DURATION
+	attack_cooldown = FIRE_ACTION_DURATION
+	_attack_serial += 1
+	combo = 0
+	combo_time = 0.0
+	var fire_serial: int = _attack_serial
+	var nearest: Node3D = target if is_instance_valid(target) and target.is_alive() and hero.global_position.distance_to(target.global_position)<4.8 else _nearest_enemy(4.8)
+	if is_instance_valid(nearest):
+		var direction: Vector3 = nearest.global_position-hero.global_position
+		direction.y = 0.0
+		hero.face_direction(direction)
+	hero.move_input = Vector2.ZERO
+	hero.play_fire_slam()
+	hero.attack_locked_time = maxf(float(hero.attack_locked_time),FIRE_ACTION_DURATION)
+	audio.play_sfx("skill")
+	_diagnostic("fire_skill_started")
+	await get_tree().create_timer(FIRE_IMPACT_DELAY).timeout
+	if fire_serial != _attack_serial or not is_instance_valid(hero) or not is_instance_valid(hud):
+		return
+	if hero.dead or respawning or hud.modal_open or _fire_action_time<=0.0:
+		_cancel_fire_action()
+		return
+	var facing: Vector3 = Vector3(hero.facing.x,0.0,hero.facing.z).normalized()
+	var impact_position: Vector3 = hero.global_position+facing*0.8
+	var effect: Node3D = FireImpactScript.new()
+	effect.position = to_local(impact_position)
+	effect.rotation.y = atan2(-facing.x,-facing.z)
+	add_child(effect)
+	var damage: int = int(GameState.attack_power()*1.65)+10
+	var hit_count: int = 0
+	for enemy: Node3D in enemies.duplicate():
+		if is_instance_valid(enemy) and enemy.is_alive() and impact_position.distance_to(enemy.global_position)<FIRE_IMPACT_RADIUS:
+			enemy.take_damage(damage,true)
+			hit_count += 1
+	fire_buff_time = FIRE_BUFF_DURATION
+	hero.set_sword_flame(true)
+	audio.play_sfx("hit")
+	_diagnostic("fire_skill_impact",{"count":hit_count})
+
+func _cancel_fire_action() -> void:
+	if _fire_action_time <= 0.0:
+		return
+	_fire_action_time = 0.0
+	if is_instance_valid(hero):
+		hero.cancel_fire_slam()
+
+func _clear_fire_buff() -> void:
+	fire_buff_time = 0.0
+	if is_instance_valid(hero):
+		hero.set_sword_flame(false)
+
+func _on_modal_visibility_changed() -> void:
+	if not is_instance_valid(hud) or not hud.modal_open:
+		return
+	_attack_serial += 1
+	combo = 0
+	combo_time = 0.0
+	_cancel_fire_action()
 
 func use_potion() -> void:
 	if respawning:
@@ -313,6 +416,8 @@ func _enemy_hit(amount: int) -> void:
 func _respawn_hero() -> void:
 	respawning = true
 	_attack_serial += 1
+	_cancel_fire_action()
+	_clear_fire_buff()
 	combo = 0
 	combo_time = 0.0
 	hero.dead = true
@@ -422,6 +527,15 @@ func set_camera_settings(zoom: float, pitch: float, yaw: float) -> void:
 	_apply_camera_settings()
 	camera_settings_dirty = true
 	camera_save_timer.start()
+
+func orbit_camera(delta: Vector2) -> void:
+	if not is_instance_valid(hud) or not is_instance_valid(hero) or hud.modal_open or respawning or hero.dead or camera_preferences == null or not delta.is_finite():
+		return
+	if delta.length_squared() < 0.0001:
+		return
+	var yaw: float = wrapf(float(camera_preferences.yaw)-delta.x*0.22,-180.0,180.0)
+	var pitch: float = clampf(float(camera_preferences.pitch)+delta.y*0.16,38.0,65.0)
+	set_camera_settings(float(camera_preferences.zoom),pitch,yaw)
 
 func reset_camera_settings() -> void:
 	camera_preferences.reset_defaults()
