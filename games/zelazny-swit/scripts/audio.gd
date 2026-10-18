@@ -3,6 +3,7 @@ extends Node
 var enabled: bool = true
 var clips: Dictionary = {}
 var ambience: AudioStreamPlayer
+var _exiting: bool = false
 
 func _ready() -> void:
 	# A headless test/server has no audio device and needs no looping playback.
@@ -49,13 +50,30 @@ func _build_ambience() -> void:
 	stream.format = AudioStreamWAV.FORMAT_16_BITS
 	stream.mix_rate = rate
 	stream.data = data
-	stream.loop_mode = AudioStreamWAV.LOOP_FORWARD
-	stream.loop_end = int(rate*length)
+	# Keep the native PCM decoder on its non-looping path. Some Godot versions
+	# mix an inclusive loop_end while wrapping it as exclusive (GH-119778),
+	# which reads past the data at a whole-stream forward-loop boundary.
+	stream.loop_mode = AudioStreamWAV.LOOP_DISABLED
 	ambience = AudioStreamPlayer.new()
 	ambience.stream = stream
 	ambience.volume_db = -10.0
 	add_child(ambience)
+	ambience.finished.connect(_on_ambience_finished)
 	if enabled:
+		ambience.play()
+
+func _on_ambience_finished() -> void:
+	if _exiting or not enabled or not is_inside_tree():
+		return
+	_diagnostic_note("audio_ambience_finished")
+	# Reuse the same stream/player after signal dispatch, rather than entering
+	# the native WAV-loop path or allocating another player every eight seconds.
+	call_deferred("_restart_ambience")
+
+func _restart_ambience() -> void:
+	if _exiting or not enabled or not is_inside_tree() or not is_instance_valid(ambience):
+		return
+	if ambience.stream != null and not ambience.playing:
 		ambience.play()
 
 func play_sfx(key: String) -> void:
@@ -66,7 +84,13 @@ func play_sfx(key: String) -> void:
 	player.volume_db = -4.0
 	add_child(player)
 	player.finished.connect(player.queue_free)
+	_diagnostic_note("audio_sfx_play",{"category":key})
 	player.play()
+
+func _diagnostic_note(event_name: String, data: Dictionary = {}) -> void:
+	var diagnostics: Node = get_node_or_null("/root/Diagnostics")
+	if is_instance_valid(diagnostics) and diagnostics.has_method("note"):
+		diagnostics.call("note",event_name,data)
 
 func set_enabled(value: bool) -> void:
 	enabled = value
@@ -78,6 +102,7 @@ func set_enabled(value: bool) -> void:
 
 func _exit_tree() -> void:
 	# Release the loop before AudioServer shuts down, including headless runs.
+	_exiting = true
 	if is_instance_valid(ambience):
 		ambience.stop()
 		ambience.stream = null

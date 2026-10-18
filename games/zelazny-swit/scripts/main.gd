@@ -28,6 +28,7 @@ var skill_effect: Node3D
 var attack_effect_material: StandardMaterial3D
 
 func _ready() -> void:
+	_diagnostic("world_start")
 	randomize()
 	get_tree().auto_accept_quit = false
 	world = WorldScript.new()
@@ -65,6 +66,7 @@ func _ready() -> void:
 	hud.toast("Witaj w Brzezinach! Masz 10 000 G. Podejdź do Miry przy straganie po lewej.")
 	if OS.has_feature("mobile"):
 		DisplayServer.screen_set_keep_on(true)
+	_diagnostic("world_ready")
 
 func _spawn_enemy(record: Dictionary) -> Node3D:
 	var enemy: CharacterBody3D = EnemyScript.new()
@@ -335,8 +337,10 @@ func _on_state_changed() -> void:
 	var upgrade: int = int(weapon.get("upgrade",0))
 	var signature: String = "%d:%d:%d" % [weapon_tier,armor_tier,upgrade]
 	if signature!=equipment_signature:
+		_diagnostic("equipment_visual_begin", {"weapon_tier":weapon_tier,"armor_tier":armor_tier,"upgrade":upgrade})
 		equipment_signature=signature
 		hero.set_equipment(weapon_tier,armor_tier,upgrade)
+		_diagnostic("equipment_visual_end", {"upgrade":upgrade})
 	if GameState.level>last_level:
 		last_level=GameState.level
 		_ring_effect(hero.position,Color("f7d780"),2.6)
@@ -368,6 +372,7 @@ func start_new_game() -> void:
 	get_tree().call_deferred("reload_current_scene")
 
 func set_low_quality(value: bool) -> void:
+	_diagnostic("quality_changed", {"low":value})
 	low_quality=value
 	# Keep startup MSAA fixed to avoid render-target reallocation while playing,
 	# especially in Android/ANGLE embedded views where a process exit was reported.
@@ -426,3 +431,8 @@ func _notification(what: int) -> void:
 			hud.open_panel("settings")
 	elif what==NOTIFICATION_WM_CLOSE_REQUEST:
 		get_tree().quit()
+
+func _diagnostic(event_name: String, details: Dictionary = {}) -> void:
+	var diagnostics: Node = get_node_or_null("/root/Diagnostics")
+	if diagnostics != null and diagnostics.has_method("note"):
+		diagnostics.call("note", event_name, details)

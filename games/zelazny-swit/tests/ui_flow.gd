@@ -123,6 +123,7 @@ func _script_node(node: Node, filename: String) -> Control:
 func _click(control: Control) -> void:
 	if not is_instance_valid(control):
 		return
+	await _ensure_visible(control)
 	var point: Vector2 = control.get_global_rect().get_center()
 	_motion(point)
 	_mouse(point,true)
@@ -150,6 +151,8 @@ func _motion(point: Vector2, relative: Vector2 = Vector2.ZERO, held: bool = fals
 func _drag(source: Control, destination: Control) -> void:
 	if not is_instance_valid(source) or not is_instance_valid(destination):
 		return
+	await _ensure_visible(source)
+	await _ensure_visible(destination)
 	var start: Vector2 = source.get_global_rect().get_center()
 	var end: Vector2 = destination.get_global_rect().get_center()
 	_motion(start)
@@ -162,4 +165,14 @@ func _drag(source: Control, destination: Control) -> void:
 		previous = point
 		await process_frame
 	_mouse(end,false)
+	await _layout()
+
+func _ensure_visible(control: Control) -> void:
+	# Settings/sidebar content can legitimately scroll. Pointer input must target
+	# its visible part rather than a clipped descendant's off-screen rectangle.
+	var ancestor: Node = control.get_parent()
+	while ancestor != null:
+		if ancestor is ScrollContainer:
+			ancestor.ensure_control_visible(control)
+		ancestor = ancestor.get_parent()
 	await _layout()

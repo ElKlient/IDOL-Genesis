@@ -173,6 +173,7 @@ func upgrade_chance(uid: int) -> int:
 	return chances[int(item.upgrade)]
 
 func upgrade_item(uid: int) -> bool:
+	_diagnostic("upgrade_begin", {"uid":uid})
 	last_upgrade_success = false
 	var item: Dictionary = find_item(uid)
 	if item.is_empty():
@@ -189,10 +190,13 @@ func upgrade_item(uid: int) -> bool:
 	if last_upgrade_success:
 		item.upgrade = int(item.upgrade) + 1
 		upgraded_any = true
+		_diagnostic("upgrade_message_begin", {"upgrade":int(item.upgrade)})
 		message.emit("SUKCES! %s" % item_name(item))
 	else:
 		message.emit("Próba nieudana. Przedmiot i poziom zachowane; koszt zużyty.")
+	_diagnostic("upgrade_message_end", {"upgrade":int(item.upgrade)})
 	_commit()
+	_diagnostic("upgrade_end", {"upgrade":int(item.upgrade),"success":last_upgrade_success})
 	return last_upgrade_success
 
 func gain_reward(gold_amount: int, xp_amount: int) -> void:
@@ -240,11 +244,14 @@ func claim_quest() -> bool:
 func _commit() -> void:
 	quest_stage = 3 if quest_claimed else (2 if upgraded_any else (1 if bought_weapon else 0))
 	save_game()
+	_diagnostic("state_signal_begin")
 	changed.emit()
+	_diagnostic("state_signal_end")
 
 func save_game() -> void:
 	if not save_enabled:
 		return
+	_diagnostic("save_begin")
 	var items: Array[Dictionary] = []
 	for item: Dictionary in inventory:
 		items.append({"id":str(item.id),"uid":int(item.uid),"upgrade":int(item.upgrade)})
@@ -262,6 +269,12 @@ func save_game() -> void:
 	var result: Error = DirAccess.rename_absolute(temporary, SAVE_PATH)
 	if result != OK:
 		push_warning("Nie udało się zatwierdzić zapisu: %d" % result)
+	_diagnostic("save_end", {"result":int(result)})
+
+func _diagnostic(event_name: String, details: Dictionary = {}) -> void:
+	var diagnostics: Node = get_node_or_null("/root/Diagnostics")
+	if diagnostics != null and diagnostics.has_method("note"):
+		diagnostics.call("note", event_name, details)
 
 func load_game() -> void:
 	if not FileAccess.file_exists(SAVE_PATH):

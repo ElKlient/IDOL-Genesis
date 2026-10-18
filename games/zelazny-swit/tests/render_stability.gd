@@ -86,6 +86,8 @@ func _run() -> void:
 	game._close_modal()
 	game.queue_free()
 	await _frames(3)
+	# Allow the audio mixer to release its final playback reference after scene disposal.
+	await create_timer(0.25).timeout
 	if draw_enabled:
 		RenderingServer.frame_post_draw.disconnect(_on_frame_drawn)
 	print("RENDER STABILITY RESULT: %d checks, %d failures; display=%s; initial_msaa=%d; rendered_frames=%d" % [checks,failures,DisplayServer.get_name(),initial_msaa,rendered_frames])

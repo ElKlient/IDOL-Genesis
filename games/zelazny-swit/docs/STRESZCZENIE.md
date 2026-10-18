@@ -35,7 +35,9 @@ Nowy projekt jest odseparowany od dotychczasowych aplikacji i gry:
 - `scripts/audio.gd`: oryginalna synteza dźwięków i ambientu; dźwięk można wyłączyć.
 - `ui/hud.gd` i pomocnicze skrypty: HUD, minimapa, multitouch, plecak, sklep,
   kowal z drag & drop oraz wyborem dotykowym, pomoc i przewijane ustawienia.
-- `tests/`: testy uruchamiane bez grafiki i bez modyfikacji właściwego zapisu.
+- `scripts/diagnostics.gd`: autoload `Diagnostics`, lokalne ograniczone ślady zdarzeń,
+  wykrycie niedomkniętej sesji, filtrowany ogon logu i opcjonalna wysyłka HTTPS.
+- `tests/`: testy izolowane od właściwego zapisu; część działa także z prawdziwym OpenGL.
 
 ## Pętla gry
 
@@ -71,15 +73,18 @@ nie pobierać paczek starszej gry. W Godocie trzeba importować dokładnie
 Aktualizacja po zamknięciu projektu:
 
 ```bash
-cd /storage/emulated/0/Godot/ZelaznySwit && git pull --ff-only origin zelazny-swit && git --no-pager log -1 --oneline
+cd /storage/emulated/0/Godot/ZelaznySwit && git stash push -m "Ustawienia Godota przed aktualizacja" -- games/zelazny-swit/project.godot && git pull --ff-only origin zelazny-swit && git --no-pager log -1 --oneline
 ```
 
 Nie usuwaj `.godot`, nie stosuj `reset --hard`, nie zmieniaj gałęzi na `main`.
-Przy zablokowaniu przez lokalne zmiany sprawdź status i zachowaj kopię ustawień.
+Blok zachowuje lokalny `project.godot` w stash. Nie przywracaj go automatycznie,
+aby nie usunąć nowych autoloadów ani ustawień mobilnych. Pozostałe lokalne zmiany
+sprawdź przez `git status --short`; nie odrzucaj ich. Ignorowany plik
+`diagnostics.local.json` i zapis postaci pozostają po aktualizacji.
 
 ## Zakres i ograniczenia
 
-To pierwsza grywalna lokalna wersja, nie pełne MMORPG. Brak sieci, innych klas,
+To pierwsza grywalna lokalna wersja, nie pełne MMORPG. Brak multiplayera, innych klas,
 rozległych map i kampanii. Grafika jest celowo oryginalna i stylizowana; wszystkie
 modele, ikony i dźwięki generuje kod, bez zewnętrznych paczek i importu Blendera.
 Fizyczny telefon użytkownika nie był zdalnie dostępny; potwierdzenie Androida
@@ -87,8 +92,9 @@ wymaga uruchomienia na telefonie po pobraniu.
 
 ## Weryfikacja
 
-Weryfikacja wykonana w Godocie 4.4.1 na Linuxie: **87 sprawdzeń zaliczonych**
-(integracja51, interfejs17, zapis19). Test nowej gry potwierdza również
+Pierwsza wersja przeszła w Godocie 4.4.1 na Linuxie 87 sprawdzeń
+(integracja51, interfejs17, zapis19); jest to historyczny wynik przed 0.1.2.
+Bieżące testy obejmują dodatkowe regresje opisane poniżej. Test nowej gry potwierdza również
 odtworzenie pełnej sceny, świeżych potworów, cooldownów i startowego ekwipunku.
 
 - import projektu w edytorze i zwykły runtime headless bez błędów;
@@ -113,7 +119,12 @@ Przykładowe polecenia w środowisku z desktopowym Godotem:
 godot --headless --editor --path games/zelazny-swit --quit
 godot --headless --path games/zelazny-swit --script res://tests/integration.gd -- --test-isolated
 godot --headless --path games/zelazny-swit --script res://tests/ui_flow.gd -- --test-isolated
-XDG_DATA_HOME=/tmp/zelazny-qa godot --headless --path games/zelazny-swit --script res://tests/persistence.gd -- --test-isolated --test-data-root=/tmp/zelazny-qa
+godot --headless --path games/zelazny-swit --script res://tests/render_stability.gd -- --test-isolated
+godot --headless --path games/zelazny-swit --script res://tests/forge_deferred.gd -- --test-isolated
+godot --headless --audio-driver Dummy --path games/zelazny-swit --script res://tests/audio_regression.gd -- --test-isolated
+qa_data="$(mktemp -d)"
+XDG_DATA_HOME="$qa_data" godot --headless --path games/zelazny-swit --script res://tests/persistence.gd -- --test-isolated --test-data-root="$qa_data"
+XDG_DATA_HOME="$qa_data" godot --headless --path games/zelazny-swit --script res://tests/diagnostics.gd -- --test-isolated --test-data-root="$qa_data"
 ```
 
 Nie uruchamiaj testu trwałego zapisu bez jawnego jednorazowego katalogu. Testy
@@ -152,3 +163,118 @@ Wynik na fizycznym Androidzie wymaga sprawdzenia tej nowej wersji przez użytkow
 Gdy Godot zmienił lokalnie project.godot, blok aktualizacji może najpierw zachować
 kopię tylko `games/zelazny-swit/project.godot` przez `git stash push -- <plik>`.
 Nie przywracaj jej automatycznie, aby nie nadpisać nowego ustawienia mobilnego MSAA.
+
+
+## Poprawka 0.1.2 — dalsza awaria, kolejka GUI i dźwięk
+
+Użytkownik potwierdził dalsze zamknięcie gry na Androidzie po wgraniu 0.1.1.
+Wyłączenie automatycznego przełączania MSAA nie jest więc potwierdzonym rozwiązaniem.
+Nie przypisuj awarii samym żółtym ostrzeżeniom ani konwersji RGBAFloat→RGBAHalf.
+
+`ui/hud.gd` nie usuwa już aktywnego przycisku w trakcie sygnału GUI.
+`_render_panel()` jedynie kolejkowuje i łączy żądania; rzeczywiste usuwanie
+starej zawartości i budowanie nowej wykonuje odroczone `_rebuild_panel()`.
+`_upgrade_selected()` ma blokadę powtarzających się sygnałów oraz kolejkuje
+`_perform_upgrade(uid,session_id)`. Przed opłatą sprawdza otwartą kuźnię, tę samą
+sesję panelu i nadal wybrany UID. Zamknięcie/ponowne otwarcie lub wybór innego
+przedmiotu anuluje starą akcję. Nie dodano opłat do drag & drop ani drugiego
+ulepszenia. Potwierdzenie nowej gry korzysta z tej samej bezpiecznej przebudowy.
+W HUD widoczna jest wersja odczytana z `application/config/version`.
+
+`scripts/audio.gd` wyłącza natywny `AudioStreamWAV.LOOP_FORWARD` dla oryginalnego
+8-sekundowego ambientu. Sygnał `finished` odkłada ponowienie na kolejny obieg,
+zachowując ten sam odtwarzacz i WAV. Wyciszenie/wyjście anuluje ponowienie.
+To obejście ryzykownej ścieżki natywnego dekodera, nie dowód przyczyny awarii
+tego telefonu. Testy nie zastępują próby nowej wersji na Androidzie.
+
+Nowe regresje: `tests/forge_deferred.gd` (odroczona mutacja, pojedyncza opłata,
+łączenie odświeżeń, anulowanie starej sesji i zmiany UID, brak narastania kontrolek),
+`tests/audio_regression.gd` (rzeczywiste odtworzenie pełnych 8 sekund na sterowniku
+Dummy, naturalne `finished`, odroczony replay, efekty, wyciszenie i wyjście).
+Test rzeczywistych kliknięć przewija przodków `ScrollContainer`, zanim kliknie
+przycisk; samo `is_visible_in_tree()` nie oznacza widoczności wewnątrz przewijania.
+
+## Prywatna diagnostyka — konfiguracja i ograniczenia
+
+- Sites ID: `appgprj_6ad5035f4cfc8191851f417300366845`.
+- Strona: `https://zelazny-swit-diagnostyka.sethoyt.chatgpt.site`.
+- Jednorazowa konfiguracja urządzenia: zalogowany właściciel otwiera stronę
+  diagnostyki i przyciskiem pobiera `/api/device-config` (bezpośrednie żądania
+  z innej witryny są odrzucane).
+- Odbiór raportów: `https://zelazny-swit-diagnostyka.sethoyt.chatgpt.site/api/reports`;
+  klient przypina ten endpoint, bez przekierowań i z prywatnym bearerem.
+- Retencja serwera: do 14 dni i maksymalnie 1000 raportów. Dostęp do podglądu
+  i konfiguracji wymaga konta właściciela. Sam klucz nie trafia do Git ani dokumentacji.
+
+Pobrany na telefon plik `Download/diagnostics_config.json` trzeba raz skopiować:
+
+```bash
+cp /storage/emulated/0/Download/diagnostics_config.json /storage/emulated/0/Godot/ZelaznySwit/games/zelazny-swit/diagnostics.local.json
+```
+
+Potem ponownie uruchomić projekt. `diagnostics.local.json` jest ignorowany przez
+Git i zachowuje się podczas aktualizacji. Publiczny `diagnostics_config.json`
+nie zawiera tokenu. Diagnostyka jest domyślnie włączona lokalnie; wysyłka wymaga
+prywatnej konfiguracji. Gra i zapis działają offline bez konfiguracji i internetu.
+Przełącznik **Menu → Automatyczne raporty błędów** wyłącza zbieranie oraz wysyłkę,
+anuluje aktywne żądanie i usuwa lokalną kolejkę. Status aktualizuje etykietę,
+nie przebudowuje panelu i nie uruchamia kolejnych raportów co klatkę.
+
+Raport zawiera pseudonimowy losowy ID instalacji, losowy ID sesji, wersję gry,
+Godota, system/architekturę/renderer i ograniczony ślad zdarzeń. HUD zapisuje
+etapy kuźni oraz otwieranie/zamykanie i odroczoną przebudowę panelu; przy sprzęcie
+tylko UID, kategorię i poziom ulepszenia. Nie wysyła pliku zapisu, kontaktów,
+lokalizacji ani identyfikatora sprzętowego. Redakcja usuwa sekrety, adresy e-mail,
+URL i ścieżki z fragmentów logu. Lokalna kolejka ma najwyżej 8 raportów po 32 KiB,
+64 zdarzenia i 16 krótkich wpisów błędów na raport; sieć jest asynchroniczna,
+z timeoutem i ponawianiem w tle. Checkpointy kuźni mają ograniczenie częstotliwości.
+
+Po nieoczekiwanym zamknięciu klient przy następnym uruchomieniu odczytuje
+niedomkniętą sesję i dostępny przefiltrowany ogon obróconego logu Godota.
+`unclean_exit` jest wskazówką, nie potwierdzeniem natywnego crasha: użytkownik
+lub system też może zakończyć proces. Natywny stos nie zawsze trafia do logu
+Godota, więc nie obiecuj pełnego tombstone, logcata ani gwarantowanego stack trace.
+Flaga `--test-isolated` wyłącza wysyłkę i używa oddzielnych plików diagnostyki;
+testy nie mogą pobierać prywatnego tokenu ani wysyłać danych gracza.
+
+
+Ukierunkowane regresje 0.1.2: kowal odroczony **26/26** headless i OpenGL,
+dźwięk **13/13** z odtwarzaniem na Dummy, diagnostyka lokalna **29/29** bez sieci.
+Nie sumuj ich ze starymi wynikami jako nowego pełnego certyfikatu Androida.
+
+`tests/diagnostics_network.gd` to osobny test rzeczywistego HTTPS: tylko po jawnej
+autoryzacji, we własnym jednorazowym `XDG_DATA_HOME`, z uprzednio dostarczonym
+poza repozytorium prywatnym `user://diagnostics_config.json`. Przykładowe polecenie
+z już przygotowanym jednorazowym katalogiem w zmiennej `qa_data`:
+
+```bash
+XDG_DATA_HOME="$qa_data" godot --headless --path games/zelazny-swit --script res://tests/diagnostics_network.gd -- --diagnostics-network-test --test-data-root="$qa_data"
+```
+
+Ten test wymaga `--diagnostics-network-test` bez `--test-isolated`, czeka do 20 s
+na potwierdzenie i usuwa raport z kolejki dopiero po JSON serwera z `accepted=true`
+i zgodnym `report_id`. Samo HTTP 200, strona HTML lub inny ID nie wystarczają. Wypisuje
+losowy identyfikator raportu, który można porównać z backendem; nie wypisuje tokenu
+ani odpowiedzi konfiguracyjnej. Nie wkładaj sekretu do argumentów procesu,
+repozytorium, testowych fixture ani STRESZCZENIA.
+
+Backend opublikowano prywatnie przez Sites; schemat i odbiornik przechodzą
+10 testów Node/SQLite oraz TypeScript i build. Natywny odczyt Sites potwierdza
+tabele `reports` i `latest_reports` (ta druga trzyma najwyżej 25 krótkich
+podsumowań do bieżącej analizy). Dostęp usługowy pozwala wysłać raport, lecz
+nie pobrać konfiguracji: pobieranie wymaga tożsamości odwiedzającego nadanej
+przez prywatną bramę Sites. Część bram przekazuje e-mail bez stabilnego ID;
+ten nagłówek służy wyłącznie potwierdzeniu logowania i nie jest zapisywany.
+
+Test HTTPS z Godota nie ma potwierdzonego sukcesu: pierwsza próba nie dostała
+potwierdzenia w 20 s w środowisku z wymaganym proxy, następna została zablokowana
+przez automatyczną kontrolę zgód. Kontrola wymaga wyraźnej zgody użytkownika
+na konkretny host diagnostyki, mimo wcześniejszej ogólnej zgody na narzędzia.
+Nie ponawiaj transmisji uwierzytelnionego raportu przed taką zgodą; lokalne
+testy i prywatna publikacja są ukończone. Nie deklaruj pełnego testu end-to-end
+ani otrzymania raportu z telefonu, dopóki nie odczytasz go w bazie Sites.
+
+Pełna regresja tej wersji: integracja 51/51, zapis 19/19, UI OpenGL 17/17,
+kowal OpenGL 26/26, renderer OpenGL 54/54 (świeży katalog danych; liczba
+warunkowych kontroli zależy od istniejącego zapisu), audio 13/13, diagnostyka
+29/29. Końcowe testy OpenGL zakończone bez ostrzeżeń o pozostawionych obiektach.

@@ -47,16 +47,21 @@ var tabs: Dictionary = {}
 var selected_uid: int = -1
 var selected_catalog: String = ""
 var _refresh_pending: bool = false
+var _forge_action_pending: bool = false
+var _panel_session_id: int = 0
+var _reset_confirmation: bool = false
 var _audio_enabled: bool = true
 var _npc_access: String = ""
 var _map_time: float = 0.0
 var _modal_generation: int = 0
+var _diagnostics_status_label: Label
 
 func _ready() -> void:
 	layer = 10
 	_build_hud()
 	_build_modal()
 	_audio_enabled = GameState.audio_enabled
+	_connect_diagnostics()
 	refresh()
 
 func setup(player: Node3D) -> void:
@@ -95,15 +100,6 @@ func _notification(what: int) -> void:
 		if is_instance_valid(potion_pad):
 			potion_pad._release()
 
-func _state_changed() -> void:
-	if not _refresh_pending:
-		_refresh_pending = true
-		call_deferred("_deferred_refresh")
-
-func _deferred_refresh() -> void:
-	_refresh_pending = false
-	refresh()
-
 func _build_hud() -> void:
 	screen = Control.new()
 	screen.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -139,7 +135,7 @@ func _build_hud() -> void:
 	hp_bar.add_child(hp_text)
 	xp_bar = _bar(Color("69b6a8"),5)
 	stats.add_child(xp_bar)
-	var stats_hint: Label = _label("ŻELAZNY ŚWIT",10,MUTED)
+	var stats_hint: Label = _label("ŻELAZNY ŚWIT · v%s" % str(ProjectSettings.get_setting("application/config/version","?")),10,MUTED)
 	stats.add_child(stats_hint)
 	var wallet: PanelContainer = _panel(Color(0.055,0.11,0.14,0.9),Color("7b704d"),10,12)
 	_position(wallet,Vector2(366,22),Vector2(150,48))
@@ -330,8 +326,11 @@ func open_panel(mode: String) -> void:
 		return
 	if not modal_open:
 		_npc_access = mode if mode in ["shop","forge"] else ""
+	_panel_session_id += 1
+	_reset_confirmation = false
 	modal_mode = mode
 	modal_open = true
+	_diagnostic_note("ui_panel_open",{"category":mode})
 	move_vector = Vector2.ZERO
 	attack_held = false
 	joystick.enabled = false
@@ -347,7 +346,11 @@ func _close_panel() -> void:
 	close_requested.emit()
 
 func close_panel() -> void:
+	if modal_open:
+		_diagnostic_note("ui_panel_close",{"category":modal_mode})
+		_panel_session_id += 1
 	modal_open = false
+	_reset_confirmation = false
 	overlay.hide()
 	joystick.enabled = true
 	attack_pad.enabled = true
@@ -370,6 +373,25 @@ func refresh() -> void:
 		_render_panel()
 
 func _render_panel() -> void:
+	# GUI signals only request work. Their source button/card must stay alive
+	# until Godot has finished dispatching the current input event.
+	if not modal_open or _refresh_pending:
+		return
+	_refresh_pending = true
+	call_deferred("_rebuild_panel")
+
+func _rebuild_panel() -> void:
+	if not modal_open or not is_instance_valid(modal_body):
+		_refresh_pending = false
+		return
+	if _forge_action_pending:
+		# An upgrade queued after this refresh owns the next model change.
+		# Let it finish first so its changed signal joins this same rebuild.
+		call_deferred("_rebuild_panel")
+		return
+	_refresh_pending = false
+	_diagnostic_note("ui_modal_rebuild_begin",{"category":modal_mode})
+	_diagnostics_status_label = null
 	_modal_generation += 1
 	for child: Node in modal_body.get_children():
 		modal_body.remove_child(child)
@@ -381,12 +403,16 @@ func _render_panel() -> void:
 		b.add_theme_stylebox_override("normal",_style(Color("365047") if key == modal_mode else Color("172d34"),GOLD if key == modal_mode else Color("40524a"),7,1))
 	var titles: Dictionary = {"inventory":"Ekwipunek wojownika","shop":"Handlarz · Mira","forge":"Kuźnia · Born","help":"Pierwsze kroki","settings":"Obozowisko"}
 	modal_title.text = str(titles.get(modal_mode,"Ekwipunek"))
-	match modal_mode:
-		"shop": _render_shop()
-		"forge": _render_forge()
-		"help": _render_help()
-		"settings": _render_settings()
-		_: _render_inventory()
+	if modal_mode == "settings" and _reset_confirmation:
+		_render_reset_confirmation()
+	else:
+		match modal_mode:
+			"shop": _render_shop()
+			"forge": _render_forge()
+			"help": _render_help()
+			"settings": _render_settings()
+			_: _render_inventory()
+	_diagnostic_note("ui_modal_rebuild_end",{"category":modal_mode})
 
 func _render_inventory() -> void:
 	var split: HBoxContainer = HBoxContainer.new()
@@ -556,8 +582,26 @@ func _render_forge() -> void:
 	right.add_child(_text("+1–+3: pewny sukces. +4: 80%, +5: 65%, +6: 50%. Niepowodzenie zabiera koszt, ale zachowuje poziom przedmiotu.",13,MUTED))
 
 func _upgrade_selected() -> void:
-	GameState.upgrade_item(selected_uid)
-	_render_panel()
+	if _forge_action_pending or not modal_open or modal_mode != "forge":
+		return
+	if GameState.find_item(selected_uid).is_empty():
+		return
+	_forge_action_pending = true
+	_diagnostic_note("forge_requested",_forge_diagnostic_data(selected_uid))
+	call_deferred("_perform_upgrade",selected_uid,_panel_session_id)
+
+func _perform_upgrade(uid: int, session_id: int) -> void:
+	# A queued click must not charge an item after closing/switching panels
+	# or selecting another item. Repeated signals before this flush coalesce.
+	if modal_open and modal_mode == "forge" and session_id == _panel_session_id and uid == selected_uid:
+		if not GameState.find_item(uid).is_empty():
+			_diagnostic_note("forge_before_upgrade",_forge_diagnostic_data(uid))
+			GameState.upgrade_item(uid)
+			_diagnostic_note("forge_after_upgrade",_forge_diagnostic_data(uid))
+	else:
+		_diagnostic_note("forge_cancelled",_forge_diagnostic_data(uid))
+	# GameState.changed -> main.refresh() queues the one necessary rebuild.
+	_forge_action_pending = false
 
 func _render_help() -> void:
 	var scroll: ScrollContainer = ScrollContainer.new()
@@ -601,12 +645,54 @@ func _render_settings() -> void:
 		_render_panel()
 	)
 	col.add_child(quality_button)
+	var diagnostics: Node = get_node_or_null("/root/Diagnostics")
+	var reports_toggle: CheckButton = CheckButton.new()
+	reports_toggle.text = "Automatyczne raporty błędów"
+	reports_toggle.custom_minimum_size = Vector2(330,52)
+	reports_toggle.add_theme_font_size_override("font_size",18)
+	reports_toggle.add_theme_color_override("font_color",CREAM)
+	reports_toggle.disabled = not is_instance_valid(diagnostics)
+	if is_instance_valid(diagnostics):
+		reports_toggle.button_pressed = bool(diagnostics.call("is_enabled"))
+	reports_toggle.toggled.connect(_set_diagnostics_enabled)
+	col.add_child(reports_toggle)
+	col.add_child(_text("Raport zawiera tylko diagnostykę gry. Bez danych kontaktowych i lokalizacji.",14,MUTED))
+	_diagnostics_status_label = _text("",14,MUTED)
+	col.add_child(_diagnostics_status_label)
+	_update_diagnostics_status()
 	var help_button: Button = _button("JAK GRAĆ",Vector2(330,48),true)
 	help_button.pressed.connect(func() -> void: open_panel("help"))
 	col.add_child(help_button)
 	var reset_button: Button = _button("NOWA GRA…",Vector2(330,48),true)
 	reset_button.pressed.connect(_confirm_reset)
 	col.add_child(reset_button)
+
+func _connect_diagnostics() -> void:
+	var diagnostics: Node = get_node_or_null("/root/Diagnostics")
+	if is_instance_valid(diagnostics) and diagnostics.has_signal("status_changed"):
+		if not diagnostics.is_connected("status_changed",_update_diagnostics_status):
+			diagnostics.connect("status_changed",_update_diagnostics_status)
+
+func _diagnostic_note(name: String, data: Dictionary = {}) -> void:
+	var diagnostics: Node = get_node_or_null("/root/Diagnostics")
+	if is_instance_valid(diagnostics):
+		diagnostics.call("note",name,data)
+
+func _forge_diagnostic_data(uid: int) -> Dictionary:
+	var item: Dictionary = GameState.find_item(uid)
+	return {"uid":uid,"category":str(item.get("kind","missing")),"upgrade":int(item.get("upgrade",-1))}
+
+func _set_diagnostics_enabled(enabled: bool) -> void:
+	var diagnostics: Node = get_node_or_null("/root/Diagnostics")
+	if is_instance_valid(diagnostics):
+		diagnostics.call("set_enabled",enabled)
+	_update_diagnostics_status()
+
+func _update_diagnostics_status() -> void:
+	if not is_instance_valid(_diagnostics_status_label) or not _diagnostics_status_label.is_inside_tree():
+		return
+	var diagnostics: Node = get_node_or_null("/root/Diagnostics")
+	_diagnostics_status_label.text = str(diagnostics.call("status_text")) if is_instance_valid(diagnostics) else "Raporty niedostępne w tej wersji."
 
 func _toggle_audio() -> void:
 	_audio_enabled = not _audio_enabled
@@ -617,9 +703,16 @@ func _toggle_audio() -> void:
 	_render_panel()
 
 func _confirm_reset() -> void:
-	for child: Node in modal_body.get_children():
-		modal_body.remove_child(child)
-		child.queue_free()
+	if not modal_open or modal_mode != "settings":
+		return
+	_reset_confirmation = true
+	_render_panel()
+
+func _cancel_reset_confirmation() -> void:
+	_reset_confirmation = false
+	_render_panel()
+
+func _render_reset_confirmation() -> void:
 	modal_body.add_child(_label("Zacząć od początku?",25,GOLD))
 	modal_body.add_child(_text("Usuniesz zapis tej przygody. Nowy wojownik rozpocznie grę z 10 000 złota i podstawowym wyposażeniem.",19,CREAM))
 	var row: HBoxContainer = HBoxContainer.new()
@@ -627,7 +720,7 @@ func _confirm_reset() -> void:
 	modal_body.add_child(row)
 	var cancel: Button = _button("ZACHOWAJ PRZYGODĘ",Vector2(300,56),false)
 	row.add_child(cancel)
-	cancel.pressed.connect(_render_panel)
+	cancel.pressed.connect(_cancel_reset_confirmation)
 	var confirm: Button = _button("TAK, NOWA GRA",Vector2(260,56),true)
 	row.add_child(confirm)
 	confirm.pressed.connect(func() -> void:

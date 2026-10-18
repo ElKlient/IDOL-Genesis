@@ -1,4 +1,4 @@
-# Żelazny Świt — 0.1.1
+# Żelazny Świt — 0.1.2
 
 Oryginalna, jednoosobowa gra akcji RPG 3D na telefon, napisana w Godocie 4.4+.
 Sterowanie dotykowe w poziomie. Mały grywalny wycinek: wioska Brzeziny, wojownik,
@@ -54,7 +54,8 @@ ponownie — do aktualizacji służy następny blok.
   również co 12 sekund oraz po przejściu aplikacji w tło.
 - Zapis: `user://adventure_v1.json`, z kopią poprzedniej wersji `.bak`.
   Aktualizacja źródeł nie usuwa postępu. Dane edytora i eksportu APK mogą być odrębne.
-- Gra działa offline. Nie zawiera zakupów, reklam, serwera ani cudzego kodu gry.
+- Rozgrywka działa offline, bez konta gracza, zakupów i reklam. Opcjonalna sieć
+  służy wyłącznie prywatnym raportom diagnostycznym opisanym niżej.
 
 ## Sterowanie
 
@@ -70,12 +71,14 @@ Komputer: **WASD/strzałki** — ruch, **Spacja** — atak, **R** — Wir stali,
 Zamknij projekt w Godocie. W Termuxie:
 
 ```bash
-cd /storage/emulated/0/Godot/ZelaznySwit && git pull --ff-only origin zelazny-swit && git --no-pager log -1 --oneline
+cd /storage/emulated/0/Godot/ZelaznySwit && git stash push -m "Ustawienia Godota przed aktualizacja" -- games/zelazny-swit/project.godot && git pull --ff-only origin zelazny-swit && git --no-pager log -1 --oneline
 ```
 
 Potem otwórz ten sam `games/zelazny-swit/project.godot` i naciśnij ▶.
-Jeśli Godot lokalnie zmienił ustawienia, sprawdź `git status --short` i zachowaj
-kopię `project.godot` przed pobraniem. Nie używaj resetowania ani usuwania folderu.
+Polecenie zachowuje ewentualne lokalne zmiany `project.godot` w `git stash list`.
+Nie przywraca ich automatycznie: nowa wersja zawiera wymagane ustawienia mobilne
+i autoload diagnostyki. Zapis postaci oraz prywatna konfiguracja raportów zostają.
+Nie używaj resetowania ani usuwania folderu. W HUD pod zdrowiem sprawdź numer **v0.1.2**.
 
 ## Uruchamianie i zakres
 
@@ -83,22 +86,52 @@ kopię `project.godot` przed pobraniem. Nie używaj resetowania ani usuwania fol
 - Projekt działa bez Blendera, pobierania paczek i instalowania dodatków.
 - Świat, modele, animacje, ikony i dźwięki powstają z własnego kodu.
 - Rozdzielczość bazowa 1280 × 720, poziomy ekran, interfejs skaluje się do telefonu.
-- Jest to pierwsza grywalna wersja, a nie rozbudowane MMORPG: brak sieci, klas
-  poza wojownikiem, rozległych map i pełnej kampanii.
+- Jest to pierwszy grywalny wycinek, a nie rozbudowane MMORPG: brak rozgrywki
+  wieloosobowej, klas poza wojownikiem, rozległych map i pełnej kampanii.
 - Udostępniony jest projekt do uruchomienia w Godocie, nie gotowy instalator APK.
 - Test na fizycznym telefonie użytkownika wykonuje użytkownik po pobraniu.
 
 Dokładny raport weryfikacji i informacje dla kolejnego agenta: [docs/STRESZCZENIE.md](docs/STRESZCZENIE.md).
 
 
-## Poprawka 0.1.1 — stabilność obrazu na Androidzie
+## Poprawka 0.1.2 — kowal, dźwięk i diagnostyka
 
-Usunięto automatyczne przełączanie grafiki po ośmiu sekundach gry. Był to moment
-pasujący do zamknięcia procesu na nagraniu użytkownika; przy niższym FPS silnik
-zmieniał wówczas MSAA w uruchomionym widoku. Na telefonie MSAA jest teraz wyłączone
-od startu, a przycisk jakości w menu zmienia tylko cienie i światło kuźni.
+Ulepszenie wykonuje się dopiero po zakończeniu obsługi dotyku. Powtarzające się
+sygnały przycisku łączą się w jedną próbę, a panel przebudowuje się raz po zmianie
+stanu. Zamknięcie kuźni lub wybór innego przedmiotu anuluje oczekującą próbę bez
+opłaty. Przeciągnięcie na kowadło nadal tylko wybiera przedmiot.
 
-Nagranie potwierdziło działanie ruchu oraz ulepszeń +1 i +2 na telefonie.
-Przyczyna awarii pozostaje hipotezą do potwierdzenia przez próbę tej poprawki
-na tym samym urządzeniu. Ostrzeżenie RGBAFloat → RGBAHalf opisuje konwersję formatu
-w silniku; nie jest dowodem przyczyny zamknięcia i może nadal występować.
+Ośmiosekundowy podkład dźwiękowy korzysta z odroczonego ponowienia odtwarzania
+zamiast natywnej pętli WAV. MSAA na telefonie pozostaje wyłączone od startu;
+usunięty w 0.1.1 automatyczny przełącznik grafiki po 8 sekundach nie wraca.
+Użytkownik zgłosił dalsze zamknięcie procesu po 0.1.1. Nowe zmiany są sprawdzone
+na Linuxie; przyczyna awarii na konkretnym Androidzie wymaga dalszego potwierdzenia.
+
+## Jednorazowe włączenie prywatnych raportów
+
+1. Na telefonie otwórz [konfigurację diagnostyki](https://zelazny-swit-diagnostyka.sethoyt.chatgpt.site),
+   zaloguj się na konto właściciela strony i przyciskiem pobierz `diagnostics_config.json`
+   do folderu **Download**.
+2. Zamknij uruchomioną grę i wklej w Termuxie:
+
+   ```bash
+   cp /storage/emulated/0/Download/diagnostics_config.json /storage/emulated/0/Godot/ZelaznySwit/games/zelazny-swit/diagnostics.local.json
+   ```
+
+3. Uruchom ponownie projekt. W **Menu → Automatyczne raporty błędów** zobaczysz
+   stan diagnostyki. Konfigurację pobiera się raz; aktualizacje jej nie usuwają.
+
+Plik `diagnostics.local.json` zawiera prywatny klucz do serwera raportów i jest
+ignorowany przez Git. Nie dodawaj go do repozytorium. Bez tego pliku gra nadal
+działa; raporty pozostają lokalne. Raporty możesz wyłączyć przełącznikiem w menu.
+Brak internetu nie zatrzymuje gry, a ograniczona kolejka ponawia wysyłanie w tle.
+
+Raport zawiera wersję gry i Godota, system, renderer, losowy identyfikator
+instalacji, ostatnie zdarzenia gry oraz przefiltrowany fragment błędów z jej logu.
+Nie wysyła kontaktów, lokalizacji ani plików zapisu postaci. Prywatny serwer
+przechowuje raporty do 14 dni, maksymalnie 1000 rekordów.
+
+Po nieoczekiwanym zamknięciu uruchom grę ponownie, aby mogła zgłosić niedomkniętą
+sesję i ostatnie zachowane zdarzenia. To wskazówka diagnostyczna: zamknięcie przez
+system lub użytkownika też może zostawić taką sesję. Natywna awaria silnika nie
+zawsze pozostawia stos wywołań w logu Godota; raport nie gwarantuje jego uzyskania.

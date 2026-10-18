@@ -3,3 +3,4 @@
 build/
 *.apk
 *.pck
+diagnostics.local.json
