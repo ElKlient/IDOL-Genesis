@@ -1,4 +1,4 @@
-# Żelazny Świt — 0.1.0
+# Żelazny Świt — 0.1.1
 
 Oryginalna, jednoosobowa gra akcji RPG 3D na telefon, napisana w Godocie 4.4+.
 Sterowanie dotykowe w poziomie. Mały grywalny wycinek: wioska Brzeziny, wojownik,
@@ -89,3 +89,16 @@ kopię `project.godot` przed pobraniem. Nie używaj resetowania ani usuwania fol
 - Test na fizycznym telefonie użytkownika wykonuje użytkownik po pobraniu.
 
 Dokładny raport weryfikacji i informacje dla kolejnego agenta: [docs/STRESZCZENIE.md](docs/STRESZCZENIE.md).
+
+
+## Poprawka 0.1.1 — stabilność obrazu na Androidzie
+
+Usunięto automatyczne przełączanie grafiki po ośmiu sekundach gry. Był to moment
+pasujący do zamknięcia procesu na nagraniu użytkownika; przy niższym FPS silnik
+zmieniał wówczas MSAA w uruchomionym widoku. Na telefonie MSAA jest teraz wyłączone
+od startu, a przycisk jakości w menu zmienia tylko cienie i światło kuźni.
+
+Nagranie potwierdziło działanie ruchu oraz ulepszeń +1 i +2 na telefonie.
+Przyczyna awarii pozostaje hipotezą do potwierdzenia przez próbę tej poprawki
+na tym samym urządzeniu. Ostrzeżenie RGBAFloat → RGBAHalf opisuje konwersję formatu
+w silniku; nie jest dowodem przyczyny zamknięcia i może nadal występować.

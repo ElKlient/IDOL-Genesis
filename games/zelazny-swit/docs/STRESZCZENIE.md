@@ -119,3 +119,36 @@ XDG_DATA_HOME=/tmp/zelazny-qa godot --headless --path games/zelazny-swit --scrip
 Nie uruchamiaj testu trwałego zapisu bez jawnego jednorazowego katalogu. Testy
 UI/integracji wyłączają zapisy, a test trwałości dodatkowo odmawia uruchomienia,
 jeśli rzeczywisty katalogdanych nie mieści się w podanym katalogu testowym.
+
+
+## Poprawka 0.1.1 — nagranie Androida i przełączanie MSAA
+
+Użytkownik uruchomił grę na Samsungu SM-S942B, Android16, w edytorze Godot4.7.2,
+Compatibility przez ANGLE/Exynos. Nagranie3142.mp4 potwierdza ruch, otwarcie kuźni,
+ulepszenia miecza rekruta +1 (9900G) i +2 (9700G), następnie zamknięcie procesu
+uruchomionej gry; edytor pozostaje. Samsung pokazuje ogólny dialog proponujący
+wyczyszczenie cache Godota po błędzie — nie jest to dowód uszkodzenia cache.
+
+Pierwsza widoczna klatka świata jest około5.3s nagrania, +2 pozostaje na ekranie
+jeszcze13.2–13.4s, dialog awarii pojawia się do13.5s. Pasuje to do warunku w main.gd,
+który po8s na mobile przyFPS<38 przełączał MSAA2X na wyłączone oraz cienie.
+To mocna hipoteza, nie potwierdzenie bez natywnego śladu awarii lub próby na telefonie.
+
+Zmiana: usunięto automatyczną rekonfigurację po8s, dodano startowy override
+`rendering/anti_aliasing/quality/msaa_3d.mobile=0`, zachowano desktopowe2X.
+Ręczny tryb oszczędny zmienia tylko cienie/światło kuźni, bez przebudowy MSAA.
+Nie zmieniano przedmiotów, zapisów, wyglądu świata ani nieba.
+
+Widoczne żółte ostrzeżenia GDScript i RGBAFloat→RGBAHalf nie są stosami awarii.
+Kod GLES3 silnika ma obsługę konwersji; także wewnętrzne tekstury mogą ją wywołać
+niezależnie od Sky. Nie obiecuj zniknięcia tych komunikatów po tej poprawce.
+
+Test po zmianie: import edytora, dotychczasowa integracja oraz test stabilności
+renderowania (`tests/render_stability.gd`) bez zapisu danych użytkownika.
+Nowy test:44/44 headless i55/55 prawdziwy OpenGL/Mesa (59 wyrenderowanych klatek),
+ponad12s działania, ulepszenia +1/+2/+3 i10 ręcznych zmian jakości bez zmiany MSAA.
+Wynik na fizycznym Androidzie wymaga sprawdzenia tej nowej wersji przez użytkownika.
+
+Gdy Godot zmienił lokalnie project.godot, blok aktualizacji może najpierw zachować
+kopię tylko `games/zelazny-swit/project.godot` przez `git stash push -- <plik>`.
+Nie przywracaj jej automatycznie, aby nie nadpisać nowego ustawienia mobilnego MSAA.

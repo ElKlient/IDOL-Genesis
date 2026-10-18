@@ -20,9 +20,7 @@ var context_npc: String = ""
 var autosave_time: float = 0.0
 var respawning: bool = false
 var last_level: int = 1
-var frame_time: float = 0.0
 var minimap_time: float = 0.0
-var automatic_quality: bool = false
 var low_quality: bool = false
 var spawn_records: Array[Dictionary] = []
 var equipment_signature: String = ""
@@ -125,11 +123,6 @@ func _process(delta: float) -> void:
 	if minimap_time <= 0.0 and hud.has_method("set_world_positions"):
 		minimap_time = 0.1
 		hud.set_world_positions(hero.position,enemies,world.npc_positions)
-	frame_time += delta
-	if not automatic_quality and frame_time > 8.0 and OS.has_feature("mobile"):
-		automatic_quality = true
-		if Engine.get_frames_per_second() < 38:
-			set_low_quality(true)
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo:
@@ -376,7 +369,8 @@ func start_new_game() -> void:
 
 func set_low_quality(value: bool) -> void:
 	low_quality=value
-	get_viewport().msaa_3d = Viewport.MSAA_DISABLED if value else Viewport.MSAA_2X
+	# Keep startup MSAA fixed to avoid render-target reallocation while playing,
+	# especially in Android/ANGLE embedded views where a process exit was reported.
 	for child: Node in world.get_children():
 		if child is DirectionalLight3D:
 			child.shadow_enabled=not value
