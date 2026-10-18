@@ -10,29 +10,29 @@
     "materials": 1
   },
   "Body": {
-    "triangles": 5250,
-    "vertices": 3046,
+    "triangles": 3950,
+    "vertices": 2326,
     "materials": 1
   },
   "Armor0": {
-    "triangles": 1120,
-    "vertices": 768,
-    "materials": 4
+    "triangles": 3608,
+    "vertices": 2222,
+    "materials": 1
   },
   "Armor1": {
-    "triangles": 3748,
-    "vertices": 2334,
-    "materials": 3
+    "triangles": 11476,
+    "vertices": 7800,
+    "materials": 1
   },
   "Armor2": {
-    "triangles": 4396,
-    "vertices": 2846,
-    "materials": 3
+    "triangles": 11258,
+    "vertices": 7660,
+    "materials": 1
   },
   "Armor3": {
-    "triangles": 5282,
-    "vertices": 3358,
-    "materials": 3
+    "triangles": 11594,
+    "vertices": 7888,
+    "materials": 1
   },
   "Hair": {
     "triangles": 1301,

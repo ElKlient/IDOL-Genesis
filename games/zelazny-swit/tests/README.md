@@ -9,6 +9,9 @@ godot --headless --path . --script res://tests/combat_combo.gd -- --test-isolate
 godot --headless --path . --script res://tests/character_preview.gd -- --test-isolated
 godot --headless --path . --script res://tests/fire_skill.gd -- --test-isolated
 godot --headless --path . --script res://tests/warrior_model.gd -- --test-isolated
+godot --headless --path . --script res://tests/graphics_hd.gd -- --test-isolated
+godot --headless --path . --script res://tests/impact_hd.gd -- --test-isolated
+godot --headless --path . --script res://tests/world_materials.gd -- --test-isolated
 godot --headless --path . --script res://tests/render_stability.gd -- --test-isolated
 godot --headless --path . --script res://tests/forge_deferred.gd -- --test-isolated
 godot --headless --audio-driver Dummy --path . --script res://tests/audio_regression.gd -- --test-isolated
@@ -20,7 +23,7 @@ godot --headless --audio-driver Dummy --path . --script res://tests/audio_regres
 
 `combat_combo.gd` exercises four real main-controller attacks, contact timing, cooldown/modal/range/death guards, the 1.2-second combo reset, finisher-only impulse decay, enemy windup interruption and collision against a temporary wall. It verifies one defeat reward, exact camera focus during movement/stops/teleports, four distinct blade contacts in front of the warrior above ground, bounded idle breathing, and safe transition from a skill spin. The real enemy fixture avoids respawn timers; the full integration test covers spawned-enemy rewards and respawn. On an OpenGL display, omit `--headless` and add `--capture-dir=/absolute/path/to/previews` for the actual idle pose and four contact-pose screenshots. Version 0.1.6 passed 55 headless checks and 60 checks with these captures.
 
-`character_preview.gd` opens the actual inventory and exercises mouse/touch rotation, exclusive finger ownership, emulated-mouse suppression, cancelled touches, and the animation/rotation buttons. Equipping the third-tier sword/armor and rebuilding or reopening panels must preserve one preview, one 320 × 320 viewport and the chosen yaw. It checks 1280 × 720 and 1600 × 720 layout, full rotation, all four complete swings at eleven animation times and eight viewing angles, the bounded 30 Hz render-request clock, and zero hidden animation/render requests. Rigid curved blades are projected from actual vertices rather than the empty corners of their bounding box; `warrior_model.gd` separately checks the deformed skin. OpenGL runs can add `--capture-dir=/absolute/path/to/previews` for both inventory sizes.
+`character_preview.gd` opens the actual inventory and exercises mouse/touch rotation, exclusive finger ownership, emulated-mouse suppression, cancelled touches, and the animation/rotation buttons. Equipping the third-tier sword/armor and rebuilding or reopening panels must preserve one preview, one 512 × 512 viewport and the chosen yaw. It checks 1280 × 720 and 1600 × 720 layout, full rotation, all four complete swings at eleven animation times and eight viewing angles, the bounded 30 Hz render-request clock, and zero hidden animation/render requests. Rigid curved blades are projected from actual vertices rather than the empty corners of their bounding box; `warrior_model.gd` separately checks the deformed skin. OpenGL runs can add `--capture-dir=/absolute/path/to/previews` for both inventory sizes.
 
 `fire_skill.gd` invokes the real fire button and physical F key. Real enemy fixtures check the contact delay, one area hit, range, attack/movement locks, twenty-second cooldown, thirty-percent ordinary-cut damage bonus, and natural twelve-second expiration. It also checks immediate modal and death cancellation, invalidation of a pending older cut, live/hidden inventory flames, effect disposal, unchanged permanent attack stats and equipment, actual mouse camera orbit, simultaneous left joystick/right camera touch ownership, pitch/yaw bounds, and emulated-mouse suppression on the attack pad and world target picker. Isolated camera preference writes remain disabled. On OpenGL, `--capture-dir=/absolute/path/to/previews` captures the windup, impact, burning sword and inventory. Only the rendered windup is slowed to avoid skipping that pose during initial shader compilation; subsequent gameplay and the natural buff expiry use normal simulation speed. These Linux checks are not a physical-phone frame-rate measurement.
 
@@ -28,7 +31,7 @@ godot --headless --audio-driver Dummy --path . --script res://tests/audio_regres
 scene and inventory. It requires a weighted continuous body, an articulated
 skeleton and natural adult proportions; a primitive fallback cannot pass. It
 counts only visible geometry across all four armor/weapon stages, with a ceiling
-of 30,000 triangles and sixteen material surfaces per warrior. Main and portrait
+of 35,000 triangles and twelve material surfaces per warrior. Main and portrait
 share immutable mesh/skin data while their mutable equipment materials remain
 independent. CPU skinning of the imported vertices verifies that running, all
 four cuts and the two-handed slam actually deform the body and armor without invalid or
@@ -47,6 +50,93 @@ material surfaces. Seven shared textures have a maximum dimension of 1024 pixels
 The planted blade tip is 7 cm above ground; actual boot soles remain at 1.3–2.0 cm
 for all four sword sizes. These are asset and geometry measurements, not a
 measurement of the phone's frame rate or actual driver texture allocation.
+
+`graphics_hd.gd` checks the real 0.2 equipment package in both the game and the
+inventory. The four imported armor and sword stages must use distinct geometry,
+normalized finite skin weights and the shared PBR atlas over actual UV regions.
+The material must enable normal maps and occlusion, with the same ORM image bound
+to roughness green, metallic blue and occlusion red. Source PNG pixels must
+contain real color/normal/roughness/metal variation; the separate blade emission
+mask must contain sparse details rather than a solid glowing blade.
+
+The three 1024-square PBR maps stay shared between armor, sword, player and
+portrait. Two 256-square emission maps keep armor gems separate from upgrade
+glow. Together with the original body maps, the actor must stay within twelve
+shared textures and a maximum image dimension of 1024. The test prints visible
+triangle/surface budgets and an RGBA8 plus mipmap texture-memory upper bound;
+these are asset measurements, not the phone driver's actual allocation or FPS.
+
+CPU skinning checks the actual body, armor and blade vertices through idle,
+running, presentation, all four cuts and the two-handed slam, at eight viewing
+angles for all three families. Default framing must show the entire geometry;
+the resting equipment must also avoid all nine overlay buttons, including the
+boots above the footer. The fourth cut's support hand must meet the real hilt.
+Actual mouse events exercise the zoom, reset and POZA buttons without moving or
+attacking with the playable hero. Equipping the real inventory items keeps the
+portrait, statistics and rendered family consistent. All seven inventory items
+and long family names must fit both phone aspect ratios, with one overlay tree,
+no horizontal overflow and zero hidden rendering. Rapid long purchase/upgrade
+messages must retain a centered 600-pixel toast at no more than 76 pixels high;
+switching back to short text cannot grow or displace it. OpenGL runs can add
+`--capture-dir=/absolute/path/to/previews` for real front, side and detail
+inventory captures, village views of all three sets, and sword-ground contact.
+User-selected close-up zoom deliberately crops the body; full-body framing is
+checked at the default zoom rather than weakening the geometry bounds.
+
+`impact_hd.gd` independently checks the reusable contact renderer. Eight effects
+may run simultaneously; one hundred retriggers must retain the same three
+bounded MultiMesh batches and the exact active count. All actual instance
+transforms must stay finite, contact marks must remain in world space during
+owner movement, and expiry/freeing must return every slot and stop processing.
+Invalid inputs cannot consume a slot. A real enemy hit must charge damage once,
+animate a directional local flinch, then return exactly to neutral. Contact
+pause must hold only the visible attack clock, leave `Engine.time_scale`
+unchanged, resume, and clear on cancellation. A verified run passed 17 headless
+checks.
+
+`world_materials.gd` checks visible surface/triangle budgets, shared material
+images at 512 albedo / 256 normal, actual UV/tangent data and the static
+128-resolution sky. Walking colliders, camera-only roofs, NPC access and enemy
+spawns must retain their established positions. Material sharing must survive
+another world instance and quality toggles. World textures are counted separately
+from the character atlas; no player-save or diagnostic-network writes occur.
+The final world check passed 18 headless checks and 19 OpenGL checks. Its tangent
+frame test compares actual UV derivatives for 20,324 triangles against Godot's
+`PlaneMesh` convention, rather than merely checking that tangents exist.
+
+Verified 0.2.0 results for the final V7 package:
+
+| Check | Headless | OpenGL |
+| --- | ---: | ---: |
+| `graphics_hd.gd` | 69/69 | 85/85, including 16 actual captures |
+| `warrior_model.gd` | 39/39 | Covered by the HD package run |
+| `impact_hd.gd` | 17/17 | Contact effects also inspected in the actual recording |
+| `world_materials.gd` | 18/18 | 19/19 |
+| Imported item icons | — | 21/21 real controls; 23/23 fresh-import alpha/framing checks |
+
+The final OpenGL HD run used a clean source-only copy, without the original
+`.godot` directory, generated body PNGs, UID files or private configuration.
+Godot imported the embedded body images, all five canonical equipment maps and
+seven final model-rendered icon PNGs from source. Only the expected headless
+Dummy thumbnail `texture_2d_get` messages appeared during import; the actual
+OpenGL runtime had no script/resource errors. These Linux/Mesa results do not
+establish physical-Android frame rate or certify a particular mobile driver.
+
+Actual visible rest equipment budgets, including the body and equipped sword:
+
+| Stage | Triangles | Material surfaces |
+| --- | ---: | ---: |
+| Starter | 12,491 | 7 |
+| Karmazynowa Straż | 25,575 | 8 |
+| Jadeitowa Brama | 25,281 | 8 |
+| Popielny Żar | 25,501 | 8 |
+
+The actor and portrait share twelve textures. Their combined texture set is
+33 MiB at RGBA8 base level, or a 44 MiB upper bound including a complete mip
+chain, shared rather than doubled for the portrait. This excludes framebuffers,
+shadows, effect resources and world textures and is not an actual driver memory
+measurement. Fitting the actual deformed geometry also confirms clear default
+portrait boots, full rotation and both-handed grip for the fourth contact.
 
 `render_stability.gd` keeps the real scene active for at least 12 seconds, crossing the former eight-second automatic graphics transition. It upgrades the actual starter sword to +1, +2 and +3 through the forge button, checks each charge and equipped armor, and repeatedly toggles economical graphics. Every toggle must retain the viewport's startup MSAA setting while still switching sun shadows and forge lighting. The same test can run on a real OpenGL display (omit `--headless`, optionally use Xvfb); it then also checks that rendered frames continue after every toggle. This is a targeted renderer regression, not a claim of testing every Android GPU.
 

@@ -1,6 +1,151 @@
-# Żelazny Świt — przekazanie projektu 0.1.8
+# Żelazny Świt — przekazanie projektu 0.2.0
 
-## Aktualny stan 0.1.8 — rzeczywisty model wojownika
+
+## Aktualny stan 0.2.0 — rozbudowa grafiki i animacji
+
+Użytkownik wybrał wszystkie trzy plansze wyposażenia oraz polecił wdrożyć
+podniesienie jakości modeli, materiałów, animacji, trafień i świata. Plansze
+imagegen są koncepcjami. Gotowe GLB i pokazane kadry z Godota/Blendera to
+rzeczywiste zasoby projektu; nie przedstawiać ilustracji jako działającej gry.
+Baza Quaternius pozostaje stylizowana, nie jest fotorealistycznym skanem twarzy.
+
+### Wyposażenie i zachowanie zapisu
+
+- Karmazynowa Straż: dopasowany stalowy napierśnik, asymetryczne warstwy
+  naramienników, karmazynowa szarfa i rozdzielone poły, zakrzywiona szabla.
+- Jadeitowa Brama: jasna środkowa płyta na ciemnym podkładzie, brąz i jadeit,
+  dłuższy turkusowy płaszcz rozdzielony dla ruchu nóg, odrębna garda i klinga.
+- Popielny Żar: czernione płyty, skrzyżowane pasy, cięższy naramiennik,
+  krótsze nierówne osłony, ciemne bordo i szeroka klinga z kanałem żaru.
+- Identyfikatory sześciu przedmiotów pozostają te same. Zmieniono nazwy,
+  opisy, kolory i dodano `set_name`; ceny, bazowe moce, UID, schemat zapisu,
+  koszty ulepszeń i poziomy użytkownika pozostają zgodne. Zapis odbudowuje
+  opisy z katalogu, więc nowy wygląd działa bez resetu postaci.
+- `set_equipment(weapon_tier, armor_tier, upgrade=0, armor_upgrade=0)` jest
+  wspólnym czteroparametrowym interfejsem Hero, CharacterVisual, WarriorModel
+  i portretu. Sygnatury odświeżania uwzględniają także poziom zbroi.
+- Materiały EquipmentAtlas i BladeEquipmentAtlas korzystają ze wspólnych
+  color/normal/ORM 1024² oraz dwóch odrębnych masek emisji 256². R=AO,
+  G=roughness, B=metallic. Pięć `equipment_*.png` jest zewnętrzną częścią
+  pakietu GLB i musi zostać pobrane razem z nim. Układ kości/rest pozostaje
+  zgodny z poprzednią wersją. Brak dodatków, pobrań lub Blendera na telefonie.
+- Szwy, tłoczenia, przetarcia, ziarno skóry i splot tkaniny powstają w
+  `equipment_materials.py`. Materiały są różne fizycznie, nie tylko kolorem.
+  Maskowana emisja ulepszeń nie zamienia całej klingi w białą płaszczyznę.
+  Własne materiały instancji nie zmieniają współdzielonych tekstur.
+- Ikony siedmiu przedmiotów są renderami faktycznych modeli z Blendera,
+  nie obrazkami koncepcyjnymi. Interfejs zachowuje wektorowy fallback.
+
+### Metryki finalnego modelu 0.2.0
+
+Widoczne trójkąty z mieczem dla poziomów 0/1/2/3:
+**12 491 / 25 575 / 25 281 / 25 501**, powierzchnie **7 / 8 / 8 / 8**.
+Maksimum jest niższe od limitu testów 35 tys. trójkątów / 12 powierzchni.
+`warrior.glb` ma 7 489 108 B, `weapons.glb` 1 085 020 B. Wysokość postaci
+2,0237 m; szkielet ma te same 65 pozycji spoczynkowych co 0.1.8. Tekstury
+ciała i wyposażenia to 12 współdzielonych map, maksymalnie 1024². Konserwatywny
+budżet RGBA8 z mipmapami wynosi około 44 MiB, niezależnie od rzeczywistej
+kompresji sterownika. Portret współdzieli te zasoby zamiast wczytywać drugi atlas.
+
+SHA256 wojownika:
+`d9498c72b266b909763540659286e57d95d7f4142f4283548c6418cff0cef1d6`.
+SHA256 mieczy:
+`c44143fb5e93333623003f7ba430732368139b77a2d7a96c4bbdfcb9e13f94fa`.
+
+### Animacje, kontakt i portret
+
+Płynne krzywe ruchu łączą przygotowanie, kontakt i powrót. Bieg ma ścieżkę
+stawiania stopy, pracę kolan oraz przeciwruch rąk; postój ma oddech i przenoszenie
+ciężaru. Czwarty cios używa oburęcznego chwytu. Nie zmieniono kontaktów obrażeń
+(.16 s pierwszych trzech cięć, .25 s czwartego), ekonomii, odrzutu ani cooldownów.
+`contact_pause` zatrzymuje tylko widoczną animację na .028/.042 s. Fizyka,
+`Engine.time_scale` i zegary rozgrywki biegną normalnie.
+
+Nowe trafienia korzystają z maksymalnie ośmiu kontaktów i trzech partii MultiMesh
+na renderer: smugi kontaktu, iskry i pył. Są zakotwiczone w świecie i ponownie
+używane. Przeciwnik krótko reaguje na kierunek uderzenia, po czym wraca do swojej
+pozy. Dźwięki mają ograniczoną liczbę jednoczesnych głosów; ambient zachowuje
+bezpieczne odroczone ponowienie, bez natywnej pętli WAV.
+
+Podgląd 512² ma jeden zachowywany viewport, limit 30 Hz i dziewięć przycisków:
+obrót, reset, +/−, POSTÓJ, CIOS, BIEG, POZA. Obrót palcem nadal działa, dotknięcie
+przycisku nie rozpoczyna drag modelu. Domyślnie mieści się cała postać z butami
+powyżej kontrolek. Przybliżenie celowo kadruje detale twarzy i pancerza. Małe
+statyczne niebo dostarcza odbicia PBR przy przezroczystym tle portretu. Ukryty
+podgląd nie animuje i nie renderuje. Nie ma motion blur, DOF, glow ani symulacji
+sukna; tkanina pracuje przez wagi szkieletu.
+
+Naprawiono też istniejący błąd toastów po szybkich zakupach/zmianach sprzętu:
+niepoprawne położenie i rosnąca wysokość panelu mogły zasłaniać lewą część gry.
+Panel ma 600×72, dwie linie tekstu i pozycję względem środka dolnej krawędzi.
+Etykieta ma jawne wypełnienie i minimalną wysokość, aby tekst nie znikał w 1 px.
+
+### Świat i ograniczenia mobilne
+
+Osiem par własnych materiałów świata (512 albedo/256 normal) pokrywa ziemię,
+trawę, bruk, kamień, drewno, dachy, tkaninę i tynk. Poprawiono UV/TBN, brzegi
+ścieżek, korony drzew, dalekie nieregularne grzbiety i spokojną wodę. Kuźnia
+używa jednej partii iskier. Świat zachowuje 136 kolizji ruchu i 11 dachów kamery,
+pozycje NPC, przejścia i spawny. Statyczne niebo 128 daje odbicia bez dodatkowych
+świateł. MSAA na Androidzie pozostaje wyłączone od startu.
+
+Testy i kadry są wykonywane w Godot 4.4.1 na Linuxie z prawdziwym OpenGL/Mesa,
+w izolowanych katalogach. To nie pomiar FPS fizycznego telefonu. Aktualizacja
+nie uruchamia testowej transmisji diagnostyki, nie publikuje prywatnych logów
+ani konfiguracji i nie modyfikuje zapisu użytkownika.
+
+### Weryfikacja 0.2.0
+
+| Zakres | Wynik |
+| --- | --- |
+| Pełna pętla gry, dotyk, kolizje, trzy zabicia i respawn | 50/50 |
+| Rzeczywiste przyciski sklepu/ekwipunku/kowala | 17/17 |
+| Odroczony kowal i pojedyncze naliczenie opłaty | 26/26 |
+| Zapis, odtworzenie sprzętu, kopia i błędne dane w jednorazowym katalogu | 19/19 |
+| Cztery ciosy, kontakt, odrzut i kamera | 55/55 |
+| Uderzenie ognia, premia, czas trwania i dotyk kamery | 38/38 |
+| Podgląd, multitouch, ponowne otwieranie i brak pracy w tle | 32/32 |
+| Ograniczone efekty kontaktu i lokalna pauza animacji | 17/17 |
+| Stabilność renderera i niezmienne MSAA, headless | 43/43 |
+| Naturalne zakończenie/restart ambientu i zwalnianie dźwięków | 13/13 |
+| Finalny szkielet, deformacje, chwyt, podeszwy i ostrze, headless | 39/39 |
+| Finalny pakiet HD, materiały, wszystkie pozy i portret, headless | 69/69 |
+| Ten sam pakiet po świeżym imporcie samych źródeł, z 16 rzeczywistymi zrzutami | 85/85 OpenGL |
+| Świat, geometria, materiały, TBN, kolizje i spawny | 18/18 headless, 19/19 OpenGL |
+| Finalne ikony PNG w rzeczywistych kontrolkach GUI przy 64/96/128 px | 21/21 OpenGL |
+| Ponowny import siedmiu ikon, rozmiary, alfa, zasoby tekstur i kontrolki | 23/23 OpenGL na świeżej kopii |
+
+Powyższe sprawdzenia są izolowane od postaci użytkownika i sieci diagnostycznej.
+Na finalnym modelu końcówka miecza podczas slamu jest 0,07 m nad ziemią,
+podeszwy około 0,0154 m. Pozycje dłoni są mierzone względem rzeczywistej rękojeści,
+a kadrowanie przez faktyczne wierzchołki po skinningu. Przegląd ujęć od tyłu i
+z uniesionymi rękami doprowadził do poprawienia pokrycia koszuli/rękawów i
+zamknięcia górnych otworów naramienników. Nie osłabiono kontroli kadrowania,
+aby ukryć problem. Niezależne przeglądy kodu oraz świata nie wykazały dalszych
+błędów blokujących wydanie.
+
+Świeży import rozpoczynał od źródeł bez `.godot`, `.import`, UID i wyodrębnionych
+PNG. Godot odbudował obrazy osadzone w GLB, pięć kanonicznych map atlasu,
+materiały świata i siedem ikon. Headless editor zakończył import kodem 0;
+dwa komunikaty Dummy `texture_2d_get: Parameter t is null` wystąpiły przy
+miniaturach GLB. Faktyczny runtime OpenGL przeszedł 85/85 bez błędów silnika
+i skryptów. Host llvmpipe zgłasza jedynie brak obsługi V-Sync; to nie pomiar
+ani błąd sterownika telefonu.
+
+Finalne materiały prezentacyjne w `docs`: trzy `warrior-{karmazynowa,jadeitowa,
+popielny}-0.2.0.png` to rzeczywiste modele w oświetleniu Blendera;
+`warrior-inventory-0.2.0.png` i `warrior-village-0.2.0.png` to kadry Godota.
+`warrior-motion-0.2.0.mp4` to nagranie finalnego renderera 1280×720/30 fps,
+17,43 s, H.264/AAC (3 796 829 B). Pokazuje trzy rodziny, przybliżenie/POZA,
+obrót, bieg, cztery prawdziwe kontakty kontrolera, uderzenie ognia i płonącą
+broń w portrecie. Scena demonstracyjna ma dodatkowe złoto i wilka z 1200 PŻ,
+aby cała seria była widoczna. To izolowana prezentacja, bez zmian balansu gry.
+Wszystkie pokazane zasoby pochodzą z finalnych GLB i PNG; nie są ilustracjami AI.
+
+Poniższa historia opisuje wcześniejsze wersje; jej stare liczby zasobów i nazwy
+przedmiotów nie są metrykami aktualnego wydania.
+
+## Historia 0.1.8 — pierwszy model wojownika
 
 Na wyraźne polecenie użytkownika zastąpiono klockową geometrię prawdziwą
 siatką postaci przygotowaną w Blenderze 4.5.3 LTS. To zaimplementowany model

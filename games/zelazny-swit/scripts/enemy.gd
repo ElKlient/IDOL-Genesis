@@ -5,6 +5,8 @@ signal struck_player(amount: int)
 signal defeated(enemy: Node3D)
 signal damaged(amount: int, critical: bool)
 
+const HitEffectScript = preload("res://scripts/hit_effect.gd")
+
 enum Mode { ROAM, CHASE, WINDUP, RECOVER, RETURN }
 var hero: CharacterBody3D
 var frozen: bool = false
@@ -42,6 +44,11 @@ var _death_time: float = 0.0
 var _attack_lunge: float = 0.0
 var _knockback_velocity: Vector3 = Vector3.ZERO
 var _stagger_time: float = 0.0
+var _reaction_elapsed: float = 1.0
+var _reaction_duration: float = 0.22
+var _reaction_local: Vector3 = Vector3.ZERO
+var _reaction_strength: float = 0.0
+var _hit_effect: Node3D
 
 func setup(type: int, target: CharacterBody3D) -> void:
 	kind = clampi(type, 0, 2)
@@ -90,7 +97,7 @@ func _ready() -> void:
 	_visual = Node3D.new()
 	add_child(_visual)
 	_visual.rotation.y = _rng.randf_range(-PI, PI)
-	_flash_mat = _mat(Color(1.0, 0.62, 0.40, 0.76))
+	_flash_mat = _mat(Color(1.0, 0.86, 0.64, 0.23))
 	_flash_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	_flash_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	if kind == 2:
@@ -102,6 +109,9 @@ func _ready() -> void:
 	_warning_ring = _ring(0.92 if kind < 2 else 1.23, Color(1.0, 0.19, 0.07, 0.72), 0.028)
 	_warning_ring.visible = false
 	_make_health_bar()
+	_hit_effect = HitEffectScript.new()
+	_hit_effect.name = "ContactEffect"
+	add_child(_hit_effect)
 
 func _mat(color: Color, metallic: float = 0.0) -> StandardMaterial3D:
 	var material := StandardMaterial3D.new()
@@ -308,6 +318,9 @@ func _physics_process(delta: float) -> void:
 	else:
 		velocity.y = -0.5
 	if frozen or not is_instance_valid(hero):
+		_clear_hit_reaction()
+		if is_instance_valid(_hit_effect):
+			_hit_effect.stop()
 		velocity.x = 0.0
 		velocity.z = 0.0
 		_knockback_velocity = Vector3.ZERO
@@ -404,6 +417,12 @@ func apply_knockback(direction: Vector3, strength: float = 7.5) -> void:
 		_warning_ring.visible = false
 
 func _tick_visual(delta: float) -> void:
+	# All cosmetic offsets are reconstructed from the base pose each tick.
+	# They never accumulate into facing, knockback or the collision body.
+	_visual.position.x = 0.0
+	_visual.position.z = 0.0
+	_visual.rotation.x = 0.0
+	_visual.rotation.z = 0.0
 	var movement: float = clampf(Vector2(velocity.x, velocity.z).length() / _speed,0.0,1.0)
 	if _stagger_time > 0.0:
 		movement = 0.0
@@ -426,6 +445,14 @@ func _tick_visual(delta: float) -> void:
 		for arm: Node3D in _arms:
 			arm.rotation.x = 1.1 * _attack_lunge
 		_visual.position.y += sin(_attack_lunge * PI) * 0.10
+	if _reaction_elapsed < _reaction_duration:
+		_reaction_elapsed = minf(_reaction_duration,_reaction_elapsed+delta)
+		var progress: float = _reaction_elapsed/_reaction_duration
+		var kick: float = sin(PI*progress)*(1.0-progress)*1.65*_reaction_strength
+		_visual.position += _reaction_local*0.065*kick
+		_visual.rotation.x = _reaction_local.z*0.115*kick
+		_visual.rotation.z = -_reaction_local.x*0.14*kick
+		_head.rotation.x += 0.09*kick
 	if _flash > 0.0:
 		_flash -= delta
 		if _flash <= 0.0:
@@ -434,22 +461,36 @@ func _tick_visual(delta: float) -> void:
 	_damage_visibility = maxf(0.0, _damage_visibility - delta)
 	_health_root.visible = _targeted or _damage_visibility > 0.0
 
-func take_damage(amount: int, critical: bool = false) -> void:
+func take_damage(amount: int, critical: bool = false, hit_direction: Vector3 = Vector3.ZERO, strike: int = 1) -> void:
 	if _dying or amount <= 0:
 		return
 	hp = maxi(0, hp - amount)
-	_flash = 0.13
+	_flash = 0.075
 	_damage_visibility = 5.0
 	for part: MeshInstance3D in _parts:
 		part.material_overlay = _flash_mat
 	_update_health()
-	_hit_sparks(critical)
+	var away: Vector3 = Vector3(hit_direction.x,0,hit_direction.z) if hit_direction.is_finite() else Vector3.ZERO
+	if away.length_squared()<0.0001 and is_instance_valid(hero):
+		away = global_position-hero.global_position
+		away.y = 0.0
+	if away.length_squared()<0.0001:
+		away = Vector3.BACK
+	away = away.normalized()
+	if is_instance_valid(_hit_effect):
+		var contact_height: float = 1.65 if kind==2 else 0.78
+		# The mark stays on the near side of the target, fixed in world space.
+		_hit_effect.trigger(global_position+Vector3.UP*contact_height-away*0.25,away,strike>=4,critical,kind==2,contact_height)
 	damaged.emit(amount, critical)
 	if hp <= 0:
 		_dying = true
 		velocity = Vector3.ZERO
 		_knockback_velocity = Vector3.ZERO
 		_stagger_time = 0.0
+		_clear_hit_reaction()
+		_flash = 0.0
+		for part: MeshInstance3D in _parts:
+			part.material_overlay = null
 		_health_root.visible = false
 		_target_ring.visible = false
 		_warning_ring.visible = false
@@ -457,6 +498,10 @@ func take_damage(amount: int, critical: bool = false) -> void:
 		set_deferred("collision_mask", 0)
 		defeated.emit(self)
 	else:
+		_reaction_elapsed = 0.0
+		_reaction_duration = 0.28 if strike>=4 else 0.22
+		_reaction_strength = (1.25 if strike>=4 else 1.0)*(0.6 if kind==2 else 1.0)
+		_reaction_local = Basis(Vector3.UP,-_visual.rotation.y)*away
 		if _mode == Mode.ROAM:
 			_mode = Mode.CHASE
 
@@ -466,24 +511,14 @@ func _update_health() -> void:
 		_health_fill.scale.x = ratio
 		_health_fill.position.x = (ratio - 1.0) * 0.60
 
-func _hit_sparks(critical: bool) -> void:
-	var mat: StandardMaterial3D = _mat(Color("ffe9a5") if critical else Color("ffd275"))
-	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	for i: int in range(6 if critical else 4):
-		var spark := MeshInstance3D.new()
-		var box := BoxMesh.new()
-		box.size = Vector3(0.07, 0.07, 0.18)
-		spark.mesh = box
-		spark.material_override = mat
-		spark.position = Vector3(0, 1.5 if kind == 2 else 0.8, 0)
-		spark.rotation = Vector3(_rng.randf() * PI, _rng.randf() * PI, 0)
-		spark.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		add_child(spark)
-		var end: Vector3 = spark.position + Vector3(_rng.randf_range(-0.7, 0.7), _rng.randf_range(0.2, 0.8), _rng.randf_range(-0.7, 0.7))
-		var tween: Tween = create_tween().set_parallel(true)
-		tween.tween_property(spark, "position", end, 0.28)
-		tween.tween_property(spark, "scale", Vector3.ZERO, 0.28)
-		tween.chain().tween_callback(spark.queue_free)
+func _clear_hit_reaction() -> void:
+	_reaction_elapsed = _reaction_duration
+	_reaction_strength = 0.0
+	if is_instance_valid(_visual):
+		_visual.position.x = 0.0
+		_visual.position.z = 0.0
+		_visual.rotation.x = 0.0
+		_visual.rotation.z = 0.0
 
 func is_alive() -> bool:
 	return hp > 0 and not _dying

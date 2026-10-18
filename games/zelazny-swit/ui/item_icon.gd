@@ -5,6 +5,7 @@ var kind: String = "weapon"
 var tier: int = 1
 var accent: Color = Color("b8d3d9")
 var icon_scale: float = 1.0
+var _gear_textures: Dictionary = {}
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -15,6 +16,11 @@ func _draw() -> void:
 	var p: Vector2 = size * 0.5
 	var u: float = s / 80.0 * icon_scale
 	if u <= 0.0:
+		return
+	var gear: Texture2D = _gear_texture()
+	if gear != null:
+		var edge: float = s*0.96*icon_scale
+		draw_texture_rect(gear,Rect2(p-Vector2.ONE*edge*0.5,Vector2.ONE*edge),false)
 		return
 	draw_set_transform(p, -0.45 if kind == "weapon" else 0.0, Vector2(u, u))
 	match kind:
@@ -78,6 +84,21 @@ func _draw() -> void:
 			for y in [-14,0,14]:
 				draw_line(Vector2(-23,y),Vector2(23,y),accent,4,true)
 	draw_set_transform(Vector2.ZERO)
+
+func _gear_texture() -> Texture2D:
+	if kind not in ["weapon","sword","armor"]:
+		return null
+	var category: String = "armor" if kind == "armor" else "weapon"
+	var key: String = "%s_%d" % [category,clampi(tier,0,3)]
+	if _gear_textures.has(key):
+		return _gear_textures[key] as Texture2D
+	var path: String = "res://assets/warrior/icons/"+key+".png"
+	# The vector icon remains available while a source project is importing.
+	if not ResourceLoader.exists(path):
+		return null
+	var texture: Texture2D = load(path) as Texture2D
+	_gear_textures[key] = texture
+	return texture
 
 func _box(color: Color, radius: int) -> StyleBoxFlat:
 	var b: StyleBoxFlat = StyleBoxFlat.new()

@@ -1,8 +1,102 @@
-# Integration contract
-Godot 4.4+, typed GDScript avoid inference from Variant. Procedural original assets; Polish UI.
-Root owns scripts/main.gd scripts/game_state.gd tests and project.
-World owner: scripts/world.gd class_name VillageWorld extends Node3D. Builds itself on ready. Public spawn_position = Vector3(0,0,5), npc_positions dictionary {merchant: Vector3(-6,0,0), blacksmith: Vector3(6,0,0)}, enemy_spawns Array[Dictionary] {kind:int, position:Vector3}, optional tick(delta). Flat navigable ground y=0; world border +-48 x,z. Village around origin, northern wilds negative z; do not block route origin to NPC within ~3m, northern gate x0,z-14. Add collision ground and major houses/trees, none on ground paths. No dependency on GameState/main. Root camera behind hero at (0,16,13) relative, perspective 48deg, overview village. Need good high quality stylized art and shadows within mobile budget.
-Entities owner scripts/player.gd class_name Hero extends CharacterBody3D: move_input:Vector2, dead:bool, facing:Vector3, play_attack(combo:int=0,skill:bool=false), set_equipment(weapon_tier:int,armor_tier:int,upgrade:int=0), receive_hit(), reset_to(pos:Vector3). Vector2(0,-1) moves world -z. Floor collision gravity. Visual forward -z, expose facing matching movement.
-scripts/enemy.gd class_name WildEnemy extends CharacterBody3D: hero:CharacterBody3D, frozen:bool, kind:int; display_name:String, level:int,max_hp:int,hp:int,reward_gold:int,reward_xp:int; setup(type:int,target:CharacterBody3D) before add_child, take_damage(amount:int,critical:bool=false),is_alive()->bool,set_targeted(bool). Signals struck_player(amount:int), defeated(enemy:Node3D), damaged(amount:int,critical:bool). Make dead enemies queue_free after death anim, root schedules respawn, AI return to spawn beyond leash. Flat floor y=0. Damage effects handled entity local; root floating damage labels. Entities no GameState dependency.
-UI owner ui/hud.gd class_name GameHUD extends CanvasLayer: setup(hero:Node3D), move_vector:Vector2, attack_held:bool, modal_open:bool, signals attack_requested,skill_requested,potion_requested,interact_requested,close_requested; set_context(text:String), set_target(name:String,hp:int,max_hp:int,level:int),clear_target(), toast(text:String), open_panel(mode:String), refresh(). Panel modes inventory/shop/forge/help/settings; root pauses enemies with modal_open. UI may get main via get_parent(), but communicate actions via listed signals. UI reads GameState singleton API below. Layout landscape touch usable at 1280x720, expand aspect; left joystick right attack/skill/potion/interact, top left HP/XP gold level, top right small minimap custom drawing optionally set_world_positions(hero_pos:Vector3,enemies:Array,npcs:Dictionary), inventory/menu buttons. Inventory slot proper drag and drop to forge target, ALSO tap select for mobile reliability. forge select -> preview cost/chance -> explicit upgrade button, first +1 guaranteed. Texture assets procedural vector draw permitted. Use UI icons custom _draw not font emoji.
-GameState singleton API (root supplies): signal changed; signal message(text:String); gold:int=10000,level:int=1,xp:int=0,hp:int=180,potions:int=10,kills:int=0,quest_stage:int=0,quest_claimed:bool=false,inventory:Array[Dictionary],weapon_uid:int,armor_uid:int. Item dictionary {uid:int,id:String,kind:String,name:String,tier:int,upgrade:int,power:int,price:int,icon:String,color:Color}. kinds weapon,armor. catalog()->Array[Dictionary] returns six equipment and two consumables {id,name,kind,power,price,tier,icon,color,description}. item_name(item)->String, item_power(item)->int, attack_power()->int,defense()->int,max_health()->int,xp_needed()->int,equipped(kind:String)->Dictionary,find_item(uid:int)->Dictionary; buy(id:String)->bool,equip(uid:int)->bool,use_potion()->bool, upgrade_cost(uid:int)->int,upgrade_chance(uid:int)->int,upgrade_item(uid:int)->bool,save_game(),load_game(),new_game() (new game only explicit reset confirm),gain_reward(gold_amount:int,xp_amount:int),damage(amount:int),heal_full(),claim_quest()->bool,quest_text()->String. Items persist JSON. root receives changed to refresh stats/equipment. UI settings toggle audio via main.set_audio_enabled(bool) optional don't require. Forge shows inventory currently and equipped labels. No remote tools or git writes by agents.
+# Kontrakty integracji — 0.2.0
+
+Godot 4.4+, Compatibility/OpenGL, typowany GDScript, polski interfejs.
+Projekt jest samodzielny w `games/zelazny-swit`; nie ładuje starszego projektu
+z korzenia repozytorium. Nie wymaga Blendera ani pobierania zasobów w runtime.
+
+## Stan i zapis
+
+`GameState` jest autoloadem. Sygnały: `changed`, `message(text: String)`.
+Nowa gra zaczyna od 10 000 G, 10 mikstur i `training_sword`. Identyfikatory
+`iron_sword`, `hunter_sword`, `dawn_sword`, `leather_armor`, `guard_armor`,
+`dawn_armor` pozostają zgodne z zapisem schematu 1. Nowe nazwy i `set_name`
+pochodzą z katalogu, nie z zapisanych kopii opisów.
+
+Przedmiot: `{uid, id, kind, name, tier, upgrade, power, price, icon, color}`,
+opcjonalnie `set_name`. `kind` to `weapon` lub `armor`. Katalog zawiera też
+`consumable`. Główne API: `catalog()`, `definition(id)`, `find_item(uid)`,
+`equipped(kind)`, `item_name(item)`, `item_power(item)`, `attack_power()`,
+`defense()`, `max_health()`, `buy(id)`, `equip(uid)`, `use_potion()`,
+`upgrade_cost(uid)`, `upgrade_chance(uid)`, `upgrade_item(uid)`,
+`gain_reward(gold, xp)`, `damage(amount)`, `claim_quest()`, `quest_text()`.
+
+Zapis `user://adventure_v1.json` jest atomowy, ma kopię `.bak`. `new_game()`
+wywołuje wyłącznie świadomie potwierdzony reset. Aktualizacja grafiki nie
+zmienia ekonomii, postępu ani plików prywatnej konfiguracji diagnostyki.
+
+## Postać, modele i animacje
+
+`Hero extends CharacterBody3D` (`scripts/player.gd`) udostępnia `move_input`,
+`facing`, `dead`, `play_attack(combo, skill)`, `receive_hit()`, `reset_to(pos)`
+oraz `set_equipment(weapon_tier, armor_tier, upgrade=0, armor_upgrade=0)`.
+Przód modelu to −Z; wejście `(0, -1)` oznacza ruch w kierunku −Z świata przed
+przeliczeniem przez kamerę. Fizyka i terminy obrażeń należą do kontrolera gry.
+
+`CharacterVisual` steruje oddechem, biegiem, czterema cięciami, oburęcznym
+slamem i ogniem. Publiczne stawy kontrolne są mapowane przez `WarriorModel`
+na rzeczywisty szkielet 65 kości. Transformacja kości jest pełną transformacją
+lokalną względem rodzica; nie należy ponownie mnożyć jej przez rest.
+Siatki tkaniny korzystają z wag szkieletu; nie ma symulacji sukna ani osobnych
+kości płaszcza. `cape` jest pustym węzłem zgodności.
+
+`warrior.glb` wymaga wariantów `Armor0`–`Armor3`, `weapons.glb` — `Weapon0`–
+`Weapon3`. Pięć kanonicznych plików `equipment_*.png` musi pozostać obok GLB.
+Materiały atlasu mają normal mapę i wspólną mapę ORM: R=AO, G=roughness,
+B=metallic. `BladeEquipmentAtlas` ma osobną maskę emisji. Zmienne materiały są
+kopiowane raz na aktora; siatki, skin i tekstury są współdzielone z portretem.
+Ulepszenie miecza i zbroi trafia do adaptera osobno.
+
+`contact_pause(seconds)` zatrzymuje tylko zegar widocznej animacji, nigdy
+`Engine.time_scale`, fizykę, cooldowny ani zegar obrażeń. `set_presentation_pose`
+służy portretowi; atak i slam wyłączają tę pozę przed rozpoczęciem.
+
+## Świat i przeciwnicy
+
+`VillageWorld extends Node3D` buduje świat na `_ready()`, udostępnia
+`spawn_position`, `npc_positions`, `enemy_spawns` i `tick(delta)`. Ziemia ma
+y=0; wioska jest przy początku układu, dzicz na północy (−Z). Przejścia do Miry,
+Borna i północnej bramy muszą pozostać dostępne. Tekstury i materiały świata
+są współdzielone; dachy mają osobne kolizje kamery. Zmiana jakości nie może
+przełączać MSAA podczas rozgrywki.
+
+`WildEnemy extends CharacterBody3D` otrzymuje `setup(type, target)` przed
+dołączeniem do sceny; udostępnia `is_alive()`, `set_targeted(bool)` i
+`take_damage(amount, critical=false, hit_direction=Vector3.ZERO, strike=1)`.
+Sygnały: `struck_player(amount)`, `defeated(enemy)`, `damaged(amount, critical)`.
+AI, odrzut i obrażenia pozostają niezależne od lokalnej wizualnej reakcji.
+Respawn planuje kontroler główny po zakończeniu życia przeciwnika.
+
+`HitEffect` przechowuje maksymalnie osiem kontaktów w trzech powtarzalnie
+używanych partiach MultiMesh. Punkty kontaktu są zakotwiczone w świecie;
+nie wolno tworzyć osobnego węzła/tweena dla każdej iskry. Dźwięk trafień ma
+ograniczoną pulę głosów. Ambient WAV nie używa natywnej pętli — odtwarzanie
+ponawia się odroczone po `finished`.
+
+## Interfejs i podgląd
+
+`GameHUD extends CanvasLayer` udostępnia `move_vector`, `attack_held`,
+`modal_open` i sygnały akcji; `setup(hero)`, `set_context(text)`,
+`set_target(name, hp, max_hp, level)`, `clear_target()`, `toast(text)`,
+`open_panel(mode)`, `refresh()`. Tryby obejmują inventory/shop/forge/help/
+settings/camera. Przy otwartym panelu główny kontroler blokuje walkę i ruch.
+
+Interfejs bazowy to 1280×720 z rozszerzaniem proporcji. Dotyk joysticka i pola
+kamery ma niezależnego właściciela palca. Drag & drop na kowadło tylko wybiera
+przedmiot; koszt nalicza jawny, odroczony przycisk ulepszenia. Panel przebudowuje
+się raz po zmianie stanu; zamknięcie lub zmiana wybranego UID anuluje starą akcję.
+
+Portret `CharacterPreview` ma jeden zachowywany `SubViewport` 512². Widoczny
+portret zgłasza render maksymalnie w 30 Hz; ukryty nie animuje i nie renderuje.
+Współdzieli wyposażenie przez cztery parametry `set_equipment`, przechowuje
+obrót i zoom oraz dziewięć przycisków: +, −, W LEWO, RESET, W PRAWO, POSTÓJ,
+CIOS, BIEG, POZA. Przyciski nie mogą jednocześnie rozpoczynać przeciągania
+modelu. Domyślny widok pokazuje całą postać; świadome przybliżenie służy detalom.
+Własne małe statyczne niebo daje odbicia PBR bez dodatkowych cieni portretu.
+
+## Izolowana weryfikacja
+
+Testy wymagają `--test-isolated`; diagnostyka sieciowa i zapis postaci są wtedy
+wyłączone. Test trwałości wymaga dodatkowo jawnego, jednorazowego
+`XDG_DATA_HOME` oraz `--test-data-root`. Polecenia i zakres sprawdzania są
+w `tests/README.md`. Rzeczywiste rendery OpenGL nie zastępują pomiaru FPS na
+telefonie. Nie kopiować tokenów diagnostyki do testów ani repozytorium.

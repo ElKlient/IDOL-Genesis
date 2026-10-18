@@ -32,12 +32,12 @@ func _ready() -> void:
 
 func catalog() -> Array[Dictionary]:
 	return [
-		{"id":"iron_sword", "kind":"weapon", "name":"Żelazny miecz", "tier":1, "power":12, "price":350, "icon":"sword", "color":Color("b6cbd3"), "description":"Pewny oręż na pierwszy wypad za bramę."},
-		{"id":"hunter_sword", "kind":"weapon", "name":"Ostrze łowcy", "tier":2, "power":24, "price":1300, "icon":"sword", "color":Color("73bea5"), "description":"Szybkie ostrze z hartowanej stali."},
-		{"id":"dawn_sword", "kind":"weapon", "name":"Miecz Świtu", "tier":3, "power":40, "price":3400, "icon":"sword", "color":Color("dfbd70"), "description":"Złocona klinga strażników Brzezin."},
-		{"id":"leather_armor", "kind":"armor", "name":"Skórzany kaftan", "tier":1, "power":4, "price":500, "icon":"armor", "color":Color("ad8061"), "description":"Lekka ochrona przed kłami i pazurami."},
-		{"id":"guard_armor", "kind":"armor", "name":"Pancerz straży", "tier":2, "power":9, "price":1800, "icon":"armor", "color":Color("86aebb"), "description":"Stalowe płyty i solidne naramienniki."},
-		{"id":"dawn_armor", "kind":"armor", "name":"Zbroja Świtu", "tier":3, "power":16, "price":4200, "icon":"armor", "color":Color("d4b168"), "description":"Ciężka zbroja z runicznymi zdobieniami."},
+		{"id":"iron_sword", "kind":"weapon", "name":"Szabla Karmazynowej Straży", "tier":1, "power":12, "price":350, "icon":"sword", "color":Color("c97960"), "set_name":"Karmazynowa Straż", "description":"Wygięta stalowa klinga, karmazynowy chwyt i słoneczna garda. Pierwszy oręż straży Brzezin."},
+		{"id":"hunter_sword", "kind":"weapon", "name":"Ostrze Jadeitowej Bramy", "tier":2, "power":24, "price":1300, "icon":"sword", "color":Color("78b9a7"), "set_name":"Jadeitowa Brama", "description":"Jasna stal i brązowa garda z jadeitowym rdzeniem. Broń wartowników górskiej bramy."},
+		{"id":"dawn_sword", "kind":"weapon", "name":"Miecz Popielnego Żaru", "tier":3, "power":40, "price":3400, "icon":"sword", "color":Color("eea16a"), "set_name":"Popielny Żar", "description":"Ciężka klinga z czernionej stali. W jej wykutym kanale tli się żar dawnej kuźni."},
+		{"id":"leather_armor", "kind":"armor", "name":"Zbroja Karmazynowej Straży", "tier":1, "power":4, "price":500, "icon":"armor", "color":Color("c97960"), "set_name":"Karmazynowa Straż", "description":"Stalowe lamele, skórzane wiązania i karmazynowa szarfa. Pancerz ludzi chroniących Brzeziny."},
+		{"id":"guard_armor", "kind":"armor", "name":"Pancerz Jadeitowej Bramy", "tier":2, "power":9, "price":1800, "icon":"armor", "color":Color("78b9a7"), "set_name":"Jadeitowa Brama", "description":"Jasne płyty, patynowany brąz i jadeitowe okucia na ciemnej tkaninie."},
+		{"id":"dawn_armor", "kind":"armor", "name":"Zbroja Popielnego Żaru", "tier":3, "power":16, "price":4200, "icon":"armor", "color":Color("eea16a"), "set_name":"Popielny Żar", "description":"Warstwowe czarne żelazo, popielate wiązania i stary karmazyn. Ślady napraw pamiętają wiele bitew."},
 		{"id":"potion", "kind":"consumable", "name":"Mikstura zdrowia", "tier":0, "power":90, "price":60, "icon":"potion", "color":Color("de6a70"), "description":"Przywraca 90 PŻ. Przytrzymaj zapas na walkę."},
 		{"id":"potion_pack", "kind":"consumable", "name":"Zapas mikstur ×10", "tier":0, "power":900, "price":500, "icon":"potion", "color":Color("de6a70"), "description":"Dziesięć mikstur w korzystniejszej cenie."}
 	]

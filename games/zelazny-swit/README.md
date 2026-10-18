@@ -1,4 +1,4 @@
-# Żelazny Świt — 0.1.8
+# Żelazny Świt — 0.2.0
 
 Oryginalna, jednoosobowa gra akcji RPG 3D na telefon, napisana w Godocie 4.4+.
 Sterowanie dotykowe w poziomie. Mały grywalny wycinek: wioska Brzeziny, wojownik,
@@ -31,11 +31,11 @@ ponownie — do aktualizacji służy następny blok.
 
 1. Lewym joystickiem idź do **Miry**, przy straganie po lewej stronie placu.
    Gdy zobaczysz przycisk „Mira • Handel”, naciśnij go.
-2. Kup **Żelazny miecz (350 G)** albo lepszy. Kup także zbroję.
+2. Kup **Szablę Karmazynowej Straży (350 G)** albo lepszy oręż. Kup także zbroję.
 3. Otwórz plecak, wybierz przedmiot i załóż go. Broń oraz zbroja zmieniają wygląd postaci.
 4. Idź do **Borna**, przy kuźni po prawej. Przeciągnij przedmiot z listy
    na pole kowala albo wybierz go dotknięciem. Zobacz koszt i naciśnij **Ulepsz**.
-   Pierwsze ulepszenie żelaznego miecza kosztuje **180 G** i ma **100%** szans.
+   Pierwsze ulepszenie szabli kosztuje **180 G** i ma **100%** szans.
 5. Wyjdź przez północną bramę. Podejdź do wilka i przytrzymaj przycisk ataku.
    Łupy i doświadczenie odbierasz automatycznie. Mikstura leczy 90 PŻ,
    a **Wir stali** uderza pobliskich wrogów i odnawia się przez 7 sekund.
@@ -108,23 +108,83 @@ Potem otwórz ten sam `games/zelazny-swit/project.godot` i naciśnij ▶.
 Polecenie zachowuje ewentualne lokalne zmiany `project.godot` w `git stash list`.
 Nie przywraca ich automatycznie: nowa wersja zawiera wymagane ustawienia mobilne
 i autoload diagnostyki. Zapis postaci oraz prywatna konfiguracja raportów zostają.
-Nie używaj resetowania ani usuwania folderu. W HUD pod zdrowiem sprawdź numer **v0.1.8**.
+Nie używaj resetowania ani usuwania folderu. W HUD pod zdrowiem sprawdź numer **v0.2.0**.
 
 ## Uruchamianie i zakres
 
 - Godot **4.4.1** lub nowszy z obsługą GDScript; Compatibility / OpenGL.
 - Projekt działa bez Blendera, pobierania paczek i instalowania dodatków.
 - Wojownik korzysta z prawdziwej siatki i szkieletu przygotowanych w Blenderze:
-  baza ludzka Quaternius CC0, własne zbroje i miecze. Świat, animacje, efekty,
-  ikony i dźwięki powstają z kodu. Pochodzenie: [assets/warrior/CREDITS.md](assets/warrior/CREDITS.md).
+  baza ludzka Quaternius CC0, własne zbroje i miecze, współdzielone tekstury PBR.
+  Ikony przedmiotów to rendery tych samych modeli. Świat i jego materiały,
+  animacje, efekty oraz dźwięki powstają z kodu.
+  Pochodzenie: [docs/ASSETS.md](docs/ASSETS.md).
 - Rozdzielczość bazowa 1280 × 720, poziomy ekran, interfejs skaluje się do telefonu.
 - Jest to pierwszy grywalny wycinek, a nie rozbudowane MMORPG: brak rozgrywki
   wieloosobowej, klas poza wojownikiem, rozległych map i pełnej kampanii.
 - Udostępniony jest projekt do uruchomienia w Godocie, nie gotowy instalator APK.
 - Użytkownik potwierdził chodzenie, walkę, zabijanie potworów i ulepszanie
   przedmiotów na swoim telefonie oraz zaakceptował zbliżenie kamery 0.1.5.
-  Zrzuty użytkownika pokazują także uruchomioną 0.1.6. Funkcje 0.1.8 wymagają
-  jego próby po aktualizacji.
+  Zrzuty użytkownika pokazują także uruchomioną 0.1.6, a później potwierdził
+  działanie nowego wojownika. Wersja 0.2.0 została sprawdzona na Linuxie;
+  wydajność tej aktualizacji na jego telefonie wymaga próby po pobraniu.
+
+## Aktualizacja 0.2.0 — trzy linie wyposażenia
+
+Wojownik otrzymał dopasowane, warstwowe pancerze z odrębnymi sylwetkami,
+metalowymi obrzeżami, wiązaniami i tkaniną deformowaną szkieletem. Trzy rodziny
+mają własne modele kling i gard oraz materiały stali, skóry, tkaniny i kamieni.
+
+| Zestaw | Wygląd | Broń | Zbroja |
+| --- | --- | ---: | ---: |
+| Karmazynowa Straż | stal, złote okucia, karmazynowa szarfa i asymetryczne naramienniki | 350 G | 500 G |
+| Jadeitowa Brama | jasny napierśnik, brąz, jadeit i długie turkusowe poły | 1300 G | 1800 G |
+| Popielny Żar | czernione żelazo, skórzane pasy i ciemne bordo | 3400 G | 4200 G |
+
+Dotychczasowe identyfikatory przedmiotów, ceny, statystyki i zapis pozostają
+zgodne. Sprzęt ze starego zapisu otrzymuje nowe nazwy i modele automatycznie.
+Poziom ulepszenia zmienia wygląd powierzchni; delikatna emisja klingi korzysta
+z maski krawędzi i graweru. Płonące ostrze nadal uruchamia osobna umiejętność.
+
+Postój i bieg płynniej przechodzą w cięcia. Czwarty cios korzysta z oburęcznego
+chwytu, a trafieniu towarzyszą krótka reakcja przeciwnika, iskry, pył i nowy dźwięk.
+Krótka pauza animacji przy kontakcie nie zatrzymuje fizyki ani zegara gry.
+Terminy obrażeń, odrzut, premie i odnowienia umiejętności są zachowane.
+
+Podgląd w ekwipunku ma **obrót, przybliżenie +/− oraz POSTÓJ / CIOS / BIEG / POZA**.
+Przybliżenie pozwala obejrzeć twarz i napierśnik. RESET przywraca obrót i skalę.
+Ukryte okno nie renderuje; aktywny portret pracuje maksymalnie w 30 Hz przy 512².
+
+Wioska ma teksturowane podłoże, kamień, drewno, dachy i tkaniny, łagodniejsze
+przejścia ścieżek, poprawione korony drzew i odległe grzbiety gór. Układ przejść,
+NPC i potworów pozostaje ten sam. Nie dodano rozmycia ruchu, DOF ani glow.
+
+Wojownik z najcięższym mieczem i zbroją ma około **25,5 tys. widocznych
+trójkątów i 8 powierzchni materiałów**. Największe tekstury mają 1024²;
+postać w świecie i podgląd współdzielą siatki oraz obrazy. To ograniczenia
+zasobów przygotowane pod telefon, nie deklaracja zmierzonego na nim FPS.
+
+Plansze koncepcyjne wyznaczają kierunek. Modele w grze zachowują stylizowane
+proporcje i budżet telefonu; koncepcje nie są zrzutami gotowej rozgrywki.
+
+Rzeczywiste modele z finalnych GLB w studyjnym oświetleniu Blendera:
+[Karmazynowa Straż](docs/warrior-karmazynowa-0.2.0.png),
+[Jadeitowa Brama](docs/warrior-jadeitowa-0.2.0.png),
+[Popielny Żar](docs/warrior-popielny-0.2.0.png).
+
+Rzeczywiste kadry finalnej gry z Godota:
+[przybliżenie w ekwipunku](docs/warrior-inventory-0.2.0.png),
+[wojownik i płonący miecz w Brzezinach](docs/warrior-village-0.2.0.png).
+
+[Film z Godota — trzy zestawy, bieg, cztery ciosy i ogień](docs/warrior-motion-0.2.0.mp4)
+trwa 17 sekund. To nagranie rzeczywistego renderera na Linuxie, z demonstracyjnym
+wyposażeniem i złotem oraz wilkiem o zwiększonych PŻ, aby pokazać całą serię.
+Nowa gra nadal zaczyna od 10 000 G; nagranie nie mierzy FPS telefonu.
+
+Końcowa weryfikacja pakietu HD przeszła **69/69 sprawdzeń headless** oraz
+**85/85 OpenGL na świeżym imporcie źródeł**, z 16 rzeczywistymi zrzutami.
+Przeszły także testy zakupów, odroczonego kowala, zapisu, czterech ciosów,
+ognia, podglądu i dźwięku. Szczegóły: [tests/README.md](tests/README.md).
 
 ## Aktualizacja 0.1.8 — nowy wojownik i wyposażenie
 

@@ -14,6 +14,7 @@ var weapon_variants: Dictionary = {}
 var materials: Array[StandardMaterial3D] = []
 var load_succeeded: bool = false
 var _material_copies: Dictionary = {}
+var _material_defaults: Dictionary = {}
 var _controls: Dictionary = {}
 var _corrections: Dictionary = {}
 var _bone_order: Array[int] = []
@@ -39,6 +40,9 @@ func load_model() -> bool:
 		return false
 	for tier: int in range(4):
 		armor_variants[tier] = _variant(model_root,"Armor%d" % tier)
+		if armor_variants[tier] == null:
+			push_error("Warrior model is missing Armor%d." % tier)
+			return false
 	_collect_meshes(model_root)
 	_bone_order.resize(skeleton.get_bone_count())
 	_desired.resize(skeleton.get_bone_count())
@@ -62,7 +66,11 @@ func attach_weapons(parent: Node3D) -> void:
 	parent.add_child(weapon_root)
 	for tier: int in range(4):
 		weapon_variants[tier] = _variant(weapon_root,"Weapon%d" % tier)
-	_collect_meshes(weapon_root)
+		if weapon_variants[tier] == null:
+			load_succeeded = false
+			push_error("Warrior weapons are missing Weapon%d." % tier)
+			return
+	_collect_meshes(weapon_root,"weapon")
 
 func _variant(scene: Node,node_name: String) -> Node3D:
 	if scene.name == node_name:
@@ -75,7 +83,7 @@ func _variant(scene: Node,node_name: String) -> Node3D:
 		return child as Node3D
 	return null
 
-func _collect_meshes(scene: Node) -> void:
+func _collect_meshes(scene: Node,equipment_kind: String = "armor") -> void:
 	var candidates: Array[Node] = scene.find_children("*","MeshInstance3D",true,false)
 	if scene is MeshInstance3D:
 		candidates.push_front(scene)
@@ -95,6 +103,7 @@ func _collect_meshes(scene: Node) -> void:
 				_material_copies[key] = copy
 				if copy is StandardMaterial3D:
 					materials.append(copy)
+					_material_defaults[copy.get_instance_id()] = {"roughness":copy.roughness,"emission_energy":copy.emission_energy_multiplier,"equipment_kind":equipment_kind}
 			part.set_surface_override_material(surface,_material_copies[key])
 		part.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 		mesh_parts.append(part)
@@ -149,7 +158,7 @@ func sync_pose() -> void:
 		skeleton.set_bone_pose_rotation(index,local_pose.basis.orthonormalized().get_rotation_quaternion())
 		skeleton.set_bone_pose_scale(index,local_pose.basis.get_scale())
 
-func set_equipment(weapon_tier: int,armor_tier: int,upgrade: int) -> StandardMaterial3D:
+func set_equipment(weapon_tier: int,armor_tier: int,upgrade: int,armor_upgrade: int = 0) -> StandardMaterial3D:
 	_selected_weapon = clampi(weapon_tier,0,3)
 	for tier: int in armor_variants:
 		var variant: Node3D = armor_variants[tier]
@@ -161,11 +170,20 @@ func set_equipment(weapon_tier: int,armor_tier: int,upgrade: int) -> StandardMat
 			variant.visible = tier == _selected_weapon
 	var selected_blade: StandardMaterial3D
 	for material: StandardMaterial3D in materials:
-		if not material.resource_name.begins_with("Blade"):
-			continue
-		material.emission_enabled = upgrade > 0 or weapon_tier == 3
-		material.emission = material.albedo_color
-		material.emission_energy_multiplier = minf(0.10*upgrade+0.07*weapon_tier,0.78)
+		var defaults: Dictionary = _material_defaults.get(material.get_instance_id(),{})
+		if material.resource_name.begins_with("Blade"):
+			var grade: int = clampi(upgrade,0,6)
+			var hues: Array[Color] = [Color("d8e7e7"),Color("ffca85"),Color("94dfcb"),Color("ff9d63")]
+			# The atlas restricts emission to a honed edge and recessed engraving.
+			# The opaque steel still receives ordinary scene light and reflections.
+			material.emission_enabled = grade > 0 or weapon_tier == 3
+			material.emission = hues[clampi(weapon_tier,0,3)]
+			material.emission_energy_multiplier = 0.045*grade+0.008*grade*grade+(0.10 if weapon_tier == 3 else 0.0)
+			material.roughness = float(defaults.get("roughness",1.0))*(1.0-0.025*grade)
+		elif material.resource_name.begins_with("EquipmentAtlas"):
+			var grade: int = clampi(upgrade if str(defaults.get("equipment_kind","armor")) == "weapon" else armor_upgrade,0,6)
+			material.roughness = float(defaults.get("roughness",1.0))*(1.0-0.018*grade)
+			material.emission_energy_multiplier = float(defaults.get("emission_energy",1.0))*(1.0+0.045*grade)
 	var selected: Node3D = weapon_variants.get(_selected_weapon) as Node3D
 	if selected != null:
 		var candidates: Array[Node] = selected.find_children("*","MeshInstance3D",true,false)

@@ -10,6 +10,7 @@ var visual: CharacterVisual
 var _weapon_tier: int = 0
 var _armor_tier: int = 0
 var _upgrade: int = 0
+var _armor_upgrade: int = 0
 var _death_angle: float = 0.0
 var attack_locked_time: float = 0.0
 var _sword_burning: bool = false
@@ -28,6 +29,7 @@ func _ready() -> void:
 	visual.weapon_tier = _weapon_tier
 	visual.armor_tier = _armor_tier
 	visual.upgrade_level = _upgrade
+	visual.armor_upgrade_level = _armor_upgrade
 	add_child(visual)
 	visual.set_sword_flame(_sword_burning)
 	var shadow := MeshInstance3D.new()
@@ -57,6 +59,8 @@ func _physics_process(delta: float) -> void:
 	if dead:
 		cancel_fire_slam()
 		set_sword_flame(false)
+		if is_instance_valid(visual) and visual.has_method("contact_pause"):
+			visual.call("contact_pause",0.0)
 	var speed: float = MOVE_SPEED
 	if is_instance_valid(visual) and visual.is_attacking():
 		speed *= 0.52
@@ -98,16 +102,23 @@ func set_sword_flame(burning: bool) -> void:
 	if is_instance_valid(visual):
 		visual.set_sword_flame(burning)
 
-func set_equipment(weapon_tier: int, armor_tier: int, upgrade: int = 0) -> void:
+func set_equipment(weapon_tier: int, armor_tier: int, upgrade: int = 0, armor_upgrade: int = 0) -> void:
 	_weapon_tier = weapon_tier
 	_armor_tier = armor_tier
 	_upgrade = upgrade
+	_armor_upgrade = armor_upgrade
 	if is_instance_valid(visual):
-		visual.set_equipment(weapon_tier, armor_tier, upgrade)
+		visual.set_equipment(weapon_tier, armor_tier, upgrade, armor_upgrade)
 
 func receive_hit() -> void:
 	if is_instance_valid(visual):
 		visual.hit_flash()
+
+func confirm_contact(heavy: bool = false) -> void:
+	# This only holds the visual pose for a few milliseconds. Input, movement,
+	# AI, damage contacts, timers and skill cooldowns keep normal simulation time.
+	if not dead and is_instance_valid(visual) and visual.has_method("contact_pause"):
+		visual.call("contact_pause",0.042 if heavy else 0.028)
 
 func reset_to(pos: Vector3) -> void:
 	cancel_fire_slam()
@@ -119,6 +130,8 @@ func reset_to(pos: Vector3) -> void:
 	_death_angle = 0.0
 	if is_instance_valid(visual):
 		visual.rotation.z = 0.0
+		if visual.has_method("contact_pause"):
+			visual.call("contact_pause",0.0)
 
 func face_direction(direction: Vector3) -> void:
 	var flat := Vector3(direction.x, 0, direction.z)

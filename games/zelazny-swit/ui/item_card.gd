@@ -22,7 +22,8 @@ func _ready() -> void:
 func _build() -> void:
 	var b: StyleBoxFlat = StyleBoxFlat.new()
 	b.bg_color = Color("213d43") if chosen else Color("162b32")
-	b.border_color = Color("d6b577") if chosen else Color("39504e")
+	var family_color: Color = item.get("color",Color("a7bbb4"))
+	b.border_color = Color("d6b577") if chosen else (family_color.darkened(0.55) if item.has("set_name") else Color("39504e"))
 	b.set_border_width_all(2 if chosen else 1)
 	b.set_corner_radius_all(9)
 	b.content_margin_left = 12
@@ -46,6 +47,14 @@ func _build() -> void:
 	info.add_theme_constant_override("separation",4)
 	info.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.add_child(info)
+	var family: String = str(item.get("set_name",""))
+	if not family.is_empty():
+		var family_label := Label.new()
+		family_label.text = family.to_upper()
+		family_label.add_theme_font_size_override("font_size",10)
+		family_label.add_theme_color_override("font_color",family_color)
+		family_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		info.add_child(family_label)
 	var title: Label = Label.new()
 	title.text = str(item.get("name","Przedmiot"))
 	if not catalog_entry and int(item.get("upgrade",0)) > 0:

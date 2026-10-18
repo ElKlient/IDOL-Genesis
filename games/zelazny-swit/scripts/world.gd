@@ -1,7 +1,7 @@
 class_name VillageWorld
 extends Node3D
-## Original hand-built low-poly frontier village. All scenery shares a handful
-## of batched meshes so the Android Compatibility renderer stays inexpensive.
+## Original frontier village. Shared tileable material maps, vertex tint and
+## merged scenery keep detail bounded on the Android Compatibility renderer.
 
 var spawn_position: Vector3 = Vector3(0, 0, 5)
 var npc_positions: Dictionary = {
@@ -25,8 +25,9 @@ var _camera_collision: StaticBody3D
 var _rng: RandomNumberGenerator = RandomNumberGenerator.new()
 var _fire: Array[MeshInstance3D] = []
 var _fire_light: OmniLight3D
+var _embers: MultiMeshInstance3D
 var _banners: Array[Node3D] = []
-var _water: MeshInstance3D
+var _world_textures: Dictionary = {}
 var _clock: float = 0.0
 
 func _ready() -> void:
@@ -45,31 +46,32 @@ func _ready() -> void:
 	_landscape()
 	_village()
 	_forest()
+	_gardens()
 	_flush_batches()
 	_create_npc("Mira • Handel", npc_positions["merchant"], false)
 	_create_npc("Born • Kowal", npc_positions["blacksmith"], true)
 	_ambient_details()
 
 func _palette() -> void:
-	_material("grass", "697f45")
-	_material("grass_light", "7f8e4b")
-	_material("grass_dark", "526741")
-	_material("earth", "ae9569")
-	_material("path", "c4ab7b")
-	_material("path_edge", "b69b6d")
-	_material("stone", "777b77")
-	_material("stone_light", "9a9b8a")
-	_material("stone_dark", "505c59")
-	_material("plaster", "e2cba2")
-	_material("plaster_light", "efddba")
-	_material("plaster_warm", "d4b080")
-	_material("wood", "75523b")
-	_material("wood_dark", "493d31")
-	_material("wood_light", "ae8754")
-	_material("roof_blue", "426c73")
-	_material("roof_blue_dark", "34545d")
-	_material("roof_rust", "a95237")
-	_material("roof_rust_dark", "89402e")
+	_material("grass", "667748")
+	_material("grass_light", "7c8b55")
+	_material("grass_dark", "5e7044")
+	_material("earth", "ada087")
+	_material("path", "bcad91")
+	_material("path_edge", "b3a68c")
+	_material("stone", "858782")
+	_material("stone_light", "acafa1")
+	_material("stone_dark", "5b6460")
+	_material("plaster", "d8cebb")
+	_material("plaster_light", "e4dfcd")
+	_material("plaster_warm", "c8b394")
+	_material("wood", "816047")
+	_material("wood_dark", "514534")
+	_material("wood_light", "ae8f63")
+	_material("roof_blue", "45646b")
+	_material("roof_blue_dark", "344e56")
+	_material("roof_rust", "9d5741")
+	_material("roof_rust_dark", "784234")
 	_material("roof_straw", "aa884c")
 	_material("cloth_teal", "388e8b")
 	_material("cloth_cream", "eddbad")
@@ -89,17 +91,103 @@ func _palette() -> void:
 	_material("ember", "d54e28", 1.0)
 	_material("flame", "ffb74b", 1.7)
 	_material("window", "ffc979", 0.65)
-	_material("flower", "ddb27b")
+	_material("flower", "e8cf9c")
+	_material("flower_blue", "839cbd")
+	_material("mountain", "819198")
+	_material("paving", "b4b2a4")
+	_water_material()
 
 func _material(key: String, hex: String, emission: float = 0.0) -> void:
 	var mat: StandardMaterial3D = StandardMaterial3D.new()
 	mat.albedo_color = Color.html(hex)
-	mat.roughness = 0.94
+	mat.roughness = 0.92
+	mat.vertex_color_use_as_albedo = true
+	mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	var family: String = _material_family(key)
+	if not family.is_empty():
+		mat.albedo_texture = _world_texture(family+"_albedo", false)
+		mat.normal_enabled = true
+		mat.normal_texture = _world_texture(family+"_normal", true)
+		mat.normal_scale = 0.44 if family != "roof" else 0.66
+	if key in ["pine","pine_light","leaf","leaf_gold","leaf_orange"]:
+		# Needle masses retain directional shading and cast on the ground while
+		# avoiding coarse mobile shadow-map acne on their own thin layered tips.
+		mat.disable_receive_shadows = true
+	if key == "mountain":
+		# Distant matte ridges use baked directional vertex tone and scene fog,
+		# avoiding shiny rock, shadow work or a repeated close-range texture.
+		mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	if key == "iron":
+		mat.metallic = 0.72
+		mat.roughness = 0.48
+	elif key == "gold":
+		mat.metallic = 0.78
+		mat.roughness = 0.37
 	if emission > 0.0:
 		mat.emission_enabled = true
 		mat.emission = Color.html(hex)
 		mat.emission_energy_multiplier = emission
 	_materials[key] = mat
+
+# Eight immutable texture pairs shared by every material using the same family.
+# Normals are 256 px; albedo is 512 px. All have mipmaps to avoid crawling detail.
+func _world_texture(file: String, normal_map: bool) -> Texture2D:
+	if _world_textures.has(file):
+		return _world_textures[file]
+	var source: Texture2D = load("res://assets/world/"+file+".png") as Texture2D
+	if source == null:
+		push_error("Missing imported world material: "+file)
+		return null
+	var image_data: Image = source.get_image()
+	if image_data.is_compressed():
+		image_data.decompress()
+	if normal_map:
+		image_data.resize(256,256,Image.INTERPOLATE_LANCZOS)
+	if not image_data.has_mipmaps():
+		image_data.generate_mipmaps(normal_map)
+	var texture: ImageTexture = ImageTexture.create_from_image(image_data)
+	_world_textures[file] = texture
+	return texture
+
+func _material_family(key: String) -> String:
+	if key in ["earth", "path", "path_edge"]:
+		return "earth"
+	if key in ["grass", "grass_light", "grass_dark","pine","pine_light","leaf","leaf_gold","leaf_orange"]:
+		return "grass"
+	if key.begins_with("stone"):
+		return "stone"
+	if key == "paving":
+		return "paving"
+	if key.begins_with("plaster"):
+		return "plaster"
+	if key.begins_with("wood"):
+		return "wood"
+	if key.begins_with("roof"):
+		return "roof"
+	if key.begins_with("cloth"):
+		return "cloth"
+	return ""
+
+func _water_material() -> void:
+	var shader: Shader = Shader.new()
+	shader.code = """shader_type spatial;
+render_mode cull_back, specular_schlick_ggx;
+varying vec3 world_point;
+void vertex() { world_point = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz; }
+void fragment() {
+    vec2 p = world_point.xz;
+    float swell = sin(p.x*1.5 + p.y*.65 + TIME*.32)*.5 + sin(p.y*2.2-p.x*.38-TIME*.24)*.5;
+    float ripple = sin(p.x*3.4+p.y*.72+sin(p.y*2.1-p.x*.6+TIME*.21)*.65+TIME*.38);
+    float ribbon = pow(max(0.0,ripple), 24.0) * (.55+sin(p.x*.7-p.y*.9-TIME*.11)*.35);
+    ALBEDO = mix(vec3(.10,.28,.29),vec3(.16,.37,.36),swell*.5+.5) + ribbon*vec3(.055,.075,.068);
+    ROUGHNESS = .32;
+    METALLIC = .08;
+    SPECULAR = .5;
+}
+"""
+	var water: ShaderMaterial = ShaderMaterial.new()
+	water.shader = shader
+	_materials["water"] = water
 
 func _lighting() -> void:
 	var environment: WorldEnvironment = WorldEnvironment.new()
@@ -107,41 +195,46 @@ func _lighting() -> void:
 	var env: Environment = Environment.new()
 	env.background_mode = Environment.BG_SKY
 	var sky: Sky = Sky.new()
+	sky.radiance_size = Sky.RADIANCE_SIZE_128
+	sky.process_mode = Sky.PROCESS_MODE_QUALITY
 	var sky_mat: ProceduralSkyMaterial = ProceduralSkyMaterial.new()
-	sky_mat.sky_top_color = Color("658da3")
-	sky_mat.sky_horizon_color = Color("e9d8b8")
-	sky_mat.ground_bottom_color = Color("64705e")
-	sky_mat.ground_horizon_color = Color("e1cfab")
+	sky_mat.sky_top_color = Color("6f91a6")
+	sky_mat.sky_horizon_color = Color("d6d8c9")
+	sky_mat.ground_bottom_color = Color("626f65")
+	sky_mat.ground_horizon_color = Color("c3c9b6")
 	sky.sky_material = sky_mat
 	env.sky = sky
+	env.reflected_light_source = Environment.REFLECTION_SOURCE_SKY
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.ambient_light_color = Color("c2cfcd")
-	env.ambient_light_energy = 0.28
+	env.ambient_light_color = Color("bbcdd9")
+	env.ambient_light_energy = 0.32
 	env.tonemap_mode = Environment.TONE_MAPPER_LINEAR
 	env.tonemap_exposure = 1.0
 	env.fog_enabled = true
-	env.fog_light_color = Color("c1c6ac")
+	env.fog_light_color = Color("b7c8bf")
 	env.fog_light_energy = 0.6
-	env.fog_density = 0.0035
+	env.fog_density = 0.0042
 	environment.environment = env
 	add_child(environment)
 	var sun: DirectionalLight3D = DirectionalLight3D.new()
 	sun.name = "WarmAfternoonSun"
 	sun.rotation_degrees = Vector3(-53, -33, -8)
-	sun.light_color = Color("fff0dc")
-	sun.light_energy = 0.78
+	sun.light_color = Color("fff2df")
+	sun.light_energy = 0.86
 	sun.shadow_enabled = true
-	sun.directional_shadow_max_distance = 65.0
+	sun.directional_shadow_max_distance = 48.0
+	sun.directional_shadow_split_1 = 0.35
 	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
-	sun.shadow_bias = 0.05
+	sun.shadow_bias = 0.12
+	sun.shadow_normal_bias = 2.5
 	add_child(sun)
 
 func _landscape() -> void:
 	_box(Vector3(0, -0.22, 0), Vector3(100, 0.44, 100), "grass")
 	_solid_box(Vector3(0, -0.5, 0), Vector3(100, 1, 100))
 	# Rounded compacted-earth square, overlapping surfaces suggest worn edges.
-	_disc(Vector3(0, 0.014, 2), 14.3, 0.025, "earth", 28, Vector3(1.0, 1.0, 0.94))
-	_disc(Vector3(0, 0.03, 2), 11.2, 0.025, "path", 24, Vector3(1.0, 1.0, 0.98))
+	_ground_patch(Vector3(0,0.029,2), Vector2(14.3,13.4), "earth", 40)
+	_ground_patch(Vector3(0,0.043,2), Vector2(11.2,10.9), "path", 40)
 	_road(Vector3(0, 0, 15), Vector3(0, 0, -18), 4.2)
 	_road(Vector3(0, 0, -18), Vector3(-1, 0, -27), 3.3)
 	_road(Vector3(-1, 0, -27), Vector3(1, 0, -36), 3.0)
@@ -151,14 +244,24 @@ func _landscape() -> void:
 		var pos: Vector3 = Vector3(_rng.randf_range(-43, 43), 0.018, _rng.randf_range(-46, 42))
 		if absf(pos.x) < 15 and pos.z > -16 and pos.z < 16:
 			continue
-		_disc(pos, _rng.randf_range(1.1, 3.5), 0.018, "grass_light" if i % 2 == 0 else "grass_dark", 7, Vector3(1.3, 1, 0.7))
-	# Worn cobbles around the village well and the two craft areas.
+		_ground_patch(pos, Vector2(1.3,0.7)*_rng.randf_range(1.1,3.5), "grass_light" if i % 2 == 0 else "grass_dark", 10)
+	# Dense hand-laid stone courtyard is one shared mesh surface, not hundreds
+	# of separate cobbles. Loose edge stones remain in the material batch.
+	_ground_patch(Vector3(0,.087,3.7),Vector2(4.4,4.0),"paving",36)
 	for i: int in range(50):
-		var a: float = float(i) * 2.39996
-		var radius: float = 0.7 + sqrt(float(i) / 50.0) * 3.5
-		var p: Vector3 = Vector3(sin(a) * radius, 0.075, cos(a) * radius + 3.6)
-		if p.distance_to(spawn_position) > 1.0:
-			_box(p, Vector3(0.32 + _rng.randf() * 0.3, 0.07, 0.23 + _rng.randf() * 0.2), "stone_light" if i % 3 else "stone", _rng.randf() * PI)
+		# Consume the same seeded samples as 0.1.8: distant trees and their
+		# existing collision shapes must not shift when courtyard art changes.
+		var a: float = float(i)*2.39996
+		var old_radius: float = .7+sqrt(float(i)/50.0)*3.5
+		var old_p: Vector3 = Vector3(sin(a)*old_radius,.075,cos(a)*old_radius+3.6)
+		if old_p.distance_to(spawn_position) > 1.0:
+			var stone_width: float = .32+_rng.randf()*.3
+			var stone_depth: float = .23+_rng.randf()*.2
+			var yaw: float = _rng.randf()*PI
+			if i < 20:
+				var radius: float = 4.1+sin(float(i)*1.7)*.5
+				var p: Vector3 = Vector3(sin(a)*radius,.075,cos(a)*radius+3.7)
+				_box(p,Vector3(stone_width*.8,.07,stone_depth*.8),"stone_light" if i%3 else "stone",yaw)
 	# Mountains form a silhouette beyond the traversable map.
 	for i: int in range(18):
 		var angle: float = float(i) / 18.0 * TAU
@@ -184,12 +287,44 @@ func _landscape() -> void:
 			_cylinder(p + Vector3(float(j) * 0.09, 0.33, 0), 0.025, 0.65, "leaf", 4)
 			_cylinder(p + Vector3(float(j) * 0.09, 0.72, 0), 0.055, 0.2, "wood", 5)
 
+func _ground_patch(p: Vector3, radius: Vector2, key: String, segments: int) -> void:
+	# A broad intermediate ring avoids the old hard seven-sided colour stamps.
+	for ring: int in range(2):
+		var inner: float = float(ring)*0.67
+		var outer: float = 0.67 if ring == 0 else 1.0
+		for i: int in range(segments):
+			var a: float = float(i)/float(segments)*TAU
+			var b: float = float(i+1)/float(segments)*TAU
+			var wa: float = 1.0+sin(a*5.0+p.x)*0.025+cos(a*7.0+p.z)*0.018
+			var wb: float = 1.0+sin(b*5.0+p.x)*0.025+cos(b*7.0+p.z)*0.018
+			var va: Vector3 = Vector3(cos(a)*radius.x*wa,0,sin(a)*radius.y*wa)
+			var vb: Vector3 = Vector3(cos(b)*radius.x*wb,0,sin(b)*radius.y*wb)
+			if ring == 0:
+				_tri(p,p+va*outer,p+vb*outer,key)
+			else:
+				var edge_color: Color = _ground_edge_tint(key)
+				_tri(p+va*inner,p+va*outer,p+vb*outer,key,PackedColorArray([Color.WHITE,edge_color,edge_color]))
+				_tri(p+va*inner,p+vb*outer,p+vb*inner,key,PackedColorArray([Color.WHITE,edge_color,Color.WHITE]))
+
+func _ground_edge_tint(key: String) -> Color:
+	var base_key: String = "earth" if key in ["path","paving"] else "grass"
+	var base: Color = (_materials[base_key] as StandardMaterial3D).albedo_color
+	var own: Color = (_materials[key] as StandardMaterial3D).albedo_color
+	return Color(base.r/maxf(own.r,0.001),base.g/maxf(own.g,0.001),base.b/maxf(own.b,0.001),1.0)
+
 func _road(a: Vector3, b: Vector3, width: float) -> void:
-	var middle: Vector3 = (a + b) * 0.5
-	var length: float = a.distance_to(b)
-	var yaw: float = atan2(b.x - a.x, b.z - a.z)
-	_box(middle + Vector3.UP * 0.037, Vector3(width + 0.7, 0.035, length + 0.4), "path_edge", yaw)
-	_box(middle + Vector3.UP * 0.059, Vector3(width, 0.035, length + 0.35), "path", yaw)
+	var side: Vector3 = Vector3(b.z-a.z,0,a.x-b.x).normalized()
+	var segments: int = maxi(3,int(a.distance_to(b)/1.25))
+	for edge: int in range(2):
+		var half: float = (width+(0.64 if edge == 0 else 0.0))*0.5
+		var key: String = "path_edge" if edge == 0 else "path"
+		var lift: float = 0.057 if edge == 0 else 0.078
+		for i: int in range(segments):
+			var q: Vector3 = a.lerp(b,float(i)/float(segments))+Vector3.UP*lift
+			var r: Vector3 = a.lerp(b,float(i+1)/float(segments))+Vector3.UP*lift
+			var q_wear: float = sin(q.x*1.7+q.z*1.1)*0.07
+			var r_wear: float = sin(r.x*1.7+r.z*1.1)*0.07
+			_quad(q-side*(half+q_wear),q+side*(half-q_wear),r+side*(half-r_wear),r-side*(half+r_wear),key)
 
 func _village() -> void:
 	# The two trades are deliberately on either side of the open central lane.
@@ -288,16 +423,44 @@ func _roof(t: Transform3D, width: float, depth: float, eave: float, ridge: float
 	roof_collider.name = "Roof%02d" % _camera_collision.get_child_count()
 	roof_collider.shape = roof_shape
 	_camera_collision.add_child(roof_collider)
-	_quad(a,d,c,b,key)
-	_quad(d,f,e,c,key + "_dark" if _materials.has(key + "_dark") else key)
-	_box_t(Vector3(0,ridge+0.01,0),Vector3(0.18,0.17,depth+0.12),"wood_dark",t)
-	# Roof seams become subtle large graphic strokes, not expensive tiny tiles.
-	for j: int in range(1,5):
-		var ratio: float = float(j)/5.0
-		for side: float in [-1.0,1.0]:
-			var x: float = width*0.5*ratio*side
-			var y: float = lerpf(ridge,eave,ratio)+0.025
-			_box_t(Vector3(x,y,0),Vector3(0.035,0.04,depth),key + "_dark" if _materials.has(key + "_dark") else "wood_light",t)
+	# A subtly bowed tiled roof and lifted corners replace two flat roof slabs.
+	# Six broad strips per side retain an inexpensive silhouette, not individual tiles.
+	var dark_key: String = key+"_dark" if _materials.has(key+"_dark") else key
+	for side: float in [-1.0,1.0]:
+		for x_step: int in range(6):
+			for z_step: int in range(4):
+				var r0: float = float(x_step)/6.0
+				var r1: float = float(x_step+1)/6.0
+				var z0: float = float(z_step)/4.0*2.0-1.0
+				var z1: float = float(z_step+1)/4.0*2.0-1.0
+				var q0: Vector3 = _roof_point(t,width,depth,eave,ridge,side*r0,z0)
+				var q1: Vector3 = _roof_point(t,width,depth,eave,ridge,side*r1,z0)
+				var q2: Vector3 = _roof_point(t,width,depth,eave,ridge,side*r1,z1)
+				var q3: Vector3 = _roof_point(t,width,depth,eave,ridge,side*r0,z1)
+				if side < 0.0:
+					_quad(q3,q2,q1,q0,key)
+				else:
+					_quad(q0,q1,q2,q3,dark_key)
+		# Eave fascia is a continuous narrow curved strip, sharing roof material.
+		for z_step: int in range(8):
+			var z0: float = float(z_step)/8.0*2.0-1.0
+			var z1: float = float(z_step+1)/8.0*2.0-1.0
+			var q0: Vector3 = _roof_point(t,width,depth,eave,ridge,side,z0)
+			var q1: Vector3 = _roof_point(t,width,depth,eave,ridge,side,z1)
+			if side < 0.0:
+				_quad(q1,q1-Vector3.UP*.13,q0-Vector3.UP*.13,q0,dark_key)
+			else:
+				_quad(q0,q0-Vector3.UP*.13,q1-Vector3.UP*.13,q1,dark_key)
+	_box_t(Vector3(0,ridge+0.065,0),Vector3(0.20,0.14,depth+0.16),dark_key,t)
+	# Short turned ridge caps read at village scale and use the existing batches.
+	for end: float in [-1.0,1.0]:
+		_box_t(Vector3(0,ridge+0.12,end*(depth*.5+.08)),Vector3(.24,.22,.26),dark_key,t)
+
+func _roof_point(t: Transform3D, width: float, depth: float, eave: float, ridge: float, ratio: float, z_ratio: float) -> Vector3:
+	var r: float = absf(ratio)
+	var y: float = lerpf(ridge,eave,r)-sin(r*PI)*0.22+pow(r,5.0)*0.13
+	y += pow(absf(z_ratio),4.0)*r*0.16
+	return t*Vector3(width*.5*ratio,y,depth*.5*z_ratio)
 
 func _window(t: Transform3D, p: Vector3, size: Vector2) -> void:
 	_box_t(p,Vector3(size.x+0.17,size.y+0.17,0.09),"wood_dark",t)
@@ -481,6 +644,54 @@ func _forest() -> void:
 	_rock(Vector3(-3.7,0,-18.6),0.7)
 	_rock(Vector3(4.5,0,-36),0.7)
 
+func _gardens() -> void:
+	# Bounded, opaque geometry: no particle simulation or alpha-card overdraw.
+	# Separate RNG leaves every existing tree, collider and combat clearing fixed.
+	var garden_rng: RandomNumberGenerator = RandomNumberGenerator.new()
+	garden_rng.seed = 8108514
+	var beds: Array[Vector3] = [Vector3(-10.2,0,2.0),Vector3(-7.8,0,1.6),Vector3(11.0,0,2.8),Vector3(-6.4,0,8.6),Vector3(3.8,0,9.6),Vector3(-4.8,0,-12.4),Vector3(5.0,0,-12.4)]
+	for bed: Vector3 in beds:
+		for i: int in range(12):
+			var p: Vector3 = bed+Vector3(garden_rng.randf_range(-.65,.65),.08,garden_rng.randf_range(-.4,.4))
+			_grass_clump(p,garden_rng.randf_range(.16,.32),garden_rng.randf()*TAU)
+			if i%6 == 0:
+				_wildflower(p,.23+garden_rng.randf()*.08,"flower_blue" if i == 0 else "flower")
+	# Soft reeds and wildflowers on the bank stay outside the travel lane.
+	for i: int in range(56):
+		var a: float = garden_rng.randf()*TAU
+		var p: Vector3 = Vector3(-18+cos(a)*garden_rng.randf_range(5.15,5.8),.06,-25+sin(a)*garden_rng.randf_range(3.75,4.15))
+		if p.distance_to(Vector3(-17,0,-22.0)) > 1.1:
+			_grass_clump(p,garden_rng.randf_range(.23,.42),a)
+			if i%10 == 0:
+				_wildflower(p,.30,"flower")
+	# Raised wooden planters beneath two windows; no walking collision is changed.
+	for p: Vector3 in [Vector3(-7.65,.75,-.62),Vector3(11.0,.75,-.83)]:
+		_box(p,Vector3(.82,.24,.35),"wood")
+		_box(p+Vector3.UP*.13,Vector3(.70,.035,.24),"earth")
+		for i: int in range(4):
+			_wildflower(p+Vector3(-.29+float(i)*.19,.13,0),.23,"flower_blue" if i%2 == 0 else "flower")
+
+func _grass_clump(p: Vector3, height: float, yaw: float) -> void:
+	for blade: int in range(4):
+		var a: float = yaw+float(blade)*2.39996
+		var side: Vector3 = Vector3(cos(a),0,sin(a))*.04
+		var lean: Vector3 = Vector3(-sin(a),0,cos(a))*height*.28
+		var middle: Vector3 = p+Vector3.UP*height*.58+lean*.35
+		var tip: Vector3 = p+Vector3.UP*height+lean
+		_tri(p-side,p+side,middle+side*.58,"grass_dark")
+		_tri(p-side,middle+side*.58,middle-side*.58,"grass_dark")
+		_tri(middle-side*.58,middle+side*.58,tip,"grass_light")
+
+func _wildflower(p: Vector3, height: float, key: String) -> void:
+	_cylinder(p+Vector3.UP*height*.5,.012,height,"leaf",4)
+	var center: Vector3 = p+Vector3.UP*height
+	for petal: int in range(5):
+		var a: float = float(petal)/5.0*TAU
+		var direction: Vector3 = Vector3(cos(a),0,sin(a))
+		var side: Vector3 = Vector3(-sin(a),0,cos(a))*.032
+		_tri(center,center+direction*.092-side+Vector3.UP*.018,center+direction*.092+side+Vector3.UP*.018,key)
+	_sphere(center+Vector3.UP*.015,Vector3(.025,.019,.025),"gold",5,2)
+
 func _tree(p: Vector3,pine: bool,scale_factor: float,solid: bool) -> void:
 	var s: float=scale_factor
 	_cylinder(p+Vector3.UP*1.55*s,0.16*s,3.1*s,"wood",7)
@@ -489,9 +700,14 @@ func _tree(p: Vector3,pine: bool,scale_factor: float,solid: bool) -> void:
 			_cone(p+Vector3.UP*(2.2+float(i)*0.78)*s,(1.3-float(i)*0.27)*s,2.0*s,"pine" if i%2==0 else "pine_light",7)
 	else:
 		var key: String="leaf_gold" if int(absf(p.x)*7)%3==0 else ("leaf_orange" if int(absf(p.z)*5)%3==0 else "leaf")
-		_sphere(p+Vector3(0,3.0,0)*s,Vector3(1.5,1.2,1.3)*s,key,7,4)
-		_sphere(p+Vector3(-0.8,2.8,0.18)*s,Vector3(1.0,0.9,0.95)*s,key,7,4)
-		_sphere(p+Vector3(0.7,3.2,-0.2)*s,Vector3(1.0,1.05,1.0)*s,key,7,4)
+		var lean: float = sin(p.x*1.7+p.z*.9)*.17
+		_sphere(p+Vector3(0,3.1,0)*s,Vector3(1.25,1.0,1.05)*s,key,6,3)
+		_sphere(p+Vector3(-.78,2.84+lean,.18)*s,Vector3(1.0,.82,.90)*s,key,6,3)
+		_sphere(p+Vector3(.72,3.22-lean,-.2)*s,Vector3(.90,.85,.95)*s,key,6,3)
+		_sphere(p+Vector3(-.18,2.66,.7)*s,Vector3(.82,.72,.72)*s,key,6,3)
+		_sphere(p+Vector3(.12,3.55,-.58)*s,Vector3(.72,.70,.75)*s,key,6,3)
+		_cylinder(p+Vector3(-.27,2.13,.06)*s,.09*s,.96*s,"wood",5,Vector3(0,0,-.64))
+		_cylinder(p+Vector3(.29,2.27,-.08)*s,.08*s,.88*s,"wood",5,Vector3(0,0,.67))
 	if solid:
 		var shape: CylinderShape3D=CylinderShape3D.new()
 		shape.radius=0.25*s
@@ -506,13 +722,58 @@ func _rock(p: Vector3,s: float) -> void:
 		_add_collision(shape,Transform3D(Basis.IDENTITY,p+Vector3.UP*0.25*s))
 
 func _mountain(p: Vector3,radius: float,height: float,light: bool) -> void:
-	var points: Array[Vector3]=[]
-	for i: int in range(7):
-		var a: float=float(i)/7.0*TAU
-		points.append(p+Vector3(cos(a)*radius,0,sin(a)*radius))
-	var top: Vector3=p+Vector3(radius*0.12,height,-radius*0.15)
-	for i: int in range(7):
-		_tri(points[i],points[(i+1)%7],top,"stone_dark" if (i%3==0 or not light) else "stone")
+	# Asymmetric ridges with secondary shoulders replace the old seven-triangle
+	# pointed cones. A whole peak costs 112 triangles in the shared matte batch.
+	var phase: float = p.x*.071+p.z*.037+(0.7 if light else 1.9)
+	var vertices: PackedVector3Array = PackedVector3Array()
+	var normals: PackedVector3Array = PackedVector3Array()
+	var tangents: PackedFloat32Array = PackedFloat32Array()
+	var uvs: PackedVector2Array = PackedVector2Array()
+	var indices: PackedInt32Array = PackedInt32Array()
+	var rings: Array[float] = [0.0,.26,.51,.77,1.0]
+	var sectors: int = 16
+	for ring: int in range(rings.size()):
+		var count: int = 1 if ring == 0 else sectors
+		for i: int in range(count):
+			var angle: float = float(i)/float(sectors)*TAU
+			var u: float = cos(angle)*rings[ring]
+			var v: float = sin(angle)*rings[ring]
+			var h: float = _ridge_height(u,v,height,phase)
+			var slope_x: float = (_ridge_height(u+.012,v,height,phase)-_ridge_height(u-.012,v,height,phase))/(radius*.024)
+			var slope_z: float = (_ridge_height(u,v+.012,height,phase)-_ridge_height(u,v-.012,height,phase))/(radius*.024)
+			vertices.append(Vector3(u*radius,h,v*radius))
+			var normal: Vector3 = Vector3(-slope_x,1.0,-slope_z).normalized()
+			normals.append(normal)
+			tangents.append_array(_world_tangent(normal))
+			uvs.append(Vector2(u,v))
+	for i: int in range(sectors):
+		indices.append_array(PackedInt32Array([0,1+i,1+(i+1)%sectors]))
+	for ring: int in range(1,4):
+		var inner: int = 1+(ring-1)*sectors
+		var outer: int = 1+ring*sectors
+		for i: int in range(sectors):
+			var next: int = (i+1)%sectors
+			indices.append_array(PackedInt32Array([inner+i,outer+i,outer+next,inner+i,outer+next,inner+next]))
+	var arrays: Array = []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = vertices
+	arrays[Mesh.ARRAY_NORMAL] = normals
+	arrays[Mesh.ARRAY_TEX_UV] = uvs
+	arrays[Mesh.ARRAY_TANGENT] = tangents
+	arrays[Mesh.ARRAY_INDEX] = indices
+	var mesh: ArrayMesh = ArrayMesh.new()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES,arrays)
+	_add_mesh(mesh,Transform3D(Basis.IDENTITY,p),"mountain")
+
+func _ridge_height(u: float,v: float,height: float,phase: float) -> float:
+	var x: float = cos(phase)*u-sin(phase)*v
+	var z: float = sin(phase)*u+cos(phase)*v
+	var rim: float = pow(maxf(0.0,1.0-u*u-v*v),1.25)
+	var main_peak: float = exp(-pow((x+.23)/.34,2.0)-pow((z+.12)/.31,2.0))
+	var shoulder: float = exp(-pow((x-.38)/.30,2.0)-pow((z-.18)/.37,2.0))*.78
+	var back_ridge: float = exp(-pow((x+.09)/.52,2.0)-pow((z-.48)/.23,2.0))*.48
+	var rough: float = sin(x*11.0+phase)*sin(z*9.0-phase)*.035
+	return maxf(0.0,rim*(.16+main_peak+shoulder+back_ridge+rough))*height*.74
 
 func _crate(p: Vector3,size: Vector3) -> void:
 	_box(p+Vector3.UP*size.y*0.5,size,"wood_light")
@@ -639,20 +900,33 @@ func _create_npc(title: String,p: Vector3,smith: bool) -> void:
 	_flush_batches()
 
 func _ambient_details() -> void:
-	# Gentle looping embers, no particle simulation or transparent fill cost.
+	# Seven drifting opaque sparks share one tiny mesh and one draw call.
+	var mesh: SphereMesh = SphereMesh.new()
+	mesh.radius = .026
+	mesh.height = .052
+	mesh.radial_segments = 5
+	mesh.rings = 3
+	var instances: MultiMesh = MultiMesh.new()
+	instances.transform_format = MultiMesh.TRANSFORM_3D
+	instances.mesh = mesh
+	instances.instance_count = 7
+	_embers = MultiMeshInstance3D.new()
+	_embers.name = "ForgeEmbers"
+	_embers.multimesh = instances
+	_embers.material_override = _materials["flame"]
+	_embers.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(_embers)
+	_update_embers()
+
+func _update_embers() -> void:
+	if not is_instance_valid(_embers):
+		return
 	for i: int in range(7):
-		var spark: MeshInstance3D=MeshInstance3D.new()
-		var mesh: SphereMesh=SphereMesh.new()
-		mesh.radius=0.026
-		mesh.height=0.052
-		mesh.radial_segments=5
-		mesh.rings=3
-		spark.mesh=mesh
-		spark.material_override=_materials["flame"]
-		spark.position=Vector3(8.25,1.5+float(i)*0.18,-1.2)
-		spark.set_meta("phase",float(i)*0.41)
-		spark.add_to_group("village_embers")
-		add_child(spark)
+		var phase: float = float(i)*.41
+		var travel: float = fmod(_clock*.55+phase,2.0)
+		var at: Vector3 = Vector3(8.3+sin(travel*4+phase)*.22,1.25+travel,-1.2+cos(travel*3+phase)*.2)
+		var size: Vector3 = Vector3.ONE*(1.0-travel*.4)
+		_embers.multimesh.set_instance_transform(i,Transform3D(Basis.IDENTITY.scaled(size),at))
 
 func set_low_quality(enabled: bool) -> void:
 	for child: Node in get_children():
@@ -671,12 +945,7 @@ func _process(delta: float) -> void:
 		_banners[i].rotation.z=sin(_clock*1.3+float(i))*0.025
 	if is_instance_valid(_fire_light):
 		_fire_light.light_energy=1.4+sin(_clock*9)*0.18+sin(_clock*13)*0.09
-	for node: Node in get_tree().get_nodes_in_group("village_embers"):
-		var ember: Node3D=node as Node3D
-		var phase: float=float(ember.get_meta("phase"))
-		var travel: float=fmod(_clock*0.55+phase,2.0)
-		ember.position=Vector3(8.3+sin(travel*4+phase)*0.22,1.25+travel,-1.2+cos(travel*3+phase)*0.2)
-		ember.scale=Vector3.ONE*(1.0-travel*0.4)
+	_update_embers()
 
 func _sign(p: Vector3,text: String,color: Color,font_size: int,pixel: float) -> void:
 	var sign_label: Label3D=Label3D.new()
@@ -743,7 +1012,50 @@ func _sphere_t(p: Vector3,scale_v: Vector3,key: String,t: Transform3D,sides: int
 
 func _ensure_batch(key: String) -> void:
 	if not _batches.has(key):
-		_batches[key]={"vertices":PackedVector3Array(),"normals":PackedVector3Array(),"indices":PackedInt32Array()}
+		_batches[key]={"vertices":PackedVector3Array(),"normals":PackedVector3Array(),"uvs":PackedVector2Array(),"colors":PackedColorArray(),"tangents":PackedFloat32Array(),"indices":PackedInt32Array()}
+
+func _world_uv(p: Vector3, n: Vector3, key: String) -> Vector2:
+	var tile: float = 1.7
+	if key.begins_with("roof"):
+		tile = 2.4
+	elif key.begins_with("stone"):
+		tile = 1.25
+	elif key == "paving":
+		tile = 2.4
+	elif key in ["earth","path","path_edge","grass","grass_light","grass_dark"]:
+		tile = 1.8
+	if maxf(absf(p.x),absf(p.z)) > 52.0:
+		tile = 18.0
+	if absf(n.y) >= absf(n.x) and absf(n.y) >= absf(n.z):
+		return Vector2(p.x,p.z)/tile
+	if absf(n.x) >= absf(n.z):
+		return Vector2(p.z,p.y)/tile
+	return Vector2(p.x,p.y)/tile
+
+func _world_tangent(n: Vector3) -> PackedFloat32Array:
+	var u: Vector3 = Vector3.RIGHT
+	var v: Vector3 = Vector3.UP
+	if absf(n.y) >= absf(n.x) and absf(n.y) >= absf(n.z):
+		v = Vector3.BACK
+	elif absf(n.x) >= absf(n.z):
+		u = Vector3.BACK
+	# Exact dP/du keeps V constant even on a roof sloping in both axes.
+	var tangent: Vector3 = v.cross(n).normalized()
+	if tangent.dot(u) < 0.0:
+		tangent = -tangent
+	# Godot OpenGL normal maps use a binormal opposite texture +V.
+	var handedness: float = -1.0 if n.cross(tangent).dot(v) >= 0.0 else 1.0
+	return PackedFloat32Array([tangent.x,tangent.y,tangent.z,handedness])
+
+func _vertex_tint(p: Vector3, center: Vector3, key: String) -> Color:
+	if key == "mountain":
+		var altitude: float = clampf(p.y/24.0,0.0,1.0)
+		return Color(.76+altitude*.22,.83+altitude*.15,.89+altitude*.09,1.0)
+	var grain: float = sin(center.x*3.17+center.z*2.13+center.y*7.31)
+	var value: float = 0.97+grain*0.035
+	if key in ["grass","grass_light","grass_dark","earth","path","path_edge"]:
+		value = 0.97+sin(p.x*.77+p.z*.51)*0.035+cos(p.x*.29-p.z*.83)*0.025
+	return Color(value,value,value,1.0)
 
 func _add_mesh(mesh: Mesh,t: Transform3D,key: String) -> void:
 	_ensure_batch(key)
@@ -751,15 +1063,39 @@ func _add_mesh(mesh: Mesh,t: Transform3D,key: String) -> void:
 	var vertices: PackedVector3Array=batch["vertices"]
 	var normals: PackedVector3Array=batch["normals"]
 	var indices: PackedInt32Array=batch["indices"]
+	var uvs: PackedVector2Array=batch["uvs"]
+	var colors: PackedColorArray=batch["colors"]
+	var tangents: PackedFloat32Array=batch["tangents"]
 	var arrays: Array=mesh.surface_get_arrays(0)
 	var source_v: PackedVector3Array=arrays[Mesh.ARRAY_VERTEX]
 	var source_n: PackedVector3Array=arrays[Mesh.ARRAY_NORMAL]
 	var source_i: PackedInt32Array=arrays[Mesh.ARRAY_INDEX]
+	var source_uv: PackedVector2Array=arrays[Mesh.ARRAY_TEX_UV]
+	var source_tangent: PackedFloat32Array=arrays[Mesh.ARRAY_TANGENT]
+	var curved: bool = (mesh is CylinderMesh or mesh is SphereMesh) and source_uv.size() == source_v.size() and source_tangent.size() == source_v.size()*4
+	var dimensions: Vector3 = mesh.get_aabb().size*t.basis.get_scale()
+	var curved_uv_scale: Vector2 = Vector2(maxf(dimensions.x,dimensions.z)*PI/1.7,dimensions.y/1.7)
 	var offset: int=vertices.size()
 	var normal_basis: Basis=t.basis.inverse().transposed()
 	for i: int in range(source_v.size()):
-		vertices.append(t*source_v[i])
-		normals.append((normal_basis*source_n[i]).normalized())
+		var point: Vector3 = t*source_v[i]
+		var normal: Vector3 = (normal_basis*source_n[i]).normalized()
+		vertices.append(point)
+		normals.append(normal)
+		if curved and (mesh is SphereMesh or absf(source_n[i].y)<.95):
+			# Preserve continuous cylindrical/spherical UV and its tangent on curved
+			# objects. A per-vertex planar projection tears between dominant axes.
+			uvs.append(source_uv[i]*curved_uv_scale)
+			var tangent: Vector3 = t.basis*Vector3(source_tangent[i*4],source_tangent[i*4+1],source_tangent[i*4+2])
+			tangent = (tangent-normal*normal.dot(tangent)).normalized()
+			tangents.append_array(PackedFloat32Array([tangent.x,tangent.y,tangent.z,source_tangent[i*4+3]]))
+		else:
+			uvs.append(_world_uv(point,normal,key))
+			tangents.append_array(_world_tangent(normal))
+		var vertex_color: Color = _vertex_tint(point,t.origin,key)
+		if key == "mountain":
+			vertex_color *= .62+maxf(0.0,normal.dot(Vector3(-.40,.78,.47).normalized()))*.38
+		colors.append(vertex_color)
 	if source_i.is_empty():
 		for i: int in range(source_v.size()):
 			indices.append(offset+i)
@@ -769,23 +1105,37 @@ func _add_mesh(mesh: Mesh,t: Transform3D,key: String) -> void:
 	batch["vertices"]=vertices
 	batch["normals"]=normals
 	batch["indices"]=indices
+	batch["uvs"]=uvs
+	batch["colors"]=colors
+	batch["tangents"]=tangents
 
-func _tri(a: Vector3,b: Vector3,c: Vector3,key: String) -> void:
+func _tri(a: Vector3,b: Vector3,c: Vector3,key: String,tints: PackedColorArray=PackedColorArray()) -> void:
 	_ensure_batch(key)
 	var batch: Dictionary=_batches[key]
 	var vertices: PackedVector3Array=batch["vertices"]
 	var normals: PackedVector3Array=batch["normals"]
 	var indices: PackedInt32Array=batch["indices"]
+	var uvs: PackedVector2Array=batch["uvs"]
+	var colors: PackedColorArray=batch["colors"]
+	var tangents: PackedFloat32Array=batch["tangents"]
 	var offset: int=vertices.size()
 	# Godot's triangle front faces use clockwise winding.
 	var normal: Vector3=(c-a).cross(b-a).normalized()
-	for v: Vector3 in [a,b,c]:
+	var triangle_points: Array[Vector3] = [a,b,c]
+	for corner: int in range(3):
+		var v: Vector3 = triangle_points[corner]
 		vertices.append(v)
 		normals.append(normal)
+		uvs.append(_world_uv(v,normal,key))
+		colors.append(_vertex_tint(v,(a+b+c)/3.0,key)*(tints[corner] if tints.size() == 3 else Color.WHITE))
+		tangents.append_array(_world_tangent(normal))
 	indices.append_array(PackedInt32Array([offset,offset+1,offset+2]))
 	batch["vertices"]=vertices
 	batch["normals"]=normals
 	batch["indices"]=indices
+	batch["uvs"]=uvs
+	batch["colors"]=colors
+	batch["tangents"]=tangents
 
 func _quad(a: Vector3,b: Vector3,c: Vector3,d: Vector3,key: String) -> void:
 	_tri(a,b,c,key)
@@ -801,6 +1151,9 @@ func _flush_batches() -> void:
 		arrays.resize(Mesh.ARRAY_MAX)
 		arrays[Mesh.ARRAY_VERTEX]=vertices
 		arrays[Mesh.ARRAY_NORMAL]=batch["normals"]
+		arrays[Mesh.ARRAY_TEX_UV]=batch["uvs"]
+		arrays[Mesh.ARRAY_COLOR]=batch["colors"]
+		arrays[Mesh.ARRAY_TANGENT]=batch["tangents"]
 		arrays[Mesh.ARRAY_INDEX]=batch["indices"]
 		var mesh: ArrayMesh=ArrayMesh.new()
 		mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES,arrays)
@@ -808,6 +1161,8 @@ func _flush_batches() -> void:
 		visual.name="Scenery_"+key
 		visual.mesh=mesh
 		visual.material_override=_materials[key]
+		if key in ["grass","grass_light","grass_dark","earth","path","path_edge","paving","mountain","water"]:
+			visual.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		add_child(visual)
 	_batches.clear()
 

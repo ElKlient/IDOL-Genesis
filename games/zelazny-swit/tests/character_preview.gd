@@ -46,7 +46,7 @@ func _run() -> void:
 	var instance: int = preview.get_instance_id()
 	var viewport_id: int = preview.preview_viewport.get_instance_id()
 	_check(preview.preview_active and preview.preview_viewport.own_world_3d and preview.preview_model != game.hero.visual,"inventory renders an independent animated character instead of moving the playable hero")
-	_check(preview.preview_viewport.size == Vector2i(320,320) and preview.preview_viewport.msaa_3d == Viewport.MSAA_DISABLED,"portrait uses the bounded 320-square renderer without MSAA allocation")
+	_check(preview.preview_viewport.size == Vector2i(512,512) and preview.preview_viewport.msaa_3d == Viewport.MSAA_DISABLED,"portrait uses the bounded 512-square renderer without MSAA allocation")
 	var ticks: int = preview.visual_tick_count
 	var renders: int = preview.render_request_count
 	await create_timer(0.55).timeout
@@ -163,7 +163,7 @@ func _run() -> void:
 func _model_framed() -> bool:
 	var model: Node3D = preview.preview_model
 	var camera: Camera3D = preview.preview_camera
-	var viewport_rect: Rect2 = Rect2(Vector2(1,1),Vector2(318,318))
+	var viewport_rect: Rect2 = Rect2(Vector2(1,1),Vector2(preview.preview_viewport.size)-Vector2(2,2))
 	for part: Node in model.find_children("*","MeshInstance3D",true,false):
 		if not part.is_visible_in_tree() or part.mesh == null:
 			continue

@@ -296,14 +296,22 @@ func _build_hud() -> void:
 	context_button.hide()
 	toast_panel = _panel(Color(0.06,0.15,0.17,0.97),Color("c8a669"),10,13)
 	toast_panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
-	toast_panel.position = Vector2(-300,-166)
-	toast_panel.size = Vector2(600,55)
+	toast_panel.custom_minimum_size = Vector2(600,72)
+	toast_panel.clip_contents = true
 	toast_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	screen.add_child(toast_panel)
-	toast_label = _label("",18,CREAM)
+	toast_label = _label("",17,CREAM)
 	toast_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	toast_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	toast_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	toast_label.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	toast_label.custom_minimum_size.y = 44
 	toast_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	toast_label.max_lines_visible = 2
+	toast_label.clip_text = true
+	toast_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	toast_panel.add_child(toast_label)
+	_position_inventory_toast()
 	toast_panel.hide()
 
 func _build_modal() -> void:
@@ -547,31 +555,13 @@ func _render_inventory() -> void:
 	# Two columns leave enough width for two full-size item cards on a phone.
 	var portrait_column := VBoxContainer.new()
 	portrait_column.name = "InventoryPortrait"
-	portrait_column.custom_minimum_size.x = 304
+	portrait_column.custom_minimum_size.x = 400
 	portrait_column.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	portrait_column.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	portrait_column.add_theme_constant_override("separation",6)
 	split.add_child(portrait_column)
 	portrait_column.add_child(_label("TWÓJ WOJOWNIK  ·  PRZECIĄGNIJ, BY OBRÓCIĆ",11,GOLD))
 	_attach_inventory_preview(portrait_column)
-	var rotation_row := HBoxContainer.new()
-	rotation_row.add_theme_constant_override("separation",6)
-	portrait_column.add_child(rotation_row)
-	_preview_button(rotation_row,"W LEWO","PreviewRotateLeft",func() -> void: _rotate_inventory_preview(-30.0))
-	_preview_button(rotation_row,"RESET","PreviewReset",func() -> void:
-		if is_instance_valid(character_preview):
-			character_preview.call("reset_view")
-	)
-	_preview_button(rotation_row,"W PRAWO","PreviewRotateRight",func() -> void: _rotate_inventory_preview(30.0))
-	var animation_row := HBoxContainer.new()
-	animation_row.add_theme_constant_override("separation",6)
-	portrait_column.add_child(animation_row)
-	_preview_button(animation_row,"POSTÓJ","PreviewIdle",func() -> void: _set_inventory_animation("idle"))
-	_preview_button(animation_row,"CIOS","PreviewAttack",func() -> void:
-		if is_instance_valid(character_preview):
-			character_preview.call("play_preview_attack")
-	)
-	_preview_button(animation_row,"BIEG","PreviewRun",func() -> void: _set_inventory_animation("run"))
 
 	var bag_column := VBoxContainer.new()
 	bag_column.name = "InventoryBag"
@@ -659,7 +649,7 @@ func _attach_inventory_preview(parent: Control) -> void:
 			character_preview.call("set_sword_flame",_sword_flame_active)
 	elif character_preview.get_parent() != parent:
 		character_preview.reparent(parent,false)
-	character_preview.custom_minimum_size = Vector2(304,264)
+	character_preview.custom_minimum_size = Vector2(400,360)
 	character_preview.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	character_preview.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_sync_inventory_preview_equipment()
@@ -683,26 +673,11 @@ func _sync_inventory_preview_equipment() -> void:
 	var weapon_tier: int = int(weapon.get("tier",0))
 	var armor_tier: int = int(armor.get("tier",0))
 	var upgrade: int = int(weapon.get("upgrade",0))
-	var signature: String = "%d:%d:%d" % [weapon_tier,armor_tier,upgrade]
+	var armor_upgrade: int = int(armor.get("upgrade",0))
+	var signature: String = "%d:%d:%d:%d" % [weapon_tier,armor_tier,upgrade,armor_upgrade]
 	if signature != _preview_equipment_signature:
 		_preview_equipment_signature = signature
-		character_preview.call("set_equipment",weapon_tier,armor_tier,upgrade)
-
-func _preview_button(parent: HBoxContainer,text: String,node_name: String,action: Callable) -> void:
-	var button: Button = _button(text,Vector2(0,48),true)
-	button.name = node_name
-	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	button.add_theme_font_size_override("font_size",13)
-	button.pressed.connect(action)
-	parent.add_child(button)
-
-func _rotate_inventory_preview(degrees: float) -> void:
-	if modal_open and modal_mode == "inventory" and is_instance_valid(character_preview):
-		character_preview.call("rotate_preview",degrees)
-
-func _set_inventory_animation(mode: String) -> void:
-	if modal_open and modal_mode == "inventory" and is_instance_valid(character_preview):
-		character_preview.call("set_animation",mode)
+		character_preview.call("set_equipment",weapon_tier,armor_tier,upgrade,armor_upgrade)
 
 func _restore_inventory_scroll(scroll: ScrollContainer,offset: int) -> void:
 	await get_tree().process_frame
@@ -923,8 +898,17 @@ func _render_settings() -> void:
 
 func _position_inventory_toast() -> void:
 	if is_instance_valid(toast_panel):
-		# Inventory action buttons occupy the bottom of the modal.
-		toast_panel.position = Vector2(-300,-62 if modal_open and modal_mode == "inventory" else -166)
+		# These are offsets from the center-bottom anchors. Setting position
+		# after parenting would place the panel at negative screen coordinates.
+		var bottom: float = -12.0 if modal_open and modal_mode == "inventory" else -94.0
+		toast_panel.anchor_left = 0.5
+		toast_panel.anchor_right = 0.5
+		toast_panel.anchor_top = 1.0
+		toast_panel.anchor_bottom = 1.0
+		toast_panel.offset_left = -300.0
+		toast_panel.offset_right = 300.0
+		toast_panel.offset_top = bottom-72.0
+		toast_panel.offset_bottom = bottom
 
 func _apply_modal_layout() -> void:
 	_position_inventory_toast()

@@ -8,3 +8,5 @@ __pycache__/
 *.pyc
 # Godot extracts these embedded GLB images during import.
 assets/warrior/warrior_T_*.png
+assets/warrior/warrior_equipment_*.png
+assets/warrior/weapons_equipment_*.png

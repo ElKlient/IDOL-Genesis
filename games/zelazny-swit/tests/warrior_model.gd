@@ -85,7 +85,7 @@ func _run() -> void:
 		stats["tier"] = tier
 		measured_stats.append(stats)
 		print("WARRIOR TIER %d: %s" % [tier,JSON.stringify(stats)])
-		_check(int(stats.triangles) > 5000 and int(stats.triangles) <= 30000 and int(stats.surfaces) <= 16,"tier %d stays within 30k visible triangles and sixteen bounded material surfaces" % tier)
+		_check(int(stats.triangles) > 5000 and int(stats.triangles) <= 35000 and int(stats.surfaces) <= 12,"tier %d stays within 35k visible triangles and twelve bounded material surfaces" % tier)
 		_check(_skin_count(visual) >= 4,"tier %d keeps the body and worn equipment attached to a real skin" % tier)
 		var armor: Dictionary = model.get("armor_variants")
 		var weapons: Dictionary = model.get("weapon_variants")
@@ -96,7 +96,7 @@ func _run() -> void:
 	_check(weapon_shapes.size() == 4,"four equipped swords use distinct exported blade geometry")
 	var textures: Dictionary = _texture_stats(model)
 	print("WARRIOR TEXTURES: "+JSON.stringify(textures))
-	_check(int(textures.largest_dimension) <= 1024 and int(textures.count) <= 8,"body, hair and eye textures stay at or below 1024 pixels with a bounded shared texture set")
+	_check(int(textures.largest_dimension) <= 1024 and int(textures.count) <= 12,"body, hair, eye and equipment textures stay at or below 1024 pixels with a bounded shared texture set")
 	_check(int(textures.transparent_materials) == 0,"imported body, armor and sword use opaque materials without transparent depth passes")
 	state.gold = 20000
 	state.buy("dawn_sword")
@@ -150,9 +150,12 @@ func _run() -> void:
 	visual.tick(0.0,0.0)
 	await _capture("01-village-warrior")
 	var original_points: PackedVector3Array = _skin_vertices(body)
+	var original_visible_points: PackedVector3Array = _visible_skin_vertices()
 	visual.tick(0.7,1.0)
 	var running_points: PackedVector3Array = _skin_vertices(body)
-	_check(_vertex_difference(original_points,running_points) > 0.12,"run animation actually deforms imported body vertices")
+	var running_visible_points: PackedVector3Array = _visible_skin_vertices()
+	print("WARRIOR RUN SKIN BOUNDS: exposed body=",_bounds(running_points)," all visible weighted geometry=",_bounds(running_visible_points))
+	_check(_vertex_difference(original_visible_points,running_visible_points) > 0.12,"run animation actually deforms the visible imported weighted body and equipment vertices")
 	await _capture("04-run")
 	visual.locomotion_blend = 0.0
 	for combo: int in range(4):
@@ -292,6 +295,13 @@ func _all_skins_finite() -> bool:
 				return false
 	return true
 
+func _visible_skin_vertices() -> PackedVector3Array:
+	var points := PackedVector3Array()
+	for part: Node in visual.find_children("*","MeshInstance3D",true,false):
+		if part.is_visible_in_tree() and part.mesh != null and part.skin != null:
+			points.append_array(_skin_vertices(part))
+	return points
+
 func _bone_position(adapter: Node3D,bone_name: String) -> Vector3:
 	var skeleton: Skeleton3D = adapter.get("skeleton") as Skeleton3D
 	var bone: int = skeleton.find_bone(bone_name)
@@ -302,7 +312,7 @@ func _bone_position(adapter: Node3D,bone_name: String) -> Vector3:
 func _portrait_skin_bounds(portrait: Node3D,portrait_model: Node3D) -> void:
 	var camera: Camera3D = preview.preview_camera
 	var framed: bool = true
-	var rect: Rect2 = Rect2(Vector2(1,1),Vector2(318,318))
+	var rect: Rect2 = Rect2(Vector2(1,1),Vector2(preview.preview_viewport.size)-Vector2(2,2))
 	for attack: int in range(-1,4):
 		for sample: float in ([0.0] if attack < 0 else [0.0,0.20,0.35,0.55,0.80,1.0]):
 			portrait.attack_elapsed = -1

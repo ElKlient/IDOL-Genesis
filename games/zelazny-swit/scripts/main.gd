@@ -277,7 +277,7 @@ func request_attack() -> void:
 		direction.y = 0.0
 		hero.face_direction(direction.normalized())
 	hero.play_attack(combo-1,false)
-	audio.play_sfx("swing")
+	audio.play_cut_swing(combo)
 	# Delay the hit until the sword reaches its arc. Target is rechecked then.
 	_hit_after_windup(nearest,combo,_attack_serial)
 
@@ -299,14 +299,15 @@ func _hit_after_windup(enemy: Node3D, step: int, attack_serial: int) -> void:
 		damage = int(damage*1.4)
 	if critical:
 		damage = int(damage*1.65)
-	enemy.take_damage(damage,critical)
+	var push_direction: Vector3 = enemy.global_position - hero.global_position
+	push_direction.y = 0.0
+	if push_direction.length_squared() < 0.0001:
+		push_direction = hero.facing
+	enemy.take_damage(damage,critical,push_direction,step)
+	hero.confirm_contact(step==4)
 	if step == 4 and is_instance_valid(enemy) and enemy.is_alive():
-		var push_direction: Vector3 = enemy.global_position - hero.global_position
-		push_direction.y = 0.0
-		if push_direction.length_squared() < 0.0001:
-			push_direction = hero.facing
 		enemy.apply_knockback(push_direction,7.5)
-	audio.play_sfx("hit")
+	audio.play_cut_hit(step,int(enemy.kind)==2,critical)
 
 func use_skill() -> void:
 	if not is_instance_valid(hud) or not is_instance_valid(hero) or hero.dead or hud.modal_open or respawning or _fire_action_time>0.0 or float(hero.attack_locked_time)>0.0:
@@ -328,7 +329,7 @@ func use_skill() -> void:
 		return
 	for enemy: Node3D in enemies.duplicate():
 		if is_instance_valid(enemy) and enemy.is_alive() and hero.position.distance_to(enemy.position)<4.2:
-			enemy.take_damage(int(GameState.attack_power()*1.8)+5,true)
+			enemy.take_damage(int(GameState.attack_power()*1.8)+5,true,enemy.global_position-hero.global_position,3)
 
 func use_fire_skill() -> void:
 	if not is_instance_valid(hud) or not is_instance_valid(hero) or hero.dead or hud.modal_open or respawning or _fire_action_time>0.0 or float(hero.attack_locked_time)>0.0:
@@ -369,11 +370,11 @@ func use_fire_skill() -> void:
 	var hit_count: int = 0
 	for enemy: Node3D in enemies.duplicate():
 		if is_instance_valid(enemy) and enemy.is_alive() and impact_position.distance_to(enemy.global_position)<FIRE_IMPACT_RADIUS:
-			enemy.take_damage(damage,true)
+			enemy.take_damage(damage,true,enemy.global_position-impact_position,4)
 			hit_count += 1
 	fire_buff_time = FIRE_BUFF_DURATION
 	hero.set_sword_flame(true)
-	audio.play_sfx("hit")
+	audio.play_fire_impact()
 	_diagnostic("fire_skill_impact",{"count":hit_count})
 
 func _cancel_fire_action() -> void:
@@ -488,11 +489,12 @@ func _on_state_changed() -> void:
 	var weapon_tier: int = int(weapon.get("tier",0))
 	var armor_tier: int = int(armor.get("tier",0))
 	var upgrade: int = int(weapon.get("upgrade",0))
-	var signature: String = "%d:%d:%d" % [weapon_tier,armor_tier,upgrade]
+	var armor_upgrade: int = int(armor.get("upgrade",0))
+	var signature: String = "%d:%d:%d:%d" % [weapon_tier,armor_tier,upgrade,armor_upgrade]
 	if signature!=equipment_signature:
 		_diagnostic("equipment_visual_begin", {"weapon_tier":weapon_tier,"armor_tier":armor_tier,"upgrade":upgrade})
 		equipment_signature=signature
-		hero.set_equipment(weapon_tier,armor_tier,upgrade)
+		hero.set_equipment(weapon_tier,armor_tier,upgrade,armor_upgrade)
 		_diagnostic("equipment_visual_end", {"upgrade":upgrade})
 	if GameState.level>last_level:
 		last_level=GameState.level
