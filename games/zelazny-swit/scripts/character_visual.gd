@@ -8,6 +8,14 @@ var right_arm: Node3D
 var left_leg: Node3D
 var right_leg: Node3D
 var head: Node3D
+var hips: Node3D
+var torso: Node3D
+var left_forearm: Node3D
+var right_forearm: Node3D
+var left_knee: Node3D
+var right_knee: Node3D
+var right_wrist: Node3D
+var cape: MeshInstance3D
 var sword: Node3D
 var slash: MeshInstance3D
 var spin_ring: MeshInstance3D
@@ -25,6 +33,10 @@ var dawn_armor: Node3D
 var mesh_parts: Array[MeshInstance3D] = []
 var flash_material: StandardMaterial3D
 var walk_phase: float = 0.0
+var idle_phase: float = 0.0
+var locomotion_blend: float = 0.0
+var _combat_tracks: Array = []
+var _attack_origin: Dictionary = {}
 var attack_elapsed: float = -1.0
 var attack_duration: float = 0.45
 var combo_index: int = 0
@@ -116,7 +128,7 @@ func _build() -> void:
 	_box(body, Vector3(0.18, 0.19, 0.06), Vector3(0, 1.39, -0.27), trim_material, Vector3(0, 0, PI / 4))
 	_box(body, Vector3(0.29, 0.30, 0.13), Vector3(-0.19, 0.85, -0.17), armor_material, Vector3(0, 0, -0.11))
 	_box(body, Vector3(0.29, 0.30, 0.13), Vector3(0.19, 0.85, -0.17), armor_material, Vector3(0, 0, 0.11))
-	_box(body, Vector3(0.67, 0.70, 0.045), Vector3(0, 1.02, 0.24), cloth_material, Vector3(-0.16, 0, 0))
+	cape = _box(body, Vector3(0.67, 0.70, 0.045), Vector3(0, 1.02, 0.24), cloth_material, Vector3(-0.16, 0, 0))
 	# Neck, angular enclosed helm, nose guard and glowing eye slit.
 	_cylinder(body, 0.12, 0.12, 0.18, Vector3(0, 1.64, 0), skin_material)
 	head = _pivot(body, Vector3(0, 1.77, 0))
@@ -131,20 +143,27 @@ func _build() -> void:
 		_sphere(arm, 0.235, 0.28, Vector3(side * 0.015, 0.01, 0), armor_material)
 		_box(arm, Vector3(0.31, 0.07, 0.36), Vector3(side * 0.015, 0.10, 0), trim_material)
 		_cylinder(arm, 0.115, 0.10, 0.31, Vector3(0, -0.20, 0), cloth_material)
-		_box(arm, Vector3(0.23, 0.29, 0.25), Vector3(0, -0.44, -0.005), armor_material)
-		_sphere(arm, 0.105, 0.18, Vector3(0, -0.62, 0), leather)
+		var forearm: Node3D = _pivot(arm, Vector3(0, -0.34, 0))
+		_box(forearm, Vector3(0.23, 0.29, 0.25), Vector3(0, -0.10, -0.005), armor_material)
+		_sphere(forearm, 0.105, 0.18, Vector3(0, -0.28, 0), leather)
 		var leg: Node3D = _pivot(body, Vector3(side * 0.20, 0.90, 0))
 		_cylinder(leg, 0.135, 0.11, 0.40, Vector3(0, -0.20, 0), cloth_material)
-		_box(leg, Vector3(0.25, 0.29, 0.27), Vector3(0, -0.52, 0), armor_material)
-		_box(leg, Vector3(0.28, 0.19, 0.43), Vector3(0, -0.76, -0.09), leather)
-		_box(leg, Vector3(0.25, 0.08, 0.18), Vector3(0, -0.66, -0.12), trim_material)
+		var knee: Node3D = _pivot(leg, Vector3(0, -0.40, 0))
+		_box(knee, Vector3(0.25, 0.29, 0.27), Vector3(0, -0.12, 0), armor_material)
+		_box(knee, Vector3(0.28, 0.19, 0.43), Vector3(0, -0.36, -0.09), leather)
+		_box(knee, Vector3(0.25, 0.08, 0.18), Vector3(0, -0.26, -0.12), trim_material)
 		if side < 0:
 			left_arm = arm
+			left_forearm = forearm
 			left_leg = leg
+			left_knee = knee
 		else:
 			right_arm = arm
+			right_forearm = forearm
 			right_leg = leg
-	sword = _pivot(right_arm, Vector3(0, -0.64, -0.015))
+			right_knee = knee
+	right_wrist = _pivot(right_forearm, Vector3(0, -0.30, -0.015))
+	sword = _pivot(right_wrist, Vector3.ZERO)
 	sword.rotation = Vector3(0.94, 0, -0.12)
 	_cylinder(sword, 0.045, 0.045, 0.23, Vector3(0, -0.08, 0), leather)
 	_sphere(sword, 0.075, 0.105, Vector3(0, 0.055, 0), trim_material)
@@ -190,6 +209,20 @@ func _build() -> void:
 	spin_ring.visible = false
 	spin_ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(spin_ring)
+	# Retain every primitive's bind position while giving the motion a pelvis
+	# and a chest pivot. Armor colors, silhouette and item meshes stay intact.
+	var bind_children: Array[Node] = body.get_children()
+	hips = _pivot(body, Vector3(0, 0.94, 0))
+	torso = _pivot(hips, Vector3(0, 0.20, 0))
+	for child: Node in bind_children:
+		var part: Node3D = child as Node3D
+		if part == null:
+			continue
+		var lower_body: bool = part == left_leg or part == right_leg
+		if part is MeshInstance3D and part != cape and part.position.y < 1.10:
+			lower_body = true
+		part.reparent(hips if lower_body else torso, true)
+	_build_combat_tracks()
 
 func _arc_mesh(inner: float, outer: float, angle: float, segments: int) -> ArrayMesh:
 	var verts := PackedVector3Array()
@@ -237,10 +270,12 @@ func set_equipment(new_weapon_tier: int, new_armor_tier: int, upgrade: int = 0) 
 	glow_material.emission = [Color("75abb3"), Color("36c8ff"), Color("55e1ff"), Color("ff6544")][weapon_tier]
 
 func start_attack(combo: int = 0, skill: bool = false) -> void:
-	combo_index = combo % 3
+	combo_index = posmod(combo, 4)
 	skill_attack = skill
 	attack_elapsed = 0.0
-	attack_duration = 0.68 if skill else 0.46
+	attack_duration = 0.68 if skill else (0.62 if combo_index == 3 else 0.46)
+	if is_instance_valid(torso):
+		_attack_origin = _capture_pose()
 
 func is_attacking() -> bool:
 	return attack_elapsed >= 0.0
@@ -250,48 +285,150 @@ func hit_flash() -> void:
 	for part: MeshInstance3D in mesh_parts:
 		part.material_overlay = flash_material
 
+func _angles(degrees: Vector3) -> Vector3:
+	return degrees * (PI / 180.0)
+
+func _keyframe(at: float, overrides: Dictionary = {}) -> Dictionary:
+	var pose: Dictionary = {
+		"time":at,"root":Vector3.ZERO,"offset":Vector3.ZERO,
+		"hips":Vector3.ZERO,"torso":Vector3(-2,0,0),
+		"right_arm":Vector3(6,-6,-5),"right_forearm":Vector3(22,0,0),
+		"wrist":Vector3.ZERO,"left_arm":Vector3(-5,0,5),
+		"left_forearm":Vector3(10,0,0),"left_leg":Vector3.ZERO,
+		"right_leg":Vector3.ZERO,"left_knee":Vector3(-3,0,0),"right_knee":Vector3(-3,0,0)
+	}
+	pose.merge(overrides,true)
+	for key: String in ["root","hips","torso","right_arm","right_forearm","wrist","left_arm","left_forearm","left_leg","right_leg","left_knee","right_knee"]:
+		pose[key] = _angles(pose[key])
+	return pose
+
+func _build_combat_tracks() -> void:
+	# All ordinary cuts meet their contact key at .16 s; the planted fourth
+	# strike loads longer and releases at .25 s, matching main's actual hit.
+	_combat_tracks = [
+		[
+			_keyframe(0.0),
+			_keyframe(0.095,{"hips":Vector3(0,-14,-3),"torso":Vector3(-5,-24,-5),"right_arm":Vector3(50,-65,26),"right_forearm":Vector3(62,0,0),"wrist":Vector3(-35,-15,4),"left_arm":Vector3(28,20,15),"left_forearm":Vector3(42,0,0)}),
+			_keyframe(0.16,{"hips":Vector3(0,12,1),"torso":Vector3(7,20,9),"right_arm":Vector3(16,-19,-9),"right_forearm":Vector3(31,0,0),"wrist":Vector3(-36,-22,-31),"left_arm":Vector3(20,-20,16),"left_forearm":Vector3(48,0,0),"offset":Vector3(-0.015,-0.015,-0.055)}),
+			_keyframe(0.255,{"hips":Vector3(0,17,2),"torso":Vector3(9,28,8),"right_arm":Vector3(48,40,-14),"right_forearm":Vector3(28,0,0),"wrist":Vector3(-35,-8,-25),"left_arm":Vector3(5,-30,22),"left_forearm":Vector3(38,0,0),"offset":Vector3(-0.025,-0.01,-0.04)}),
+			_keyframe(0.46)
+		],
+		[
+			_keyframe(0.0),
+			_keyframe(0.09,{"hips":Vector3(0,12,2),"torso":Vector3(2,25,5),"right_arm":Vector3(58,70,-12),"right_forearm":Vector3(60,0,0),"wrist":Vector3(-47,12,-30),"left_arm":Vector3(20,-20,18),"left_forearm":Vector3(50,0,0)}),
+			_keyframe(0.16,{"hips":Vector3(0,-12,-2),"torso":Vector3(0,-23,-7),"right_arm":Vector3(77,27,-14),"right_forearm":Vector3(5,0,0),"wrist":Vector3(-52,19,26),"left_arm":Vector3(12,22,23),"left_forearm":Vector3(48,0,0),"offset":Vector3(0.02,-0.012,-0.065)}),
+			_keyframe(0.25,{"hips":Vector3(0,-20,-3),"torso":Vector3(-4,-30,-6),"right_arm":Vector3(67,-40,40),"right_forearm":Vector3(26,0,0),"wrist":Vector3(-44,12,22),"left_arm":Vector3(0,30,28),"left_forearm":Vector3(35,0,0),"offset":Vector3(0.02,0,-0.035)}),
+			_keyframe(0.46)
+		],
+		[
+			_keyframe(0.0),
+			_keyframe(0.105,{"hips":Vector3(0,-5,0),"torso":Vector3(-11,-9,-4),"right_arm":Vector3(146,-12,12),"right_forearm":Vector3(63,0,0),"wrist":Vector3(-42,0,-6),"left_arm":Vector3(63,16,11),"left_forearm":Vector3(64,0,0),"left_knee":Vector3(-7,0,0),"right_knee":Vector3(-9,0,0),"offset":Vector3(0,-0.018,0.015)}),
+			_keyframe(0.16,{"hips":Vector3(5,6,0),"torso":Vector3(15,9,3),"right_arm":Vector3(24,-10,-19),"right_forearm":Vector3(41,0,0),"wrist":Vector3(-75,8,28),"left_arm":Vector3(37,-10,20),"left_forearm":Vector3(48,0,0),"left_leg":Vector3(8,0,0),"right_leg":Vector3(-7,0,0),"offset":Vector3(0,-0.035,-0.085)}),
+			_keyframe(0.245,{"hips":Vector3(7,9,0),"torso":Vector3(18,12,3),"right_arm":Vector3(5,16,-7),"right_forearm":Vector3(18,0,0),"wrist":Vector3(-38,0,8),"left_arm":Vector3(18,-15,24),"left_forearm":Vector3(30,0,0),"offset":Vector3(0,-0.025,-0.065)}),
+			_keyframe(0.46)
+		],
+		[
+			_keyframe(0.0),
+			_keyframe(0.16,{"hips":Vector3(-2,-24,-5),"torso":Vector3(-7,-35,-7),"right_arm":Vector3(48,-85,45),"right_forearm":Vector3(77,0,0),"wrist":Vector3(-45,-10,-6),"left_arm":Vector3(41,30,14),"left_forearm":Vector3(69,0,0),"left_leg":Vector3(8,-5,-2),"right_leg":Vector3(-9,6,2),"left_knee":Vector3(-12,0,0),"right_knee":Vector3(-14,0,0),"offset":Vector3(0.035,-0.045,0.045)}),
+			_keyframe(0.25,{"hips":Vector3(4,18,4),"torso":Vector3(8,31,8),"right_arm":Vector3(0,-32,-21),"right_forearm":Vector3(45,0,0),"wrist":Vector3(-16,-12,13),"left_arm":Vector3(25,-28,28),"left_forearm":Vector3(43,0,0),"left_leg":Vector3(13,2,-2),"right_leg":Vector3(-10,8,2),"left_knee":Vector3(-8,0,0),"right_knee":Vector3(-12,0,0),"offset":Vector3(-0.015,-0.045,-0.14)}),
+			_keyframe(0.36,{"hips":Vector3(3,28,4),"torso":Vector3(11,44,10),"right_arm":Vector3(45,22,16),"right_forearm":Vector3(22,0,0),"wrist":Vector3(-35,0,-25),"left_arm":Vector3(-3,-38,35),"left_forearm":Vector3(35,0,0),"left_leg":Vector3(10,3,-2),"right_leg":Vector3(-9,8,2),"offset":Vector3(-0.025,-0.025,-0.105)}),
+			_keyframe(0.49,{"hips":Vector3(0,12,1),"torso":Vector3(3,17,3),"right_arm":Vector3(28,38,-6),"right_forearm":Vector3(31,0,0),"wrist":Vector3(-14,0,-3),"left_forearm":Vector3(20,0,0),"offset":Vector3(0,0,-0.025)}),
+			_keyframe(0.62)
+		]
+	]
+
+func _capture_pose() -> Dictionary:
+	# A completed full skill turn is the neutral orientation, not a request
+	# for the next cut to unwind 360 degrees back through its first key.
+	var root_rotation: Vector3 = Vector3(wrapf(body.rotation.x,-PI,PI),wrapf(body.rotation.y,-PI,PI),wrapf(body.rotation.z,-PI,PI))
+	return {"root":root_rotation,"offset":body.position,"hips":hips.rotation,"torso":torso.rotation,"right_arm":right_arm.rotation,"right_forearm":right_forearm.rotation,"wrist":right_wrist.rotation,"left_arm":left_arm.rotation,"left_forearm":left_forearm.rotation,"left_leg":left_leg.rotation,"right_leg":right_leg.rotation,"left_knee":left_knee.rotation,"right_knee":right_knee.rotation}
+
+func _interpolated(pose_a: Dictionary,pose_b: Dictionary,key: String,weight: float) -> Vector3:
+	var first: Vector3 = pose_a[key]
+	var second: Vector3 = pose_b[key]
+	return first.lerp(second,weight)
+
+func _apply_cut_pose() -> void:
+	var track: Array = _combat_tracks[combo_index]
+	var previous: Dictionary = track[0]
+	var following: Dictionary = track.back()
+	for index: int in range(1,track.size()):
+		following = track[index]
+		if attack_elapsed <= float(following.time):
+			previous = track[index-1]
+			break
+	if float(previous.time) == 0.0 and not _attack_origin.is_empty():
+		previous = previous.duplicate()
+		previous.merge(_attack_origin,true)
+	var duration: float = maxf(float(following.time)-float(previous.time),0.001)
+	var alpha: float = clampf((attack_elapsed-float(previous.time))/duration,0,1)
+	alpha = alpha*alpha*(3.0-2.0*alpha)
+	body.position = _interpolated(previous,following,"offset",alpha)
+	body.rotation = _interpolated(previous,following,"root",alpha)
+	hips.rotation = _interpolated(previous,following,"hips",alpha)
+	torso.rotation = _interpolated(previous,following,"torso",alpha)
+	right_arm.rotation = _interpolated(previous,following,"right_arm",alpha)
+	right_forearm.rotation = _interpolated(previous,following,"right_forearm",alpha)
+	right_wrist.rotation = _interpolated(previous,following,"wrist",alpha)
+	left_arm.rotation = _interpolated(previous,following,"left_arm",alpha)
+	left_forearm.rotation = _interpolated(previous,following,"left_forearm",alpha)
+	var stance_weight: float = 1.0-clampf(locomotion_blend*2.0,0,1)
+	left_leg.rotation = left_leg.rotation.lerp(_interpolated(previous,following,"left_leg",alpha),stance_weight)
+	right_leg.rotation = right_leg.rotation.lerp(_interpolated(previous,following,"right_leg",alpha),stance_weight)
+	left_knee.rotation = left_knee.rotation.lerp(_interpolated(previous,following,"left_knee",alpha),stance_weight)
+	right_knee.rotation = right_knee.rotation.lerp(_interpolated(previous,following,"right_knee",alpha),stance_weight)
+	head.rotation = Vector3(-torso.rotation.x*0.35,-torso.rotation.y*0.38,-torso.rotation.z*0.25)
+
 func tick(delta: float, moving: float) -> void:
-	if body == null:
+	if not is_instance_valid(torso):
 		return
-	walk_phase += delta * (9.5 if moving > 0.05 else 2.4)
-	var stride: float = sin(walk_phase) * 0.65 * moving
-	left_leg.rotation.x = stride
-	right_leg.rotation.x = -stride
-	left_arm.rotation = Vector3(-stride * 0.6, 0, 0.08)
-	right_arm.rotation = Vector3(stride * 0.5, 0, -0.08)
-	body.position.y = absf(sin(walk_phase)) * 0.065 * moving + sin(walk_phase * 0.5) * 0.012
+	idle_phase += delta
+	locomotion_blend = move_toward(locomotion_blend,clampf(moving,0,1),delta*4.5)
+	walk_phase += delta*lerpf(2.8,10.6,locomotion_blend)
+	var step: float = sin(walk_phase)
+	var passing: float = cos(walk_phase)
+	var breath: float = sin(idle_phase*TAU/3.7)
+	var weight_shift: float = sin(idle_phase*TAU/5.2)
+	var resting: float = 1.0-locomotion_blend
+	body.position = Vector3(weight_shift*0.009*resting, (0.018+0.018*cos(walk_phase*2.0))*locomotion_blend+breath*0.006*resting,0)
 	body.rotation = Vector3.ZERO
-	head.rotation.y = sin(walk_phase * 0.35) * 0.04
+	hips.rotation = Vector3(-0.035*locomotion_blend,step*0.045*locomotion_blend,step*0.032*locomotion_blend+weight_shift*0.012*resting)
+	torso.rotation = Vector3(-0.025-0.045*locomotion_blend+breath*0.008*resting,-hips.rotation.y*0.65+weight_shift*0.009*resting,-hips.rotation.z*0.55)
+	left_leg.rotation = Vector3(step*0.58*locomotion_blend,0.025,-0.012*resting)
+	right_leg.rotation = Vector3(-step*0.58*locomotion_blend,-0.025,0.012*resting)
+	left_knee.rotation = Vector3(-0.035-maxf(0,passing)*0.82*locomotion_blend,0,0)
+	right_knee.rotation = Vector3(-0.035-maxf(0,-passing)*0.82*locomotion_blend,0,0)
+	left_arm.rotation = Vector3(-0.07-step*0.33*locomotion_blend,0.015,0.08+weight_shift*0.012*resting)
+	right_arm.rotation = Vector3(0.10+step*0.24*locomotion_blend,-0.10,-0.08)
+	left_forearm.rotation = Vector3(0.18+maxf(0,step)*0.18*locomotion_blend+breath*0.014*resting,0,0)
+	right_forearm.rotation = Vector3(0.38+maxf(0,-step)*0.15*locomotion_blend+breath*0.01*resting,0,0)
+	right_wrist.rotation = Vector3(-0.06*locomotion_blend,0,step*0.025*locomotion_blend)
+	head.rotation = Vector3(-torso.rotation.x*0.3,sin(idle_phase*0.47)*0.025*resting,-hips.rotation.z*0.25)
+	cape.rotation.x = -0.16+0.035*sin(walk_phase-0.6)*locomotion_blend+breath*0.012*resting
+	cape.rotation.z = -hips.rotation.z*0.35
 	slash.visible = false
 	spin_ring.visible = false
 	if attack_elapsed >= 0.0:
-		attack_elapsed += delta
-		var t: float = clampf(attack_elapsed / attack_duration, 0.0, 1.0)
+		attack_elapsed = minf(attack_elapsed+delta,attack_duration)
+		var t: float = attack_elapsed/attack_duration
 		if skill_attack:
-			body.rotation.y = t * TAU * 1.5
-			right_arm.rotation = Vector3(1.3, -0.4, -0.7)
-			left_arm.rotation = Vector3(0.5, 0.3, 0.55)
+			var spin: float = clampf((t-0.12)/0.76,0,1)
+			spin = spin*spin*(3.0-2.0*spin)
+			body.rotation.y = spin*TAU
+			body.position.y += sin(t*PI)*0.035
+			hips.rotation = Vector3(-0.03,0,0)
+			torso.rotation = Vector3(-0.04,0,0)
+			right_arm.rotation = Vector3(0.50,-0.55,1.12)
+			right_forearm.rotation = Vector3(0.30,0,0)
+			right_wrist.rotation = Vector3(-0.40,0,0)
+			left_arm.rotation = Vector3(0.28,0.30,-0.78)
+			left_forearm.rotation = Vector3(0.40,0,0)
 			spin_ring.visible = t > 0.18 and t < 0.88
-			spin_ring.rotation.y = -t * TAU
-			spin_ring.scale = Vector3.ONE * (0.7 + 0.4 * sin(t * PI))
-			slash_material.albedo_color = Color(0.48, 0.85, 1.0, sin(t * PI) * 0.65)
-		elif combo_index == 2:
-			var swing: float = sin(t * PI)
-			right_arm.rotation = Vector3(-0.6 + 2.8 * swing, -0.25, -0.3)
-			left_arm.rotation.x = 1.0 * swing
-			body.rotation.x = -0.12 + swing * 0.27
-			slash.visible = t > 0.28 and t < 0.80
-			slash.rotation = Vector3(0, 0, -0.8)
-			slash_material.albedo_color = Color(1.0, 0.83, 0.32, sin(t * PI) * 0.6)
+			spin_ring.rotation.y = -t*TAU
+			spin_ring.scale = Vector3.ONE*(0.7+0.4*sin(t*PI))
+			slash_material.albedo_color = Color(0.48,0.85,1.0,sin(t*PI)*0.65)
 		else:
-			var sign_value: float = 1.0 if combo_index == 0 else -1.0
-			var swing: float = sin(t * PI)
-			right_arm.rotation = Vector3(1.2 * swing, -sign_value * (t * 2.5 - 1.2), -0.55 * swing)
-			body.rotation.y = sign_value * (0.45 - t * 0.9) * swing
-			left_arm.rotation.x = swing * 0.7
-			slash.visible = t > 0.24 and t < 0.85
-			slash.rotation = Vector3(0.08 * sign_value, sign_value * (t - 0.5), sign_value * 0.10)
-			slash_material.albedo_color = Color(1.0, 0.83, 0.32, sin(t * PI) * 0.58)
+			_apply_cut_pose()
 		if t >= 1.0:
 			attack_elapsed = -1.0
 	if flash_time > 0.0:

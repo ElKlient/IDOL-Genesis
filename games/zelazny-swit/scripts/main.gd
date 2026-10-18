@@ -24,6 +24,8 @@ var attack_cooldown: float = 0.0
 var skill_cooldown: float = 0.0
 var combo: int = 0
 var combo_time: float = 0.0
+var _attack_serial: int = 0
+var _combat_was_blocked: bool = false
 var context_npc: String = ""
 var autosave_time: float = 0.0
 var respawning: bool = false
@@ -114,6 +116,11 @@ func _physics_process(delta: float) -> void:
 	if combo_time <= 0.0:
 		combo = 0
 	var blocked: bool = hud.modal_open or respawning
+	if blocked and not _combat_was_blocked:
+		_attack_serial += 1
+		combo = 0
+		combo_time = 0.0
+	_combat_was_blocked = blocked
 	var movement: Vector2 = hud.move_vector
 	if not blocked:
 		var keys: Vector2 = Vector2(float(Input.is_physical_key_pressed(KEY_D) or Input.is_physical_key_pressed(KEY_RIGHT))-float(Input.is_physical_key_pressed(KEY_A) or Input.is_physical_key_pressed(KEY_LEFT)), float(Input.is_physical_key_pressed(KEY_S) or Input.is_physical_key_pressed(KEY_DOWN))-float(Input.is_physical_key_pressed(KEY_W) or Input.is_physical_key_pressed(KEY_UP)))
@@ -145,7 +152,7 @@ func _physics_process(delta: float) -> void:
 func _process(delta: float) -> void:
 	if not is_instance_valid(hero) or not is_instance_valid(camera):
 		return
-	camera_pivot.position = camera_pivot.position.lerp(hero.position+CAMERA_FOCUS,1.0-exp(-delta*6.0))
+	camera_pivot.position = hero.position + CAMERA_FOCUS
 	minimap_time -= delta
 	if minimap_time <= 0.0 and hud.has_method("set_world_positions"):
 		minimap_time = 0.1
@@ -222,11 +229,12 @@ func _cycle_target() -> void:
 	_set_target(nearby[(index+1)%nearby.size()])
 
 func request_attack() -> void:
-	if not is_instance_valid(hud) or hud.modal_open or respawning or attack_cooldown>0:
+	if not is_instance_valid(hud) or not is_instance_valid(hero) or hero.dead or hud.modal_open or respawning or attack_cooldown>0:
 		return
-	attack_cooldown = 0.48
+	combo = (combo % 4) + 1
+	attack_cooldown = 0.64 if combo == 4 else 0.48
 	combo_time = 1.2
-	combo = (combo % 3) + 1
+	_attack_serial += 1
 	var nearest: Node3D = _nearest_enemy(3.0)
 	if is_instance_valid(target) and target.is_alive() and hero.position.distance_to(target.position)<3.0:
 		nearest = target
@@ -238,36 +246,48 @@ func request_attack() -> void:
 	hero.play_attack(combo-1,false)
 	audio.play_sfx("swing")
 	# Delay the hit until the sword reaches its arc. Target is rechecked then.
-	_hit_after_windup(nearest,combo)
+	_hit_after_windup(nearest,combo,_attack_serial)
 
-func _hit_after_windup(enemy: Node3D, step: int) -> void:
-	await get_tree().create_timer(0.16).timeout
+func _hit_after_windup(enemy: Node3D, step: int, attack_serial: int) -> void:
+	await get_tree().create_timer(0.25 if step == 4 else 0.16).timeout
+	if attack_serial != _attack_serial or not is_instance_valid(hero) or hero.dead or not is_instance_valid(hud):
+		return
 	if not is_instance_valid(enemy) or not enemy.is_alive() or respawning or hud.modal_open:
 		return
 	if hero.position.distance_to(enemy.position)>3.2:
 		return
 	var critical: bool = randf()<0.14
 	var damage: int = GameState.attack_power()+randi_range(-2,3)
-	if step == 3:
-		damage = int(damage*1.25)
+	if step == 4:
+		damage = int(damage*1.4)
 	if critical:
 		damage = int(damage*1.65)
 	enemy.take_damage(damage,critical)
+	if step == 4 and is_instance_valid(enemy) and enemy.is_alive():
+		var push_direction: Vector3 = enemy.global_position - hero.global_position
+		push_direction.y = 0.0
+		if push_direction.length_squared() < 0.0001:
+			push_direction = hero.facing
+		enemy.apply_knockback(push_direction,7.5)
 	audio.play_sfx("hit")
 
 func use_skill() -> void:
-	if hud.modal_open or respawning:
+	if not is_instance_valid(hud) or not is_instance_valid(hero) or hero.dead or hud.modal_open or respawning:
 		return
 	if skill_cooldown>0:
 		hud.toast("Wir stali gotowy za %.1f s" % skill_cooldown)
 		return
 	skill_cooldown = 7.0
 	attack_cooldown = 0.7
+	_attack_serial += 1
+	combo = 0
+	combo_time = 0.0
+	var skill_serial: int = _attack_serial
 	hero.play_attack(0,true)
 	audio.play_sfx("skill")
 	_ring_effect(hero.position,Color("70dcd0"),4.2)
 	await get_tree().create_timer(0.24).timeout
-	if respawning or hud.modal_open:
+	if skill_serial != _attack_serial or hero.dead or respawning or hud.modal_open:
 		return
 	for enemy: Node3D in enemies.duplicate():
 		if is_instance_valid(enemy) and enemy.is_alive() and hero.position.distance_to(enemy.position)<4.2:
@@ -292,6 +312,9 @@ func _enemy_hit(amount: int) -> void:
 
 func _respawn_hero() -> void:
 	respawning = true
+	_attack_serial += 1
+	combo = 0
+	combo_time = 0.0
 	hero.dead = true
 	hero.move_input = Vector2.ZERO
 	hud.toast("Padłeś w walce. Strażnicy przenoszą Cię do wioski. Ekwipunek i złoto zachowane.")

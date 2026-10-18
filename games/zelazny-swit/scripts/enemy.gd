@@ -40,6 +40,8 @@ var _targeted: bool = false
 var _dying: bool = false
 var _death_time: float = 0.0
 var _attack_lunge: float = 0.0
+var _knockback_velocity: Vector3 = Vector3.ZERO
+var _stagger_time: float = 0.0
 
 func setup(type: int, target: CharacterBody3D) -> void:
 	kind = clampi(type, 0, 2)
@@ -308,11 +310,21 @@ func _physics_process(delta: float) -> void:
 	if frozen or not is_instance_valid(hero):
 		velocity.x = 0.0
 		velocity.z = 0.0
+		_knockback_velocity = Vector3.ZERO
+		_stagger_time = 0.0
 		if _mode == Mode.WINDUP:
 			_mode = Mode.RECOVER
 			_clock = 0.55
 		_warning_ring.visible = false
 		move_and_slide()
+		return
+	if _stagger_time > 0.0 or _knockback_velocity.length_squared() > 0.001:
+		_stagger_time = maxf(0.0,_stagger_time-delta)
+		velocity.x = _knockback_velocity.x
+		velocity.z = _knockback_velocity.z
+		# Slide through the physics solver, then discard velocity into any wall.
+		move_and_slide()
+		_knockback_velocity = Vector3(velocity.x,0.0,velocity.z).move_toward(Vector3.ZERO,22.0*delta)
 		return
 	var hero_dead: bool = bool(hero.get("dead"))
 	var hero_offset: Vector3 = hero.global_position - global_position
@@ -376,8 +388,25 @@ func _face(direction: Vector3, weight: float) -> void:
 	if direction.length_squared() > 0.01:
 		_visual.rotation.y = lerp_angle(_visual.rotation.y, atan2(-direction.x, -direction.z), minf(1.0, weight))
 
+func apply_knockback(direction: Vector3, strength: float = 7.5) -> void:
+	if frozen or not is_alive() or not direction.is_finite() or not is_finite(strength) or strength <= 0.0:
+		return
+	var flat: Vector3 = Vector3(direction.x,0.0,direction.z)
+	if flat.length_squared() < 0.0001:
+		return
+	_knockback_velocity = flat.normalized()*minf(strength,12.0)
+	_stagger_time = 0.34
+	# Interrupt a pending attack before its damage signal can be emitted.
+	_mode = Mode.RECOVER
+	_clock = 0.30
+	_attack_lunge = 0.0
+	if is_instance_valid(_warning_ring):
+		_warning_ring.visible = false
+
 func _tick_visual(delta: float) -> void:
-	var movement: float = Vector2(velocity.x, velocity.z).length() / _speed
+	var movement: float = clampf(Vector2(velocity.x, velocity.z).length() / _speed,0.0,1.0)
+	if _stagger_time > 0.0:
+		movement = 0.0
 	_phase += delta * (9.0 if movement > 0.05 else 2.0)
 	for i: int in range(_legs.size()):
 		var side_phase: float = 0.0 if i % 3 == 0 else PI
@@ -419,6 +448,8 @@ func take_damage(amount: int, critical: bool = false) -> void:
 	if hp <= 0:
 		_dying = true
 		velocity = Vector3.ZERO
+		_knockback_velocity = Vector3.ZERO
+		_stagger_time = 0.0
 		_health_root.visible = false
 		_target_ring.visible = false
 		_warning_ring.visible = false

@@ -5,6 +5,7 @@ Run from the Godot project directory with Godot 4.4 or newer:
 ```sh
 godot --headless --path . --script res://tests/integration.gd -- --test-isolated
 godot --headless --path . --script res://tests/ui_flow.gd -- --test-isolated
+godot --headless --path . --script res://tests/combat_combo.gd -- --test-isolated
 godot --headless --path . --script res://tests/render_stability.gd -- --test-isolated
 godot --headless --path . --script res://tests/forge_deferred.gd -- --test-isolated
 godot --headless --audio-driver Dummy --path . --script res://tests/audio_regression.gd -- --test-isolated
@@ -13,6 +14,8 @@ godot --headless --audio-driver Dummy --path . --script res://tests/audio_regres
 `integration.gd` checks starting gold, prices, equipment, upgrade costs, healing, quest rewards, actual touch joystick movement, collision routes to both NPCs and through the gate, three real enemy kills through attack windup/cooldown, and their timed respawn. It also checks that every modal fits a 1280 × 720 viewport. The respawn check waits for the real 18-second cooldown.
 
 `ui_flow.gd` sends real GUI pointer events: select and buy a sword, open the inventory, equip it, drag it onto the anvil, and press the upgrade button. It verifies that dropping only selects the item and that the explicit upgrade action charges once. It also covers reset confirmation and a fresh scene. Pointer helpers scroll ancestor `ScrollContainer` nodes to expose the real target before clicking; tree visibility alone does not imply that a control is inside its scroll viewport.
+
+`combat_combo.gd` exercises four real main-controller attacks, contact timing, cooldown/modal/range/death guards, the 1.2-second combo reset, finisher-only impulse decay, enemy windup interruption and collision against a temporary wall. It verifies one defeat reward, exact camera focus during movement/stops/teleports, four distinct blade contacts in front of the warrior above ground, bounded idle breathing, and safe transition from a skill spin. The real enemy fixture avoids respawn timers; the full integration test covers spawned-enemy rewards and respawn. On an OpenGL display, omit `--headless` and add `--capture-dir=/absolute/path/to/previews` for the actual idle pose and four contact-pose screenshots. Version 0.1.6 passed 55 headless checks and 60 checks with these captures.
 
 `render_stability.gd` keeps the real scene active for at least 12 seconds, crossing the former eight-second automatic graphics transition. It upgrades the actual starter sword to +1, +2 and +3 through the forge button, checks each charge and equipped armor, and repeatedly toggles economical graphics. Every toggle must retain the viewport's startup MSAA setting while still switching sun shadows and forge lighting. The same test can run on a real OpenGL display (omit `--headless`, optionally use Xvfb); it then also checks that rendered frames continue after every toggle. This is a targeted renderer regression, not a claim of testing every Android GPU.
 

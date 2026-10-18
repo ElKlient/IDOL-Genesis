@@ -85,6 +85,8 @@ func _run() -> void:
 	print("UI FLOW RESULT: %d checks, %d failures" % [checks,failures])
 	game.queue_free()
 	await process_frame
+	# Let the audio mixer release the just-reloaded scene's playback resources.
+	await create_timer(0.25).timeout
 	quit(0 if failures == 0 else 1)
 
 func _layout() -> void:

@@ -1,4 +1,4 @@
-# Żelazny Świt — przekazanie projektu 0.1.5
+# Żelazny Świt — przekazanie projektu 0.1.6
 
 ## Cel i zgody
 
@@ -22,7 +22,7 @@ Nowy projekt jest odseparowany od dotychczasowych aplikacji i gry:
 
 - `project.godot`, `main.tscn`: wejście, landscape, Compatibility/OpenGL, Canvas Items.
 - `scripts/main.gd`: scena, obrotowa kamera na `SpringArm3D`, ruch względem widoku,
-  wejście, 3-cio ciosowe combo,
+  wejście, czteroczęściowe combo,
   opóźnienie trafienia, automatyczny najbliższy cel / wybór dotykiem, skill obszarowy,
   mikstury, NPC, nagrody i respawn.
 - `scripts/camera_preferences.gd`: niezależne preferencje kamery i atomowy zapis CFG.
@@ -50,8 +50,10 @@ Nowa postać: 10 000 G, miecz rekruta, 10 mikstur. Mira (-6,0,0) sprzedaje
 oraz jego poziom, ale zużywa opłatę. Żelazny miecz:350 G; +1:180 G.
 Po zakupie trzeba osobno założyć sprzęt w ekwipunku.
 
-Za północną bramą (z=-14) są potwory. Normalny cios ma cooldown0.48s i windup0.16s.
-Trzeci cios mocniejszy, 14% trafień krytycznych. Wir stali ma zasięg4.2m i cooldown7s.
+Za północną bramą (z=-14) są potwory. Pierwsze trzy ciosy mają cooldown0.48s
+i windup0.16s. Czwarty: cooldown0.64s, windup0.25s, obrażenia×1.4 i odrzut
+żywego trafionego celu. Przerwa1.2s resetuje combo. 14% trafień krytycznych.
+Wir stali ma zasięg4.2m i cooldown7s.
 PŻ i obrona zmieniają realne obrażenia. Śmierć wraca do wioski bez kar.
 Potwory respawn18s, boss24s. Łupy w złocie/PD automatyczne, mikstura ma szansę wypaść.
 
@@ -386,3 +388,55 @@ wzrosła ze 109,94 do 130,52 px, czyli o 18,71%. Sprawdzono dokładny odczyt
 starego CFG, rozszerzone maksimum, zapis ustawień i niezmienność bajtów zapisu
 postaci. Obejrzano zrzuty z trzecią zbroją przy 1,85× i 2,50×; bohater mieści
 się obok panelu, a uchwyty pozostają w całości widoczne na końcach torów.
+
+## Wersja 0.1.6 — kamera bez opóźnienia, animacja i czwarte uderzenie
+
+Użytkownik zaakceptował zbliżenie 0.1.5 i zgłosił wrażenie rozmazywania podczas
+biegu. Nie znaleziono włączonego filtra motion blur, DOF ani TAA. Usunięto
+opóźnione podążanie kamery przez LERP; pivot jest ustawiany bezpośrednio na
+pozycji bohatera plus punkt obserwacji. Ramię, kolizje, zoom i zapis preferencji
+pozostają. To usuwa zwłokę śledzenia, ale nie stanowi pomiaru obrazu telefonu.
+
+Zwykłe combo ma teraz cztery kroki. Trzy cięcia mają cooldown 0,48 s i kontakt
+po 0,16 s; czwarty ma cooldown 0,64 s, kontakt po 0,25 s i obrażenia ×1,4.
+Każdy cios odnawia okno 1,2 s na kontynuację. Czwarty odpycha tylko trafiony,
+nadal żywy cel, siłą początkową 7,5 m/s, z wygaszaniem 22 m/s² i krótkim
+zachwianiem 0,34 s. Ruch przechodzi przez `move_and_slide`, więc uwzględnia
+kolizje świata. Przygotowanie ataku potwora zostaje przerwane. Śmierć i modal
+usuwają odrzut; martwy cel nie otrzymuje ponownej nagrody ani impulsu.
+Numer akcji anuluje stare oczekujące trafienie po skillu, śmierci lub wejściu
+w panel. Skill przerywa serię. Schemat zapisu, ekonomia i diagnostyka bez zmian.
+
+`CharacterVisual` zachowuje dotychczasowe siatki i ekwipunek, ale dodaje
+osobne biodra, tułów, łokcie, kolana i nadgarstek. Cztery własne sekwencje
+klatek kluczowych odpowiadają etapom przygotowania, kontaktu i powrotu;
+kontakt wizualny przypada na te same czasy co obrażenia. Normalne cięcia nie
+wyświetlają szerokiej wstęgi. Postój ma oddychanie i przenoszenie ciężaru,
+a chód zginanie kolan, ruch tułowia i przejście z postoju.
+
+Ważne dla dalszej pracy: użytkownik chce bardziej realistyczny model wojownika
+i obejrzeć propozycje przed jego dodaniem. Pokazano planszę koncepcyjną A/B/C:
+A — stalowa zbroja i granatowa tkanina, B — warstwowy pancerz i czerwień,
+C — ciemna ozdobna ciężka zbroja ze złotymi detalami. To obraz projektowy,
+nie gotowy model 3D ani zrzut gry. Żaden nowy model nie jest jeszcze włączony
+do tej wersji; po wyborze trzeba przygotować siatkę, rig, materiały, dopasować
+trzy poziomy zbroi i wyeksportować GLB do Androida. Nie obiecuj identycznej
+szczegółowości ilustracji w renderze mobilnym. Przyszłe trzy klasy są poza
+bieżącą aktualizacją. Nie kopiuj modeli, ubiorów ani animacji Metin2.
+
+W HUD oczekiwane **v0.1.6**. Aktualizacja przez zachowanie `project.godot`
+w stash i pull gałęzi, bez usuwania danych postaci i prywatnej konfiguracji.
+
+Weryfikacja 0.1.6: import i zwykły start w Godocie 4.4.1; integracja 51/51,
+nowy `combat_combo.gd` 55/55 headless i 60/60 OpenGL, interfejs 17/17
+w obu trybach oraz kamera 45/45 w obu trybach (tym razem bez dodatkowych
+zrzutów panelu kamery). Sprawdzono rzeczywiste cztery kontakty, brak impulsu
+w pierwszych trzech, odrzut i jego wygaszenie, przerwanie WINDUP, kolizję ze
+ścianą, reset po 1,2 s, zmianę zasięgu w trakcie ciosu, anulowanie przez panel,
+zakaz ataku po śmierci i pojedynczą nagrodę za przeciwnika. Test potwierdza
+też śledzenie kamery przy ruchu, zatrzymaniu i teleportacji, oddech bez dryfu
+oraz przejście skill → zwykły cios bez obrotu wstecz. Ostrze przy każdym
+kontakcie znajduje się z przodu i nad ziemią. Pięć zrzutów prawdziwego renderu
+(postój i cztery kontakty) obejrzano. Dotychczasowy zapis pozostał identyczny
+bajt w bajt; testy pracowały bez wysyłania raportów. To testy Linux/OpenGL,
+nie próba nowej wersji na fizycznym telefonie.

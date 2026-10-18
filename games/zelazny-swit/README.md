@@ -1,4 +1,4 @@
-# Żelazny Świt — 0.1.5
+# Żelazny Świt — 0.1.6
 
 Oryginalna, jednoosobowa gra akcji RPG 3D na telefon, napisana w Godocie 4.4+.
 Sterowanie dotykowe w poziomie. Mały grywalny wycinek: wioska Brzeziny, wojownik,
@@ -50,6 +50,8 @@ ponownie — do aktualizacji służy następny blok.
 - Postać zdobywa poziomy, które zwiększają zdrowie i siłę. Awans odnawia zdrowie.
 - Śmierć przenosi do wioski bez utraty złota ani ekwipunku.
 - Potwory odradzają się po 18 s (Strażnik po 24 s).
+- Zwykły atak tworzy serię czterech ciosów: trzy cięcia i mocniejszy czwarty
+  cios, który odrzuca żywego przeciwnika. Przerwa 1,2 s rozpoczyna serię od nowa.
 - Zapis automatyczny po zakupie, zmianie sprzętu, ulepszeniu i łupach;
   również co 12 sekund oraz po przejściu aplikacji w tło.
 - Zapis: `user://adventure_v1.json`, z kopią poprzedniej wersji `.bak`.
@@ -88,6 +90,9 @@ Przy przeszkodach kamera skraca dystans, aby ograniczyć przenikanie przez budyn
 Ustawienia zapisują się automatycznie po chwili i pozostają po ponownym
 uruchomieniu, aktualizacji oraz wybraniu Nowej Gry.
 
+Od 0.1.6 kamera śledzi bohatera bez opóźnionego doganiania. Gra nie korzysta
+z filtra motion blur. Przybliżenie i własne ustawienia pozostają zapisane.
+
 ## Aktualizacja
 
 Zamknij projekt w Godocie. W Termuxie:
@@ -100,7 +105,7 @@ Potem otwórz ten sam `games/zelazny-swit/project.godot` i naciśnij ▶.
 Polecenie zachowuje ewentualne lokalne zmiany `project.godot` w `git stash list`.
 Nie przywraca ich automatycznie: nowa wersja zawiera wymagane ustawienia mobilne
 i autoload diagnostyki. Zapis postaci oraz prywatna konfiguracja raportów zostają.
-Nie używaj resetowania ani usuwania folderu. W HUD pod zdrowiem sprawdź numer **v0.1.5**.
+Nie używaj resetowania ani usuwania folderu. W HUD pod zdrowiem sprawdź numer **v0.1.6**.
 
 ## Uruchamianie i zakres
 
@@ -111,9 +116,21 @@ Nie używaj resetowania ani usuwania folderu. W HUD pod zdrowiem sprawdź numer 
 - Jest to pierwszy grywalny wycinek, a nie rozbudowane MMORPG: brak rozgrywki
   wieloosobowej, klas poza wojownikiem, rozległych map i pełnej kampanii.
 - Udostępniony jest projekt do uruchomienia w Godocie, nie gotowy instalator APK.
-- Użytkownik potwierdził w 0.1.3 chodzenie, walkę, zabijanie potworów i ulepszanie
-  przedmiotów na swoim telefonie oraz używanie kamery 0.1.4. Zbliżenie 0.1.5
-  wymaga jego próby po aktualizacji.
+- Użytkownik potwierdził chodzenie, walkę, zabijanie potworów i ulepszanie
+  przedmiotów na swoim telefonie oraz zaakceptował zbliżenie kamery 0.1.5.
+  Nowa walka 0.1.6 wymaga jego próby po aktualizacji.
+
+## Aktualizacja 0.1.6 — ruch i cztery ciosy
+
+Wojownik ma cztery odrębne animacje ataku z przygotowaniem, cięciem i powrotem
+do pozycji. Czwarty cios ma dłuższe przygotowanie i odrzuca trafionego żywego
+przeciwnika, przerywając jego przygotowany atak. Odrzut podlega kolizjom świata.
+Postój ma subtelny oddech i przenoszenie ciężaru, a ruch korzysta z osobnych
+stawów łokci i kolan. To aktualizacja animacji dotychczasowej postaci.
+
+Nowy, bardziej realistyczny model i wygląd zbroi są osobnym etapem po wyborze
+użytkownika spośród pokazanych koncepcji A/B/C. Plansza koncepcyjna nie jest
+zrzutem gry ani gotowym modelem 3D. Obecna wersja zachowuje wyposażenie i postęp.
 
 Dokładny raport weryfikacji i informacje dla kolejnego agenta: [docs/STRESZCZENIE.md](docs/STRESZCZENIE.md).
 
