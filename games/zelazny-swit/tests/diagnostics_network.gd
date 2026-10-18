@@ -32,6 +32,11 @@ func _run() -> void:
 	var save_existed: bool = FileAccess.file_exists(state.SAVE_PATH)
 	var save_before: PackedByteArray = FileAccess.get_file_as_bytes(state.SAVE_PATH) if save_existed else PackedByteArray()
 	var diagnostics: Node = root.get_node("Diagnostics")
+	var diagnostics_request: HTTPRequest = diagnostics.get("_http")
+	diagnostics_request.request_completed.connect(func(result: int, response_code: int, _headers: PackedStringArray, _body: PackedByteArray) -> void:
+		# Transport codes alone reveal no credentials, report data or response body.
+		print("DIAGNOSTICS NETWORK TRANSPORT: result=%d http=%d" % [result,response_code])
+	)
 	# Managed QA may require a local HTTPS CONNECT proxy. This applies only to
 	# this explicitly opted-in test, never the phone's production configuration.
 	for arg: String in args:
@@ -58,7 +63,12 @@ func _run() -> void:
 	_check(report_id.length() == 32 and report_id.is_valid_hex_number(false),"queued live smoke report has a verifiable opaque report identifier")
 	diagnostics.flush_pending()
 	var started: int = Time.get_ticks_msec()
+	var last_transport_status: int = -1
 	while Time.get_ticks_msec()-started < 20000 and not _queue_files().is_empty():
+		var transport_status: int = diagnostics_request.get_http_client_status()
+		if transport_status != last_transport_status:
+			print("DIAGNOSTICS NETWORK PHASE: %d" % transport_status)
+			last_transport_status = transport_status
 		await create_timer(0.1).timeout
 	_check(_queue_files().is_empty(),"actual HTTPS request acknowledges and removes the queued report within twenty seconds")
 	_check(diagnostics.status_text().contains("Raport wysłany"),"Godot diagnostics exposes confirmed sent status after server acknowledgement")

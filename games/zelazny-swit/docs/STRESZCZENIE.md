@@ -266,13 +266,31 @@ nie pobrać konfiguracji: pobieranie wymaga tożsamości odwiedzającego nadanej
 przez prywatną bramę Sites. Część bram przekazuje e-mail bez stabilnego ID;
 ten nagłówek służy wyłącznie potwierdzeniu logowania i nie jest zapisywany.
 
-Test HTTPS z Godota nie ma potwierdzonego sukcesu: pierwsza próba nie dostała
-potwierdzenia w 20 s w środowisku z wymaganym proxy, następna została zablokowana
-przez automatyczną kontrolę zgód. Kontrola wymaga wyraźnej zgody użytkownika
-na konkretny host diagnostyki, mimo wcześniejszej ogólnej zgody na narzędzia.
-Nie ponawiaj transmisji uwierzytelnionego raportu przed taką zgodą; lokalne
-testy i prywatna publikacja są ukończone. Nie deklaruj pełnego testu end-to-end
-ani otrzymania raportu z telefonu, dopóki nie odczytasz go w bazie Sites.
+Użytkownik udzielił wyraźnej zgody na przesyłanie raportów do wskazanego
+prywatnego serwera odpowiedzią „Zezwalam” 18.10.2026 po pytaniu z konkretnym
+adresem. Zgoda dotyczy automatycznej diagnostyki tej gry; nie pytaj ponownie
+o ten sam zakres. Wcześniejsza blokada automatycznej kontroli zgód jest rozwiązana.
+
+Po zgodzie test HTTPS z rzeczywistego Godota zakończył się 8/8: HTTP 201,
+JSON potwierdzający zgodny report_id, kolejka usunięta dopiero po potwierdzeniu.
+Raport `7776631217b98a364c9ea5b2ddef86b0` odczytano następnie natywnym narzędziem
+Sites w `latest_reports`, z ostatnim zdarzeniem `network_probe`. Jest to raport
+testowego Godota na Linuxie, nie telefonu użytkownika. Baza nie zawiera tokenu.
+
+Limit 5 s powodował timeout w środowisku z proxy; z limitem 15 s ten sam klient
+poprawnie wysłał raport. Wersja 0.1.3 ustawia 15 s także w produkcji. Zmiana jest
+asynchroniczna i nie zmienia zapisu ani rozgrywki. Test ma opcjonalny parametr
+`--test-https-proxy=host:port` tylko dla QA i wypisuje wyłącznie kody transportu,
+bez nagłówków ani treści odpowiedzi. Nie pomijaj walidacji TLS.
+
+Końcowy test wersji 0.1.3, bez testowej zmiany timeoutu: 8/8 HTTPS oraz 29/29
+lokalnej diagnostyki. Raport `4fc209b09051ccf728a5a51f73290fe7` został przyjęty
+z HTTP 201 i potwierdzony w `latest_reports` z wersją `0.1.3`.
+
+Aktywny automatyczny odczyt nowych awarii jest ustawiony co godzinę. Korzysta
+wyłącznie z prywatnego odczytu `latest_reports` i pomija `test`/`checkpoint`.
+Po podłączeniu telefonu sprawdź faktyczne nowe raporty, zanim zadeklarujesz ich
+otrzymanie. Natywny stack trace Androida nadal nie jest gwarantowany.
 
 Pełna regresja tej wersji: integracja 51/51, zapis 19/19, UI OpenGL 17/17,
 kowal OpenGL 26/26, renderer OpenGL 54/54 (świeży katalog danych; liczba

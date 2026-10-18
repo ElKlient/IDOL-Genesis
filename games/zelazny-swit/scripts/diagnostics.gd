@@ -70,7 +70,9 @@ func _ready() -> void:
 	_started_at = _timestamp()
 	_started_unix = int(Time.get_unix_time_from_system())
 	_http = HTTPRequest.new()
-	_http.timeout = 5.0
+	# Allow mobile/proxied TLS handshakes without blocking gameplay. Five seconds
+	# proved too short in the real HTTPS smoke test; the bounded retry stays async.
+	_http.timeout = 15.0
 	_http.body_size_limit = 8192
 	_http.max_redirects = 0
 	add_child(_http)

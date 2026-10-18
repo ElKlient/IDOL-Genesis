@@ -1,4 +1,4 @@
-# Żelazny Świt — 0.1.2
+# Żelazny Świt — 0.1.3
 
 Oryginalna, jednoosobowa gra akcji RPG 3D na telefon, napisana w Godocie 4.4+.
 Sterowanie dotykowe w poziomie. Mały grywalny wycinek: wioska Brzeziny, wojownik,
@@ -78,7 +78,7 @@ Potem otwórz ten sam `games/zelazny-swit/project.godot` i naciśnij ▶.
 Polecenie zachowuje ewentualne lokalne zmiany `project.godot` w `git stash list`.
 Nie przywraca ich automatycznie: nowa wersja zawiera wymagane ustawienia mobilne
 i autoload diagnostyki. Zapis postaci oraz prywatna konfiguracja raportów zostają.
-Nie używaj resetowania ani usuwania folderu. W HUD pod zdrowiem sprawdź numer **v0.1.2**.
+Nie używaj resetowania ani usuwania folderu. W HUD pod zdrowiem sprawdź numer **v0.1.3**.
 
 ## Uruchamianie i zakres
 
@@ -108,6 +108,9 @@ Użytkownik zgłosił dalsze zamknięcie procesu po 0.1.1. Nowe zmiany są spraw
 na Linuxie; przyczyna awarii na konkretnym Androidzie wymaga dalszego potwierdzenia.
 
 ## Jednorazowe włączenie prywatnych raportów
+
+W 0.1.3 limit czasu asynchronicznego połączenia wynosi 15 s. Rzeczywisty
+test wysyłki z Godota i odczyt raportu w prywatnej bazie zostały potwierdzone.
 
 1. Na telefonie otwórz [konfigurację diagnostyki](https://zelazny-swit-diagnostyka.sethoyt.chatgpt.site),
    zaloguj się na konto właściciela strony i przyciskiem pobierz `diagnostics_config.json`
