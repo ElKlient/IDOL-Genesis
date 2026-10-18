@@ -99,6 +99,29 @@ Przy konflikcie:
 
 ## Aktualny stan aplikacji
 
+18.10.2026: osobny przycisk `DASKO 2B` pod panelem pracy/pauzy.
+
+- Jedno kliknięcie od razu stosuje i zapisuje stały wariant B ze zdjęcia:
+  3 praca → 1 pauza 24h → 6 praca → 1 pauza 24h → 3 praca → 7 dom →
+  6 praca → 1 pauza 24h → 6 praca → 8 dom. Pełny okres: 42 dni,
+  24 dni pracy, 3 pauzy i 15 dni domu. To nie jest identyczny cykl 21-dniowy.
+- Faza: czwartek 29.10.2026 jest pierwszym dniem pierwszego bloku pracy;
+  środa 28.10 na zdjęciu oznacza wyjazd. Dni wyjazdu nie są osobnym stanem,
+  dzień powrotu po pracy pozostaje pracą. Pauzy: 1, 8 i 25.11.2026.
+  Powroty po pracy: 20.10, 11.11, 1.12, 23.12. Wpis 22.12 ze zdjęcia nie jest
+  wyjątkiem w kodzie: użytkownik potwierdził stały schemat i możliwą pomyłkę.
+  Zielonych świąt ze zdjęć nie używa się do wyznaczania dni domu.
+- Wykorzystuje istniejący zapis własnego cyklu, bez migracji danych ani nowego
+  formatu profilu. Wyłącza ogólne dokładanie pauz i wyrównywanie dnia startu.
+  Zastępuje stare ręczne stany grafiku; zachowuje ręcznie oznaczony urlop,
+  notatki, godziny, liczniki i aktualny widok. Działa istniejące `Cofnij`.
+  W trybie tylko kalendarz przycisk jest schowany razem z pozostałymi opcjami.
+- Testy Godot 4.4.1 headless na izolowanych danych:
+  `tests/dasko_2b_audit.gd` 47 PASS (w tym każdy dzień 201 powtórzeń),
+  `tests/release_audit.gd` 83 PASS, `tests/calendar_mobile_audit.gd` 19 PASS.
+  Fizyczny Android nadal testuje użytkownik. Aktualizacja źródeł przez Termux,
+  bez nowego wydania APK/PWA i bez zmian pozostałych elementów interfejsu.
+
 26.09.2026: widoczny rzeczywisty czas pracy także ponad plan 15h.
 
 - Pod licznikami planu/pauzy, nad przyciskami pracy, jest osobny licznik

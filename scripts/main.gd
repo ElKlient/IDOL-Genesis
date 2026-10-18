@@ -118,6 +118,7 @@ var quick_range_option: OptionButton
 var quick_month_picker_button: Button
 var month_picker_panel: PanelContainer
 var settings_toggle_button: Button
+var dasko_2b_button: Button
 var settings_panel: PanelContainer
 var legend_bar: HBoxContainer
 var calendar_touch_shield: Control
@@ -474,6 +475,12 @@ func _build_ui() -> void:
 	settings_panel.visible = false
 	day_tools_panel = _build_day_tools_panel()
 	options_root.add_child(day_tools_panel)
+
+	dasko_2b_button = Button.new()
+	dasko_2b_button.text = "DASKO 2B"
+	_connect_tap(dasko_2b_button, Callable(self, "_apply_dasko_2b_system"))
+	_prepare_control(dasko_2b_button, 22, 62)
+	options_root.add_child(dasko_2b_button)
 
 	calendar_only_toggle_button = Button.new()
 	calendar_only_toggle_button.text = "Pokaż tylko kalendarz"
@@ -1420,6 +1427,34 @@ func _build_pause_clear_dialog() -> void:
 	var cancel_button := pause_clear_dialog.get_cancel_button()
 	cancel_button.text = "Nie"
 	_prepare_control(cancel_button, 18, 48)
+
+
+func _apply_dasko_2b_system() -> void:
+	var undo_before := _app_state_snapshot()
+	_set_option_selected(schedule_option, schedule_option.get_item_count() - 1)
+	custom_pattern = ScheduleCalculator.dasko_2b_pattern()
+	_set_spin_value(custom_length_spin, custom_pattern.size())
+	start_input.text = ScheduleCalculator.DASKO_2B_START_DATE
+	start_input.set_meta("last_text", start_input.text)
+	# This pattern already includes all three rests and both home blocks.
+	# Do not add generic weekly rests or align its two different work legs.
+	weekly_rest_toggle.set_pressed_no_signal(false)
+	weekly_rest_previous_pressed = false
+	fixed_start_toggle.set_pressed_no_signal(false)
+	fixed_start_previous_pressed = false
+	_set_option_selected(fixed_start_option, 0)
+	fixed_start_option.visible = false
+	cycle_pending_apply = false
+	# Replace the previous schedule, but retain personal leave and all notes,
+	# worked hours, profiles and session timers. The change is undoable.
+	for key in manual_overrides.keys():
+		if int(manual_overrides[key]) != ScheduleCalculator.DayState.VACATION:
+			manual_overrides.erase(key)
+	if not _apply_settings():
+		_restore_app_state_snapshot(undo_before)
+		return
+	_store_undo_snapshot(undo_before)
+	_save_settings_to_disk()
 
 
 func _save_settings_and_close() -> void:

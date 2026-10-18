@@ -2,6 +2,21 @@ extends RefCounted
 
 enum DayState { NONE, WORK, HOME, REST, VACATION }
 const WEEKDAY_NAMES := ["poniedziałek", "wtorek", "środa", "czwartek", "piątek", "sobota", "niedziela"]
+# Thursday work start, aligned with the user's departure on 2026-10-28.
+# Departures are not extra cycle days; returns happen after the last workday.
+const DASKO_2B_START_DATE := "2026-10-29"
+const DASKO_2B_BLOCKS := [
+	[DayState.WORK, 3],
+	[DayState.REST, 1],
+	[DayState.WORK, 6],
+	[DayState.REST, 1],
+	[DayState.WORK, 3],
+	[DayState.HOME, 7],
+	[DayState.WORK, 6],
+	[DayState.REST, 1],
+	[DayState.WORK, 6],
+	[DayState.HOME, 8],
+]
 
 var mode: String = "preset"
 var start_day_index: int = 0
@@ -11,6 +26,14 @@ var rest_every_work_days: int = 6
 var fixed_start_weekday: int = -1
 var custom_pattern: Array[int] = []
 var last_error: String = ""
+
+
+static func dasko_2b_pattern() -> Array[int]:
+	var pattern: Array[int] = []
+	for block in DASKO_2B_BLOCKS:
+		for _day in range(int(block[1])):
+			pattern.append(int(block[0]))
+	return pattern
 
 
 func configure_empty() -> bool:
@@ -144,6 +167,8 @@ func cycle_label() -> String:
 	if mode == "none":
 		return "brak ustawionego systemu"
 	if mode == "custom":
+		if fixed_start_weekday < 0 and custom_pattern == dasko_2b_pattern():
+			return "DASKO 2B: 42 dni"
 		return "własny cykl: %d dni%s" % [get_cycle_days(), _fixed_start_label()]
 	return "%d dni pracy / %d dni domu%s" % [work_days, home_days, _fixed_start_label()]
 
