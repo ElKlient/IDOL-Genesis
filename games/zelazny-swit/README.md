@@ -1,4 +1,4 @@
-# Żelazny Świt — 0.1.4
+# Żelazny Świt — 0.1.5
 
 Oryginalna, jednoosobowa gra akcji RPG 3D na telefon, napisana w Godocie 4.4+.
 Sterowanie dotykowe w poziomie. Mały grywalny wycinek: wioska Brzeziny, wojownik,
@@ -73,11 +73,13 @@ z widocznym bohaterem pośrodku ekranu. Na czas regulacji ruch i walka są wstrz
 
 | Suwak | Zakres | Domyślnie |
 | --- | --- | --- |
-| Przybliżenie | 1,00–1,85× | 1,35× |
+| Przybliżenie | 1,00–2,50× | 1,35× |
 | Wysokość widoku | 38–65° | 48° |
 | Obrót | −180–180° | 0° |
 
-Domyślne przybliżenie daje około 35% większy obraz bohatera niż wcześniejszy widok.
+W 0.1.5 kamera jest bliżej bohatera również przy zapisanych wcześniej ustawieniach.
+Przy 1,85× i 38° postać jest jeszcze około 20% większa niż w 0.1.4.
+Suwak pozwala teraz przybliżyć obraz aż do 2,50×.
 **PRZYWRÓĆ DOMYŚLNE** cofa trzy suwaki do wartości z tabeli. **WRÓĆ DO MENU**
 przenosi do ustawień, a **X** zamyka panel i wznawia grę.
 
@@ -98,7 +100,7 @@ Potem otwórz ten sam `games/zelazny-swit/project.godot` i naciśnij ▶.
 Polecenie zachowuje ewentualne lokalne zmiany `project.godot` w `git stash list`.
 Nie przywraca ich automatycznie: nowa wersja zawiera wymagane ustawienia mobilne
 i autoload diagnostyki. Zapis postaci oraz prywatna konfiguracja raportów zostają.
-Nie używaj resetowania ani usuwania folderu. W HUD pod zdrowiem sprawdź numer **v0.1.4**.
+Nie używaj resetowania ani usuwania folderu. W HUD pod zdrowiem sprawdź numer **v0.1.5**.
 
 ## Uruchamianie i zakres
 
@@ -110,7 +112,8 @@ Nie używaj resetowania ani usuwania folderu. W HUD pod zdrowiem sprawdź numer 
   wieloosobowej, klas poza wojownikiem, rozległych map i pełnej kampanii.
 - Udostępniony jest projekt do uruchomienia w Godocie, nie gotowy instalator APK.
 - Użytkownik potwierdził w 0.1.3 chodzenie, walkę, zabijanie potworów i ulepszanie
-  przedmiotów na swoim telefonie. Nowa kamera 0.1.4 wymaga jego próby po aktualizacji.
+  przedmiotów na swoim telefonie oraz używanie kamery 0.1.4. Zbliżenie 0.1.5
+  wymaga jego próby po aktualizacji.
 
 Dokładny raport weryfikacji i informacje dla kolejnego agenta: [docs/STRESZCZENIE.md](docs/STRESZCZENIE.md).
 

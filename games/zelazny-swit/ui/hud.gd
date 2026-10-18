@@ -721,7 +721,7 @@ func _render_camera() -> void:
 	col.add_theme_constant_override("separation",8)
 	scroll.add_child(col)
 	col.add_child(_text("Dostosuj widok. Bohater jest widoczny na żywo.",14,MUTED))
-	_camera_slider(col,"zoom","Przybliżenie",1.0,1.85,0.05,"CameraZoom")
+	_camera_slider(col,"zoom","Przybliżenie",1.0,2.50,0.05,"CameraZoom")
 	_camera_slider(col,"pitch","Wysokość widoku",38.0,65.0,1.0,"CameraPitch")
 	_camera_slider(col,"yaw","Obrót",-180.0,180.0,5.0,"CameraYaw")
 	var reset: Button = _button("PRZYWRÓĆ DOMYŚLNE",Vector2(0,48),true)
@@ -771,7 +771,7 @@ func _camera_slider(parent: VBoxContainer,key: String,title: String,minimum: flo
 	slider.add_theme_icon_override("grabber_highlight",_camera_grip)
 	slider.add_theme_icon_override("grabber_disabled",_camera_grip)
 	slider.add_theme_constant_override("grabber_offset",0)
-	slider.add_theme_constant_override("center_grabber",1)
+	slider.add_theme_constant_override("center_grabber",0)
 	slider.value_changed.connect(_camera_slider_changed.bind(key))
 	group.add_child(slider)
 	_camera_sliders[key] = slider
@@ -797,7 +797,7 @@ func _read_camera_settings() -> Dictionary:
 		var value: Variant = get_parent().call("get_camera_settings")
 		if value is Dictionary:
 			current.merge(value,true)
-	return {"zoom":clampf(float(current.get("zoom",1.35)),1.0,1.85),"pitch":clampf(float(current.get("pitch",48.0)),38.0,65.0),"yaw":clampf(float(current.get("yaw",0.0)),-180.0,180.0)}
+	return {"zoom":clampf(float(current.get("zoom",1.35)),1.0,2.50),"pitch":clampf(float(current.get("pitch",48.0)),38.0,65.0),"yaw":clampf(float(current.get("yaw",0.0)),-180.0,180.0)}
 
 func _camera_value_text(key: String,value: float) -> String:
 	return "%.2f×" % value if key == "zoom" else "%d°" % int(round(value))

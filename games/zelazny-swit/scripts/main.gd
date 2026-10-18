@@ -6,7 +6,7 @@ const EnemyScript = preload("res://scripts/enemy.gd")
 const HUDScript = preload("res://ui/hud.gd")
 const AudioScript = preload("res://scripts/audio.gd")
 const CameraPreferencesScript = preload("res://scripts/camera_preferences.gd")
-const CAMERA_DISTANCE: float = 20.2
+const CAMERA_DISTANCE: float = 17.0
 const CAMERA_FOCUS: Vector3 = Vector3(0,1.05,0)
 var world: Node3D
 var hero: CharacterBody3D

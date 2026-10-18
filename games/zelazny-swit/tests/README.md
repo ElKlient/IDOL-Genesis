@@ -53,6 +53,8 @@ XDG_DATA_HOME="$qa_data" godot --headless --path . --script res://tests/camera_s
 
 `camera_settings.gd` measures projected warrior height against the previous fixed camera, checks zoom/pitch/orbit limits, and places a temporary collision wall between the focus and desired camera endpoint. The spring arm must shorten, keep the eye outside the wall, and recover its original length after removal. Real joystick input must continue moving up/right on screen at four orbit angles. Pointer input exercises all three live sliders and the reset button; the compact preview panel must leave the warrior visible at 1280 × 720 and 1600 × 720.
 
+The closer-camera regression also loads existing settings `1.85 / 38° / 0°` unchanged, compares the previous 20.2 camera distance with the new 17.0 distance at those same settings, and verifies the expanded zoom maximum of 2.50. Optional OpenGL captures show the hunter sword and third armor tier at the existing saved zoom and at the new maximum.
+
 The camera test explicitly enables preference persistence only inside the guarded disposable directory, verifies both the standalone preference file and main controller's debounced save/reload, and requires an older-format character-save fixture to remain byte-for-byte unchanged. Run this same test on an active OpenGL display without `--headless` and add `--capture-dir=/absolute/path/to/previews` to save default-camera and live-panel screenshots at both phone aspect ratios. Isolated mode prevents telemetry sends.
 
 To capture real rendered previews, use an active graphical display or Xvfb. This check cannot use `--headless`:

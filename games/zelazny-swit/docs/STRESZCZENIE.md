@@ -1,4 +1,4 @@
-# Żelazny Świt — przekazanie projektu 0.1.4
+# Żelazny Świt — przekazanie projektu 0.1.5
 
 ## Cel i zgody
 
@@ -303,7 +303,7 @@ warunkowych kontroli zależy od istniejącego zapisu), audio 13/13, diagnostyka
 29/29. Końcowe testy OpenGL zakończone bez ostrzeżeń o pozostawionych obiektach.
 
 
-## Wersja 0.1.4 — większy bohater i ustawienia kamery
+## Wersja 0.1.4 — większy bohater i ustawienia kamery (historia)
 
 Przed zleceniem tej zmiany użytkownik potwierdził, że w 0.1.3 może chodzić,
 walczyć, zabijać potwory i ulepszać przedmioty. To obserwacja działającej gry
@@ -362,3 +362,27 @@ odsunięcie kamery od przeszkody, zapis po 0,4 s oraz odczyt przez nową instanc
 Stary plik postaci pozostał identyczny bajt w bajt. Zrzuty 1280×720 i 1600×720
 obejrzano: bohater pozostaje widoczny obok panelu, wszystkie trzy suwaki oraz
 przyciski mieszczą się i są czytelne. Końcowy test OpenGL zakończył się czysto.
+
+## Wersja 0.1.5 — większa postać przy zapisanym zbliżeniu
+
+Użytkownik pokazał działającą 0.1.4 na telefonie: przybliżenie 1,85×,
+wysokość 38°, obrót 0°. To był ówczesny maksymalny zoom; poprosił o jeszcze
+trochę większą postać. Nie resetuj jego kamery ani postępu.
+
+Dystans bazowy kamery zmieniono z 20,2 na 17,0 m. Przy tych samych zapisanych
+wartościach bohater jest dzięki temu około 20% większy. Maksymalny zoom wzrósł
+z 1,85 do 2,50 w modelu preferencji i obu miejscach HUD. Domyślne wartości
+1,35× / 48° / 0° oraz zakresy wysokości i obrotu zachowano. Brak migracji pliku:
+wcześniejsze `camera_settings.cfg` ładuje się z identycznymi wartościami.
+Uchwyty suwaków mieszczą się teraz w torze także na skrajnych ustawieniach.
+
+Wersja w HUD: **v0.1.5**. Aktualizacja jak wcześniej przez stash tylko
+`project.godot` i zwykły pull gałęzi. Użytkownik zachowuje ustawienia 1,85×/38°;
+po aktualizacji otrzymuje bliższy widok od razu, z dodatkowym zapasem do 2,50×.
+
+Weryfikacja 0.1.5: import Godot 4.4.1, kamera 45/45 headless i 52/52 OpenGL,
+czyste zakończenie. Przy identycznych 1,85×/38°/0° wysokość projekcji postaci
+wzrosła ze 109,94 do 130,52 px, czyli o 18,71%. Sprawdzono dokładny odczyt
+starego CFG, rozszerzone maksimum, zapis ustawień i niezmienność bajtów zapisu
+postaci. Obejrzano zrzuty z trzecią zbroją przy 1,85× i 2,50×; bohater mieści
+się obok panelu, a uchwyty pozostają w całości widoczne na końcach torów.

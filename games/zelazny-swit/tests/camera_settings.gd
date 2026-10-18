@@ -60,7 +60,7 @@ func _run() -> void:
 	game.set_camera_settings(1.0,48.0,0.0)
 	await create_timer(0.8).timeout
 	var distant_height: float = _hero_height(game.camera)
-	game.set_camera_settings(1.85,48.0,0.0)
+	game.set_camera_settings(2.50,48.0,0.0)
 	await create_timer(0.8).timeout
 	var close_height: float = _hero_height(game.camera)
 	_check(close_height > distant_height*1.5,"full zoom range visibly enlarges projected warrior height")
@@ -68,7 +68,7 @@ func _run() -> void:
 	game.set_camera_settings(999.0,-999.0,999.0)
 	await _frames(3)
 	var clamped: Dictionary = game.get_camera_settings()
-	_check(is_equal_approx(clamped.zoom,1.85) and is_equal_approx(clamped.pitch,38.0) and is_equal_approx(clamped.yaw,180.0),"main camera API clamps zoom, low pitch and yaw to supported ranges")
+	_check(is_equal_approx(clamped.zoom,2.50) and is_equal_approx(clamped.pitch,38.0) and is_equal_approx(clamped.yaw,180.0),"main camera API clamps zoom to 2.50 while preserving pitch and orbit bounds")
 	game.set_camera_settings(-999.0,999.0,-999.0)
 	await _frames(3)
 	clamped = game.get_camera_settings()
@@ -109,6 +109,7 @@ func _run() -> void:
 	root.size = Vector2i(1600,720)
 	await _frames(5)
 	await _panel_geometry("1600x720")
+	await _saved_zoom_regression(old_camera)
 	_check(FileAccess.get_file_as_bytes(state.SAVE_PATH) == legacy_save,"camera settings, reloads, UI and captures leave legacy character save bytes unchanged")
 	_check(not root.get_node("Diagnostics").is_network_enabled(),"camera test remains isolated from telemetry networking")
 	game.queue_free()
@@ -132,6 +133,14 @@ func _preferences() -> void:
 	reloaded.load_settings()
 	var values: Dictionary = reloaded.as_dictionary()
 	_check(is_equal_approx(values.zoom,1.65) and is_equal_approx(values.pitch,60.0) and is_equal_approx(values.yaw,-95.0),"independent camera preference file reloads zoom, pitch and orbit exactly")
+	var legacy_camera: ConfigFile = ConfigFile.new()
+	legacy_camera.set_value("camera","zoom",1.85)
+	legacy_camera.set_value("camera","pitch",38.0)
+	legacy_camera.set_value("camera","yaw",0.0)
+	legacy_camera.save(preferences.SETTINGS_PATH)
+	reloaded.load_settings()
+	values = reloaded.as_dictionary()
+	_check(is_equal_approx(values.zoom,1.85) and is_equal_approx(values.pitch,38.0) and is_equal_approx(values.yaw,0.0),"existing 1.85 zoom, 38-degree pitch and zero orbit load unchanged under the expanded range")
 	_check(not FileAccess.file_exists(preferences.SETTINGS_PATH+".tmp"),"atomic preference save leaves no temporary file")
 	reloaded.set_values("invalid",NAN,INF)
 	_check(_defaults(reloaded.as_dictionary()),"non-numeric and non-finite camera values fall back to safe defaults")
@@ -178,6 +187,41 @@ func _main_persistence() -> void:
 	_check(FileAccess.get_file_as_bytes(state.SAVE_PATH) == legacy_save,"real main camera persistence leaves the existing character save unchanged")
 	game.camera_preferences.save_enabled = false
 	game.reset_camera_settings()
+
+func _saved_zoom_regression(previous_camera: Camera3D) -> void:
+	game.hud.close_panel()
+	root.size = Vector2i(1280,720)
+	state.buy("hunter_sword")
+	state.equip(int(state.inventory.back().uid))
+	state.buy("dawn_armor")
+	state.equip(int(state.inventory.back().uid))
+	_check(game.hero._weapon_tier == 2 and game.hero._armor_tier == 3,"closer-camera preview uses the hunter sword and third armor tier")
+	game.hero.reset_to(game.world.spawn_position)
+	game.hero.face_direction(Vector3.FORWARD)
+	game.set_camera_settings(1.85,38.0,0.0)
+	await create_timer(0.8).timeout
+	previous_camera.fov = game.camera.fov
+	previous_camera.global_basis = game.camera.global_basis
+	previous_camera.global_position = game.camera_arm.global_position+game.camera_arm.global_basis.z*(20.2/1.85)
+	var old_height: float = _hero_height(previous_camera)
+	var saved_height: float = _hero_height(game.camera)
+	var scale: float = saved_height/old_height
+	print("SAVED CAMERA GEOMETRY: zoom=1.85 pitch=38 old_distance20_2_height_px=%.2f new_distance17_height_px=%.2f scale=%.4f" % [old_height,saved_height,scale])
+	_check(scale >= 1.18 and scale <= 1.25,"same saved 1.85/38 camera projects the warrior 18 to 25 percent larger after the distance adjustment")
+	await _capture("camera-saved-1_85-1280x720")
+	game.hud.open_panel("camera")
+	await _frames(5)
+	await _capture("camera-saved-panel-1_85-1280x720")
+	var zoom_slider: HSlider = game.hud.modal.find_child("CameraZoom",true,false)
+	_check(zoom_slider != null and is_equal_approx(zoom_slider.max_value,2.50),"live camera slider exposes the expanded maximum zoom 2.50")
+	if zoom_slider != null:
+		zoom_slider.value = 2.50
+	await create_timer(0.8).timeout
+	_check(is_equal_approx(game.get_camera_settings().zoom,2.50) and _hero_height(game.camera) > saved_height*1.15,"new maximum zoom applies live and provides additional visible enlargement")
+	await _capture("camera-max-panel-2_50-1280x720")
+	root.size = Vector2i(1600,720)
+	await _frames(5)
+	await _capture("camera-max-panel-2_50-1600x720")
 
 func _collision_regression() -> void:
 	game.hero.reset_to(Vector3(0,0,2))
