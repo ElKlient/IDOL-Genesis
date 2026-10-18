@@ -70,7 +70,11 @@ func _physics_process(delta: float) -> void:
 		velocity.y -= delta * 22.0
 	else:
 		velocity.y = -0.5
-	if requested.length_squared() > 0.02:
+	# Keep the selected strike direction through an ordinary cut. Movement can
+	# still slide at the existing reduced speed, but cannot spin the whole
+	# sword arc away from its target while the damage timer is pending.
+	var cutting: bool = is_instance_valid(visual) and visual.is_attacking() and not visual.skill_attack and not visual.fire_slam_attack
+	if requested.length_squared() > 0.02 and not cutting:
 		facing = requested.normalized()
 	move_and_slide()
 	if is_instance_valid(visual):

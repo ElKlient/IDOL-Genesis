@@ -6,6 +6,9 @@ Run from the Godot project directory with Godot 4.4 or newer:
 godot --headless --path . --script res://tests/integration.gd -- --test-isolated
 godot --headless --path . --script res://tests/ui_flow.gd -- --test-isolated
 godot --headless --path . --script res://tests/combat_combo.gd -- --test-isolated
+godot --headless --path . --script res://tests/animation_continuity.gd -- --test-isolated
+godot --headless --path . --script res://tests/attack_facing.gd -- --test-isolated
+godot --headless --audio-driver Dummy --path . --script res://tests/attack_audio_timing.gd -- --test-isolated
 godot --headless --path . --script res://tests/character_preview.gd -- --test-isolated
 godot --headless --path . --script res://tests/fire_skill.gd -- --test-isolated
 godot --headless --path . --script res://tests/warrior_model.gd -- --test-isolated
@@ -22,6 +25,45 @@ godot --headless --audio-driver Dummy --path . --script res://tests/audio_regres
 `ui_flow.gd` sends real GUI pointer events: select and buy a sword, open the inventory, equip it, drag it onto the anvil, and press the upgrade button. It verifies that dropping only selects the item and that the explicit upgrade action charges once. It also covers reset confirmation and a fresh scene. Pointer helpers scroll ancestor `ScrollContainer` nodes to expose the real target before clicking; tree visibility alone does not imply that a control is inside its scroll viewport.
 
 `combat_combo.gd` exercises four real main-controller attacks, contact timing, cooldown/modal/range/death guards, the 1.2-second combo reset, finisher-only impulse decay, enemy windup interruption and collision against a temporary wall. It verifies one defeat reward, exact camera focus during movement/stops/teleports, four distinct blade contacts in front of the warrior above ground, bounded idle breathing, and safe transition from a skill spin. The real enemy fixture avoids respawn timers; the full integration test covers spawned-enemy rewards and respawn. On an OpenGL display, omit `--headless` and add `--capture-dir=/absolute/path/to/previews` for the actual idle pose and four contact-pose screenshots. Version 0.1.6 passed 55 headless checks and 60 checks with these captures.
+
+`animation_continuity.gd` samples the actual equipped sword transforms at 120 Hz
+through all four complete cuts and all four equipment sizes, including the first
+and recovery frames. It checks finite positions, a scale-normalized tip-step
+limit, blade-axis and full-basis rotation continuity, floor clearance, and the
+fourth strike’s actual support wrist against its scaled hilt. The 1.5 cm grip
+threshold catches unreachable targets even when the independent fire-slam grip
+checks pass. This is a regression guard against discontinuities, not a substitute
+for reviewing the actual animation recording. The initial 0.2.1 pass completed
+69 checks; the largest full-basis step was 16.73 degrees per 1/120 s and the
+smallest sampled tip-floor clearance was 17.4 cm across the sixteen attacks.
+
+`attack_facing.gd` checks that joystick steering cannot turn the visible hero
+away from the attack’s committed direction during an ordinary cut. Movement
+continues at the established attack speed and steering resumes on recovery.
+`attack_audio_timing.gd` checks ordinary and heavy delayed swing sound calls and their
+cancellation when an attack is interrupted. These checks use isolated gameplay
+and the Dummy audio driver, with no diagnostic network traffic.
+
+Verified 0.2.1 animation regression results on Godot 4.6 / Linux:
+
+| Check | Isolated headless |
+| --- | ---: |
+| Sword continuity and two-hand reach | 69/69 |
+| Real combo and finisher gameplay | 55/55 |
+| Imported model / skinning | 39/39 |
+| Inventory preview | 32/32 |
+| Fire skill and camera controls | 38/38 |
+| Facing while moving and cutting | 13/13 |
+| Delayed swing audio cancellation | 8/8 |
+| Full main-controller integration / real respawn | 50/50 |
+
+The final OpenGL `warrior_model.gd` run also passed 50/50 checks, including
+eleven actual current-motion captures. Its full-body skinning and portrait
+framing assertions remain unchanged.
+
+The recording uses the real main-controller attack path. Its wolf fixture has
+extra health and paused enemy AI solely to show two complete combos clearly;
+these fixture settings are not gameplay balance changes. Rendering under Linux/Mesa does not measure Android performance.
 
 `character_preview.gd` opens the actual inventory and exercises mouse/touch rotation, exclusive finger ownership, emulated-mouse suppression, cancelled touches, and the animation/rotation buttons. Equipping the third-tier sword/armor and rebuilding or reopening panels must preserve one preview, one 512 × 512 viewport and the chosen yaw. It checks 1280 × 720 and 1600 × 720 layout, full rotation, all four complete swings at eleven animation times and eight viewing angles, the bounded 30 Hz render-request clock, and zero hidden animation/render requests. Rigid curved blades are projected from actual vertices rather than the empty corners of their bounding box; `warrior_model.gd` separately checks the deformed skin. OpenGL runs can add `--capture-dir=/absolute/path/to/previews` for both inventory sizes.
 

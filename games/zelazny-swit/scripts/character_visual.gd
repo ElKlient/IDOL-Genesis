@@ -7,13 +7,47 @@ const SwordFireScript = preload("res://scripts/sword_fire_effect.gd")
 const FIRE_SLAM_DURATION: float = 1.0
 const FIRE_SLAM_CONTACT: float = 0.48
 const POSE_CHANNELS: Array[String] = ["root","offset","hips","torso","right_arm","right_forearm","wrist","left_arm","left_forearm","left_leg","right_leg","left_knee","right_knee"]
-const FINISHER_GRIP_TRACK: Array = [
-	{"time":0.0,"target":Vector3(0.10,1.34,-0.25),"angle":Vector3(1.4,0,0)},
-	{"time":0.16,"target":Vector3(0.10,1.62,-0.20),"angle":Vector3(3.0,0,0)},
-	{"time":0.25,"target":Vector3(0.02,1.50,-0.22),"angle":Vector3(1.18,0,0)},
-	{"time":0.36,"target":Vector3(-0.10,1.45,-0.20),"angle":Vector3(0.95,0,0)},
-	{"time":0.49,"target":Vector3(0.16,1.32,-0.32),"angle":Vector3(1.5,0,0)},
-	{"time":0.62,"target":Vector3(0.23,1.24,-0.28),"angle":Vector3(1.75,0,0)}
+# Hilt positions are in character space; blade directions are unit-independent.
+# One coherent path drives the hand AND blade, rather than unrelated shoulder,
+# elbow and wrist rotations fighting each other. Contacts remain .16 / .25 s.
+const BLADE_CUT_TRACKS: Array = [
+	[
+		[0.0,Vector3(0.25,1.25,-0.28),Vector3(0.18,0.42,-0.89)],
+		[0.07,Vector3(0.43,1.43,-0.17),Vector3(0.86,0.44,-0.26)],
+		[0.115,Vector3(0.40,1.45,-0.27),Vector3(0.69,0.23,-0.69)],
+		[0.16,Vector3(0.16,1.32,-0.50),Vector3(-0.30,-0.13,-0.95)],
+		[0.23,Vector3(-0.17,1.12,-0.40),Vector3(-0.84,-0.49,-0.23)],
+		[0.33,Vector3(0.02,1.16,-0.36),Vector3(-0.45,-0.24,-0.86)],
+		[0.46,Vector3(0.25,1.25,-0.28),Vector3(0.18,0.42,-0.89)]
+	],
+	[
+		[0.0,Vector3(0.25,1.25,-0.28),Vector3(0.18,0.42,-0.89)],
+		[0.075,Vector3(-0.12,1.15,-0.30),Vector3(-0.80,-0.36,-0.48)],
+		[0.12,Vector3(-0.06,1.26,-0.43),Vector3(-0.48,-0.12,-0.87)],
+		[0.16,Vector3(0.17,1.36,-0.51),Vector3(0.34,0.12,-0.93)],
+		[0.23,Vector3(0.42,1.49,-0.26),Vector3(0.84,0.42,-0.35)],
+		[0.33,Vector3(0.35,1.34,-0.27),Vector3(0.58,0.29,-0.76)],
+		[0.46,Vector3(0.25,1.25,-0.28),Vector3(0.18,0.42,-0.89)]
+	],
+	[
+		[0.0,Vector3(0.25,1.25,-0.28),Vector3(0.18,0.42,-0.89)],
+		[0.075,Vector3(0.29,1.57,-0.17),Vector3(0.29,0.93,-0.22)],
+		[0.115,Vector3(0.23,1.60,-0.27),Vector3(0.18,0.68,-0.71)],
+		[0.16,Vector3(0.10,1.29,-0.51),Vector3(-0.12,-0.33,-0.94)],
+		[0.23,Vector3(-0.03,1.14,-0.38),Vector3(-0.32,-0.72,-0.57)],
+		[0.33,Vector3(0.13,1.12,-0.33),Vector3(-0.10,-0.35,-0.93)],
+		[0.46,Vector3(0.25,1.25,-0.28),Vector3(0.18,0.42,-0.89)]
+	],
+	[
+		[0.0,Vector3(0.25,1.25,-0.28),Vector3(0.18,0.42,-0.89)],
+		[0.11,Vector3(0.10,1.47,-0.25),Vector3(0.12,0.88,-0.46)],
+		[0.18,Vector3(0.07,1.64,-0.18),Vector3(0.10,0.97,-0.22)],
+		[0.215,Vector3(0.06,1.60,-0.30),Vector3(0.06,0.65,-0.76)],
+		[0.25,Vector3(0.03,1.30,-0.53),Vector3(0.0,-0.22,-0.98)],
+		[0.33,Vector3(-0.05,1.06,-0.43),Vector3(-0.10,-0.70,-0.71)],
+		[0.45,Vector3(0.05,1.13,-0.34),Vector3(0.0,-0.32,-0.95)],
+		[0.62,Vector3(0.25,1.25,-0.28),Vector3(0.18,0.42,-0.89)]
+	]
 ]
 
 var body: Node3D
@@ -75,6 +109,8 @@ var presentation_phase: float = 0.0
 var _presentation_blend: float = 0.0
 var _contact_hold: float = 0.0
 var _locomotion_pose: Dictionary = {}
+var _attack_blade_origin: Transform3D = Transform3D.IDENTITY
+var _guard_blade: Transform3D = Transform3D.IDENTITY
 
 func _ready() -> void:
 	_build()
@@ -223,6 +259,8 @@ func set_equipment(new_weapon_tier: int,new_armor_tier: int,upgrade: int = 0,new
 	dawn_armor.visible = armor_tier == 3
 
 func start_attack(combo: int = 0, skill: bool = false) -> void:
+	if is_instance_valid(sword):
+		_attack_blade_origin = global_transform.affine_inverse()*sword.global_transform
 	_contact_hold = 0.0
 	presentation_active = false
 	_presentation_blend = 0.0
@@ -289,7 +327,7 @@ func _keyframe(at: float, overrides: Dictionary = {}) -> Dictionary:
 	var pose: Dictionary = {
 		"time":at,"root":Vector3.ZERO,"offset":Vector3.ZERO,
 		"hips":Vector3(0,2,0),"torso":Vector3(-2,-2,0),
-		"right_arm":Vector3(12,-9,7),"right_forearm":Vector3(59,0,0),
+		"right_arm":Vector3(12,-9,7),"right_forearm":Vector3(51,0,0),
 		"wrist":Vector3(-3,0,9),"left_arm":Vector3(-5,0,5),
 		"left_forearm":Vector3(20,0,0),"left_leg":Vector3.ZERO,
 		"right_leg":Vector3.ZERO,"left_knee":Vector3(-3,0,0),"right_knee":Vector3(-3,0,0)
@@ -304,36 +342,40 @@ func _build_combat_tracks() -> void:
 	# strike loads longer and releases at .25 s, matching main's actual hit.
 	_combat_tracks = [
 		[
-			_keyframe(0.0),
-			_keyframe(0.04,{"hips":Vector3(0,-9,-1),"torso":Vector3(-3,-8,-2),"right_arm":Vector3(22,-25,8),"right_forearm":Vector3(53,0,0),"left_arm":Vector3(12,8,12),"left_forearm":Vector3(36,0,0),"offset":Vector3(0,-0.022,0.012)}),
-			_keyframe(0.095,{"hips":Vector3(0,-14,-3),"torso":Vector3(-5,-24,-5),"right_arm":Vector3(50,-65,26),"right_forearm":Vector3(62,0,0),"wrist":Vector3(-35,-15,4),"left_arm":Vector3(28,20,15),"left_forearm":Vector3(42,0,0)}),
-			_keyframe(0.16,{"hips":Vector3(0,12,1),"torso":Vector3(7,20,9),"right_arm":Vector3(16,-19,-9),"right_forearm":Vector3(31,0,0),"wrist":Vector3(-36,-22,-31),"left_arm":Vector3(20,-20,16),"left_forearm":Vector3(48,0,0),"offset":Vector3(-0.015,-0.015,-0.055)}),
-			_keyframe(0.255,{"hips":Vector3(0,17,2),"torso":Vector3(9,28,8),"right_arm":Vector3(48,40,-14),"right_forearm":Vector3(28,0,0),"wrist":Vector3(-35,-8,-25),"left_arm":Vector3(5,-30,22),"left_forearm":Vector3(38,0,0),"offset":Vector3(-0.025,-0.01,-0.04)}),
+			_keyframe(0),
+			_keyframe(0.06,{"hips":Vector3(0,-8,0),"torso":Vector3(0,-3,0),"offset":Vector3(0,-0.012,0.008),"left_arm":Vector3(8,0,9),"left_forearm":Vector3(48,0,0)}),
+			_keyframe(0.115,{"hips":Vector3(0,-2,0),"torso":Vector3(0,-11,0),"offset":Vector3(0,-0.026,-0.005),"left_arm":Vector3(8,0,9),"left_forearm":Vector3(48,0,0)}),
+			_keyframe(0.16,{"hips":Vector3(0,8,0),"torso":Vector3(0,5,0),"offset":Vector3(0,-0.025,-0.045),"left_arm":Vector3(8,0,9),"left_forearm":Vector3(48,0,0)}),
+			_keyframe(0.23,{"hips":Vector3(0,11,0),"torso":Vector3(0,15,0),"offset":Vector3(0,-0.016,-0.04),"left_arm":Vector3(8,0,9),"left_forearm":Vector3(48,0,0)}),
+			_keyframe(0.33,{"hips":Vector3(0,6,0),"torso":Vector3(0,9,0),"offset":Vector3(0,-0.018,-0.02),"left_arm":Vector3(8,0,9),"left_forearm":Vector3(48,0,0)}),
 			_keyframe(0.46)
 		],
 		[
-			_keyframe(0.0),
-			_keyframe(0.04,{"hips":Vector3(0,8,1),"torso":Vector3(0,7,2),"right_arm":Vector3(29,27,-10),"right_forearm":Vector3(61,0,0),"wrist":Vector3(-18,4,-9),"left_arm":Vector3(12,-8,16),"left_forearm":Vector3(35,0,0),"offset":Vector3(0,-0.022,0.01)}),
-			_keyframe(0.09,{"hips":Vector3(0,12,2),"torso":Vector3(2,25,5),"right_arm":Vector3(58,70,-12),"right_forearm":Vector3(60,0,0),"wrist":Vector3(-47,12,-30),"left_arm":Vector3(20,-20,18),"left_forearm":Vector3(50,0,0)}),
-			_keyframe(0.16,{"hips":Vector3(0,-12,-2),"torso":Vector3(0,-23,-7),"right_arm":Vector3(77,27,-14),"right_forearm":Vector3(5,0,0),"wrist":Vector3(-52,19,26),"left_arm":Vector3(12,22,23),"left_forearm":Vector3(48,0,0),"offset":Vector3(0.02,-0.012,-0.065)}),
-			_keyframe(0.25,{"hips":Vector3(0,-20,-3),"torso":Vector3(-4,-30,-6),"right_arm":Vector3(67,-40,40),"right_forearm":Vector3(26,0,0),"wrist":Vector3(-44,12,22),"left_arm":Vector3(0,30,28),"left_forearm":Vector3(35,0,0),"offset":Vector3(0.02,0,-0.035)}),
+			_keyframe(0),
+			_keyframe(0.075,{"hips":Vector3(0,9,0),"torso":Vector3(0,4,0),"offset":Vector3(0,-0.018,0.005),"left_arm":Vector3(8,0,9),"left_forearm":Vector3(48,0,0)}),
+			_keyframe(0.12,{"hips":Vector3(0,2,0),"torso":Vector3(0,12,0),"offset":Vector3(0,-0.024,-0.008),"left_arm":Vector3(8,0,9),"left_forearm":Vector3(48,0,0)}),
+			_keyframe(0.16,{"hips":Vector3(0,-8,0),"torso":Vector3(0,-4,0),"offset":Vector3(0,-0.025,-0.05),"left_arm":Vector3(8,0,9),"left_forearm":Vector3(48,0,0)}),
+			_keyframe(0.23,{"hips":Vector3(0,-12,0),"torso":Vector3(0,-14,0),"offset":Vector3(0,-0.02,-0.04),"left_arm":Vector3(8,0,9),"left_forearm":Vector3(48,0,0)}),
+			_keyframe(0.33,{"hips":Vector3(0,-5,0),"torso":Vector3(0,-7,0),"offset":Vector3(0,-0.018,-0.02),"left_arm":Vector3(8,0,9),"left_forearm":Vector3(48,0,0)}),
 			_keyframe(0.46)
 		],
 		[
-			_keyframe(0.0),
-			_keyframe(0.045,{"hips":Vector3(-2,-3,0),"torso":Vector3(-7,-3,-1),"right_arm":Vector3(64,-11,3),"right_forearm":Vector3(67,0,0),"wrist":Vector3(-22,0,-3),"left_arm":Vector3(22,8,10),"left_forearm":Vector3(46,0,0),"offset":Vector3(0,-0.028,0.005)}),
-			_keyframe(0.105,{"hips":Vector3(0,-5,0),"torso":Vector3(-11,-9,-4),"right_arm":Vector3(146,-12,12),"right_forearm":Vector3(63,0,0),"wrist":Vector3(-42,0,-6),"left_arm":Vector3(63,16,11),"left_forearm":Vector3(64,0,0),"left_knee":Vector3(-7,0,0),"right_knee":Vector3(-9,0,0),"offset":Vector3(0,-0.018,0.015)}),
-			_keyframe(0.16,{"hips":Vector3(5,6,0),"torso":Vector3(15,9,3),"right_arm":Vector3(24,-10,-19),"right_forearm":Vector3(41,0,0),"wrist":Vector3(-75,8,28),"left_arm":Vector3(37,-10,20),"left_forearm":Vector3(48,0,0),"left_leg":Vector3(8,0,0),"right_leg":Vector3(-7,0,0),"offset":Vector3(0,-0.035,-0.085)}),
-			_keyframe(0.245,{"hips":Vector3(7,9,0),"torso":Vector3(18,12,3),"right_arm":Vector3(5,16,-7),"right_forearm":Vector3(18,0,0),"wrist":Vector3(-38,0,8),"left_arm":Vector3(18,-15,24),"left_forearm":Vector3(30,0,0),"offset":Vector3(0,-0.025,-0.065)}),
+			_keyframe(0),
+			_keyframe(0.075,{"hips":Vector3(0,-5,0),"torso":Vector3(-5,-5,0),"offset":Vector3(0,-0.025,0.01),"left_arm":Vector3(8,0,9),"left_forearm":Vector3(48,0,0)}),
+			_keyframe(0.115,{"hips":Vector3(0,0,0),"torso":Vector3(-7,-3,0),"offset":Vector3(0,-0.018,0),"left_arm":Vector3(8,0,9),"left_forearm":Vector3(48,0,0)}),
+			_keyframe(0.16,{"hips":Vector3(0,5,0),"torso":Vector3(7,8,0),"offset":Vector3(0,-0.035,-0.06),"left_arm":Vector3(8,0,9),"left_forearm":Vector3(48,0,0)}),
+			_keyframe(0.23,{"hips":Vector3(0,8,0),"torso":Vector3(10,11,0),"offset":Vector3(0,-0.04,-0.045),"left_arm":Vector3(8,0,9),"left_forearm":Vector3(48,0,0)}),
+			_keyframe(0.33,{"hips":Vector3(0,4,0),"torso":Vector3(3,5,0),"offset":Vector3(0,-0.025,-0.02),"left_arm":Vector3(8,0,9),"left_forearm":Vector3(48,0,0)}),
 			_keyframe(0.46)
 		],
 		[
-			_keyframe(0.0),
-			_keyframe(0.055,{"hips":Vector3(-2,-12,-2),"torso":Vector3(-3,-8,-3),"right_arm":Vector3(25,-28,6),"right_forearm":Vector3(65,0,0),"wrist":Vector3(-15,-4,-2),"left_arm":Vector3(19,14,13),"left_forearm":Vector3(49,0,0),"offset":Vector3(0.015,-0.055,0.025)}),
-			_keyframe(0.16,{"hips":Vector3(-2,-24,-5),"torso":Vector3(-7,-35,-7),"right_arm":Vector3(48,-85,45),"right_forearm":Vector3(77,0,0),"wrist":Vector3(-45,-10,-6),"left_arm":Vector3(41,30,14),"left_forearm":Vector3(69,0,0),"left_leg":Vector3(8,-5,-2),"right_leg":Vector3(-9,6,2),"left_knee":Vector3(-12,0,0),"right_knee":Vector3(-14,0,0),"offset":Vector3(0.035,-0.10,0.045)}),
-			_keyframe(0.25,{"hips":Vector3(4,18,4),"torso":Vector3(8,31,8),"right_arm":Vector3(0,-32,-21),"right_forearm":Vector3(45,0,0),"wrist":Vector3(-16,-12,13),"left_arm":Vector3(25,-28,28),"left_forearm":Vector3(43,0,0),"left_leg":Vector3(13,2,-2),"right_leg":Vector3(-10,8,2),"left_knee":Vector3(-8,0,0),"right_knee":Vector3(-12,0,0),"offset":Vector3(-0.015,-0.105,-0.14)}),
-			_keyframe(0.36,{"hips":Vector3(3,28,4),"torso":Vector3(11,44,10),"right_arm":Vector3(45,22,16),"right_forearm":Vector3(22,0,0),"wrist":Vector3(-35,0,-25),"left_arm":Vector3(-3,-38,35),"left_forearm":Vector3(35,0,0),"left_leg":Vector3(10,3,-2),"right_leg":Vector3(-9,8,2),"offset":Vector3(-0.025,-0.085,-0.105)}),
-			_keyframe(0.49,{"hips":Vector3(0,12,1),"torso":Vector3(3,17,3),"right_arm":Vector3(28,38,-6),"right_forearm":Vector3(31,0,0),"wrist":Vector3(-14,0,-3),"left_forearm":Vector3(20,0,0),"offset":Vector3(0,0,-0.025)}),
+			_keyframe(0),
+			_keyframe(0.11,{"hips":Vector3(0,-7,0),"torso":Vector3(-5,-4,0),"offset":Vector3(0,-0.045,0.02),"left_arm":Vector3(8,0,9),"left_forearm":Vector3(48,0,0)}),
+			_keyframe(0.18,{"hips":Vector3(0,-8,0),"torso":Vector3(-7,-10,0),"offset":Vector3(0,-0.07,0.01),"left_arm":Vector3(8,0,9),"left_forearm":Vector3(48,0,0)}),
+			_keyframe(0.215,{"hips":Vector3(0,2,0),"torso":Vector3(-3,-7,0),"offset":Vector3(0,-0.07,-0.01),"left_arm":Vector3(8,0,9),"left_forearm":Vector3(48,0,0)}),
+			_keyframe(0.25,{"hips":Vector3(0,10,0),"torso":Vector3(9,9,0),"offset":Vector3(0,-0.08,-0.09),"left_arm":Vector3(8,0,9),"left_forearm":Vector3(48,0,0)}),
+			_keyframe(0.33,{"hips":Vector3(0,13,0),"torso":Vector3(12,15,0),"offset":Vector3(0,-0.07,-0.07),"left_arm":Vector3(8,0,9),"left_forearm":Vector3(48,0,0)}),
+			_keyframe(0.45,{"hips":Vector3(0,5,0),"torso":Vector3(4,7,0),"offset":Vector3(0,-0.035,-0.03),"left_arm":Vector3(8,0,9),"left_forearm":Vector3(48,0,0)}),
 			_keyframe(0.62)
 		]
 	]
@@ -404,41 +446,78 @@ func _apply_cut_pose() -> void:
 	var left_pitch: float = clampf(sin(walk_phase-0.8)*0.24,-0.18,0.24)*locomotion_blend
 	var right_pitch: float = clampf(sin(walk_phase+PI-0.8)*0.24,-0.18,0.24)*locomotion_blend
 	_plant_feet(left_target,right_target,1.0,left_pitch,right_pitch)
+	_apply_blade_cut()
+
+func _blade_key(track: Array,index: int) -> Dictionary:
+	var key: Array = track[index]
+	var target: Vector3 = key[1]
+	var direction: Vector3 = (key[2] as Vector3).normalized()
+	if index == 0:
+		target = _attack_blade_origin.origin
+		direction = -_attack_blade_origin.basis.y.normalized()
+	elif index == track.size()-1:
+		target = _guard_blade.origin
+		direction = -_guard_blade.basis.y.normalized()
+	var orientation := Quaternion(Vector3.DOWN,direction)
+	if index == 0:
+		orientation = _attack_blade_origin.basis.orthonormalized().get_rotation_quaternion()
+	elif index == track.size()-1:
+		orientation = _guard_blade.basis.orthonormalized().get_rotation_quaternion()
+	return {"time":key[0],"target":target,"direction":direction,"orientation":orientation}
+
+func _apply_blade_cut() -> void:
+	var track: Array = BLADE_CUT_TRACKS[combo_index]
+	var segment: int = track.size()-2
+	for index: int in range(1,track.size()):
+		if attack_elapsed <= float(track[index][0]):
+			segment = index-1
+			break
+	var first: Dictionary = _blade_key(track,segment)
+	var second: Dictionary = _blade_key(track,segment+1)
+	var before: Dictionary = _blade_key(track,maxi(segment-1,0))
+	var after: Dictionary = _blade_key(track,mini(segment+2,track.size()-1))
+	var duration: float = maxf(float(second.time)-float(first.time),0.001)
+	var alpha: float = clampf((attack_elapsed-float(first.time))/duration,0.0,1.0)
+	var start_tangent: Vector3 = Vector3.ZERO if segment == 0 else _pose_tangent(before,first,second,"target")
+	var end_tangent: Vector3 = Vector3.ZERO if segment+1 == track.size()-1 else _pose_tangent(first,second,after,"target")
+	var target: Vector3 = _interpolated(first.target,second.target,start_tangent,end_tangent,alpha,duration)
+	# Spherical interpolation keeps blade length and its plane stable. Euler
+	# wrist keys could otherwise roll the edge through the arm or full turns.
+	var first_rotation: Quaternion = first.orientation
+	var second_rotation: Quaternion = second.orientation
+	var blade_rotation: Quaternion = first_rotation.slerp(second_rotation,alpha)
+	var frame: Basis = global_basis.orthonormalized()
+	var blade_basis: Basis = frame*Basis(blade_rotation)
+	var hand_target: Vector3 = to_global(target)
+	if combo_index == 3:
+		# A shared hilt must be reachable by BOTH arms. Project its position
+		# into their reach intersection instead of silently stretching/clamping
+		# the support arm away from the weapon at the bottom of the stroke.
+		var unconstrained_target: Vector3 = hand_target
+		var hilt_constraint: float = minf(smoothstep(0.035,0.11,attack_elapsed),1.0-smoothstep(0.37,0.56,attack_elapsed))
+		var support_offset: Vector3 = blade_basis*(Vector3(0.0,-0.14,0.0)*sword.scale)
+		var right_reach: float = right_forearm.position.length()+right_wrist.position.length()-0.012
+		var left_reach: float = left_forearm.position.length()+left_wrist.position.length()-0.012
+		for iteration: int in range(6):
+			var right_delta: Vector3 = hand_target-right_arm.global_position
+			if right_delta.length() > right_reach:
+				hand_target = right_arm.global_position+right_delta.normalized()*right_reach
+			var left_delta: Vector3 = hand_target+support_offset-left_arm.global_position
+			if left_delta.length() > left_reach:
+				hand_target = left_arm.global_position+left_delta.normalized()*left_reach-support_offset
+		hand_target = unconstrained_target.lerp(hand_target,hilt_constraint)
+	_solve_cut_arm(right_arm,right_forearm,hand_target,1.0,1.0)
+	right_wrist.global_basis = blade_basis*sword.basis.orthonormalized().inverse()
 	if combo_index == 3:
 		_apply_finisher_grip()
 
 func _apply_finisher_grip() -> void:
-	# The final cut uses the spare hand and the whole loaded stance. A real
-	# hilt target makes the power stroke read as a deliberate two-hand action.
-	var grip_weight: float = minf(smoothstep(0.035,0.14,attack_elapsed),1.0-smoothstep(0.37,0.56,attack_elapsed))
+	# The support hand joins the actual lower hilt before the power stroke,
+	# stays attached through contact, then releases naturally on recovery.
+	var grip_weight: float = minf(smoothstep(0.035,0.11,attack_elapsed),1.0-smoothstep(0.37,0.56,attack_elapsed))
 	if grip_weight <= 0.0:
 		return
-	var segment: int = FINISHER_GRIP_TRACK.size()-2
-	for index: int in range(1,FINISHER_GRIP_TRACK.size()):
-		if attack_elapsed <= float(FINISHER_GRIP_TRACK[index].time):
-			segment = index-1
-			break
-	var first: Dictionary = FINISHER_GRIP_TRACK[segment]
-	var second: Dictionary = FINISHER_GRIP_TRACK[segment+1]
-	var before: Dictionary = FINISHER_GRIP_TRACK[maxi(segment-1,0)]
-	var after: Dictionary = FINISHER_GRIP_TRACK[mini(segment+2,FINISHER_GRIP_TRACK.size()-1)]
-	var duration: float = maxf(float(second.time)-float(first.time),0.001)
-	var alpha: float = clampf((attack_elapsed-float(first.time))/duration,0.0,1.0)
-	var target: Vector3 = Vector3.ZERO
-	var angle: float = 0.0
-	for channel: String in ["target","angle"]:
-		var start_tangent: Vector3 = Vector3.ZERO if segment == 0 else _pose_tangent(before,first,second,channel)
-		var end_tangent: Vector3 = Vector3.ZERO if segment+1 == FINISHER_GRIP_TRACK.size()-1 else _pose_tangent(first,second,after,channel)
-		var value: Vector3 = _interpolated(first[channel],second[channel],start_tangent,end_tangent,alpha,duration)
-		if channel == "target":
-			target = value
-		else:
-			angle = value.x
-	_solve_arm(right_arm,right_forearm,to_global(target),1.0,grip_weight)
-	var blade_basis: Basis = global_basis.orthonormalized()*Basis.from_euler(Vector3(angle,0.0,0.0))
-	var wrist_basis: Basis = blade_basis*sword.basis.orthonormalized().inverse()
-	right_wrist.global_basis = Basis(right_wrist.global_basis.get_rotation_quaternion().slerp(wrist_basis.get_rotation_quaternion(),grip_weight))
-	_solve_arm(left_arm,left_forearm,sword.to_global(Vector3(0.0,-0.14,0.0)),-1.0,grip_weight)
+	_solve_cut_arm(left_arm,left_forearm,sword.to_global(Vector3(0.0,-0.14,0.0)),-1.0,grip_weight)
 	left_wrist.global_basis = Basis(left_wrist.global_basis.get_rotation_quaternion().slerp(right_wrist.global_basis.get_rotation_quaternion(),grip_weight))
 
 func _apply_track_pose(track: Array) -> void:
@@ -526,6 +605,13 @@ func _apply_fire_slam_pose() -> void:
 	_solve_limb(right_leg,right_knee,right_ankle.position,to_global(_right_ankle_rest),knee_pole,plant_weight)
 	left_ankle.global_basis = Basis(left_ankle.global_basis.get_rotation_quaternion().slerp(global_basis.orthonormalized().get_rotation_quaternion(),plant_weight))
 	right_ankle.global_basis = Basis(right_ankle.global_basis.get_rotation_quaternion().slerp(global_basis.orthonormalized().get_rotation_quaternion(),plant_weight))
+
+func _solve_cut_arm(upper: Node3D,lower: Node3D,target: Vector3,side: float,weight: float) -> void:
+	var hand_offset: Vector3 = right_wrist.position if lower == right_forearm else left_wrist.position
+	# Low, outside elbows carry the weapon close to the ribs. The small rear
+	# component avoids folding the elbow across the chest on a forward grip.
+	var pole: Vector3 = global_basis.orthonormalized()*Vector3(side*0.65,-0.35,0.18)
+	_solve_limb(upper,lower,hand_offset,target,pole,weight)
 
 func _solve_arm(upper: Node3D,lower: Node3D,target: Vector3,side: float,weight: float) -> void:
 	var hand_offset: Vector3 = right_wrist.position if lower == right_forearm else left_wrist.position
@@ -638,8 +724,15 @@ func tick(delta: float, moving: float) -> void:
 	var left_pitch: float = clampf(sin(walk_phase-0.8)*0.24,-0.18,0.24)*locomotion_blend
 	var right_pitch: float = clampf(sin(walk_phase+PI-0.8)*0.24,-0.18,0.24)*locomotion_blend
 	_plant_feet(_running_foot(_left_ankle_rest,walk_phase),_running_foot(_right_ankle_rest,walk_phase+PI),1.0,left_pitch,right_pitch)
+	var carry_target := Vector3(0.25,1.25,-0.28)
+	carry_target.y += breath*0.004*resting+step*0.012*locomotion_blend
+	var carry_direction := Vector3(0.18,0.42,-0.89).normalized()
+	_solve_cut_arm(right_arm,right_forearm,to_global(carry_target),1.0,1.0)
+	var carry_basis: Basis = global_basis.orthonormalized()*Basis(Quaternion(Vector3.DOWN,carry_direction))
+	right_wrist.global_basis = carry_basis*sword.basis.orthonormalized().inverse()
 	if _presentation_blend > 0.0 and attack_elapsed < 0.0 and locomotion_blend < 0.01:
 		_apply_presentation_pose(delta)
+	_guard_blade = global_transform.affine_inverse()*sword.global_transform
 	_locomotion_pose = _capture_pose()
 	slash.visible = false
 	spin_ring.visible = false

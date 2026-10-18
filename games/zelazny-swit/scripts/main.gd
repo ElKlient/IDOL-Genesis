@@ -277,9 +277,18 @@ func request_attack() -> void:
 		direction.y = 0.0
 		hero.face_direction(direction.normalized())
 	hero.play_attack(combo-1,false)
-	audio.play_cut_swing(combo)
+	_swing_after_windup(combo,_attack_serial)
 	# Delay the hit until the sword reaches its arc. Target is rechecked then.
 	_hit_after_windup(nearest,combo,_attack_serial)
+
+func _swing_after_windup(step: int, attack_serial: int) -> void:
+	# Center the air envelope on the accelerating blade, not the anticipation.
+	await get_tree().create_timer(0.14 if step == 4 else 0.065).timeout
+	if attack_serial != _attack_serial or not is_instance_valid(hero) or hero.dead or not is_instance_valid(hud):
+		return
+	if respawning or hud.modal_open or not is_instance_valid(audio):
+		return
+	audio.play_cut_swing(step)
 
 func _hit_after_windup(enemy: Node3D, step: int, attack_serial: int) -> void:
 	await get_tree().create_timer(0.25 if step == 4 else 0.16).timeout

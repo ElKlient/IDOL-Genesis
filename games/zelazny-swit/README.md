@@ -1,4 +1,4 @@
-# Żelazny Świt — 0.2.0
+# Żelazny Świt — 0.2.1
 
 Oryginalna, jednoosobowa gra akcji RPG 3D na telefon, napisana w Godocie 4.4+.
 Sterowanie dotykowe w poziomie. Mały grywalny wycinek: wioska Brzeziny, wojownik,
@@ -108,7 +108,7 @@ Potem otwórz ten sam `games/zelazny-swit/project.godot` i naciśnij ▶.
 Polecenie zachowuje ewentualne lokalne zmiany `project.godot` w `git stash list`.
 Nie przywraca ich automatycznie: nowa wersja zawiera wymagane ustawienia mobilne
 i autoload diagnostyki. Zapis postaci oraz prywatna konfiguracja raportów zostają.
-Nie używaj resetowania ani usuwania folderu. W HUD pod zdrowiem sprawdź numer **v0.2.0**.
+Nie używaj resetowania ani usuwania folderu. W HUD pod zdrowiem sprawdź numer **v0.2.1**.
 
 ## Uruchamianie i zakres
 
@@ -128,6 +128,25 @@ Nie używaj resetowania ani usuwania folderu. W HUD pod zdrowiem sprawdź numer 
   Zrzuty użytkownika pokazują także uruchomioną 0.1.6, a później potwierdził
   działanie nowego wojownika. Wersja 0.2.0 została sprawdzona na Linuxie;
   wydajność tej aktualizacji na jego telefonie wymaga próby po pobraniu.
+
+## Aktualizacja 0.2.1 — prowadzenie miecza
+
+Zwykłe ataki prowadzą teraz dłoń i klingę po wspólnej trajektorii, a ramię
+jest dopasowywane przez IK. Usunięto niezależne skrajne obroty barku i nadgarstka,
+które powodowały machanie mieczem dookoła postaci. Garda jest bliżej ciała,
+cięcia mają osobne kierunki, a czwarty cios korzysta z oburęcznego chwytu
+oraz wyraźniejszego ruchu w przód i w dół. Biodra wyprzedzają obrót tułowia.
+
+Joystick nie obraca już postaci w połowie zwykłego cięcia, a szum ostrza jest
+zsynchronizowany z zamachem. Zachowano terminy obrażeń, czteroczęściową serię,
+odrzut, ceny, zapis i sprzęt.
+
+[Film z Godota: nowa seria ciosów i podgląd](docs/warrior-motion-0.2.1.mp4)
+(10 s). Wilk na nagraniu ma wstrzymane AI i zwiększone PŻ do demonstracji
+całej serii. W normalnej grze statystyki i AI są zachowane.
+
+Walidacja Godot 4.6: ciągłość animacji 69/69, combo 55/55, integracja 50/50
+oraz model 50/50 OpenGL. Szczegóły w `tests/README.md`.
 
 ## Aktualizacja 0.2.0 — trzy linie wyposażenia
 

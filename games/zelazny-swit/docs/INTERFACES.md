@@ -1,4 +1,4 @@
-# Kontrakty integracji — 0.2.0
+# Kontrakty integracji — 0.2.1
 
 Godot 4.4+, Compatibility/OpenGL, typowany GDScript, polski interfejs.
 Projekt jest samodzielny w `games/zelazny-swit`; nie ładuje starszego projektu
@@ -100,3 +100,13 @@ wyłączone. Test trwałości wymaga dodatkowo jawnego, jednorazowego
 `XDG_DATA_HOME` oraz `--test-data-root`. Polecenia i zakres sprawdzania są
 w `tests/README.md`. Rzeczywiste rendery OpenGL nie zastępują pomiaru FPS na
 telefonie. Nie kopiować tokenów diagnostyki do testów ani repozytorium.
+
+## Prowadzenie broni od 0.2.1
+
+Zwykłe cięcia używają toru rękojeści i kwaternionów klingi; IK wyznacza ramię.
+Pełny obrót startu/końca musi być zachowany, nie tylko kierunek ostrza.
+Oburęczny cios wymaga wspólnego punktu osiągalnego przez oba ramiona i płynnego
+dołączenia/zwolnienia dłoni. Polecenie ruchu nie może zmieniać `facing` podczas
+zwykłego cięcia, ale zachowuje dotychczasowe przesuwanie postaci.
+Opóźniony szum miecza .065/.14 s podlega temu samemu serialowi i blokadom
+śmierci/panelu/respawnu co atak. Kontakty obrażeń nadal .16/.25 s.

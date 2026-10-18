@@ -1,7 +1,47 @@
-# Żelazny Świt — przekazanie projektu 0.2.0
+# Żelazny Świt — przekazanie projektu 0.2.1
 
 
-## Aktualny stan 0.2.0 — rozbudowa grafiki i animacji
+## Aktualny stan 0.2.1 — poprawa animacji walki
+
+Użytkownik potwierdził działanie 0.2.0 na telefonie, ale odrzucił sposób
+machania mieczem. Na jego polecenie uruchomiono czterech agentów: wykonanie
+animacji, przegląd anatomii/IK, synchronizacja sterowania i dźwięku, testy/render.
+Osobny agent użytkownika pracuje nad potworami; ta poprawka nie podmienia
+`enemy.gd`, modeli przeciwników ani ich AI.
+
+Przyczyna: niezależne klucze Eulerów barku, łokcia i nadgarstka sumowały się
+w duże, szybkie obroty, np. ponad 120° barku w 55 ms. `character_visual.gd`
+prowadzi teraz rękojeść i orientację klingi po spójnych torach, a ramię dopasowuje
+IK. Zwarta garda, mniejsze wychylenia tułowia i wyprzedzający ruch bioder.
+Czwarty cios ma wspólną rękojeść osiągalną dla obu ramion, płynne dołączenie
+lewej dłoni i zwolnienie chwytu. Zachowano pełne orientacje początkową/końcową
+oraz płynne nakładanie POZY. Terminy obrażeń .16/.25 s pozostają takie same.
+
+`player.gd` zachowuje kierunek zwykłego cięcia mimo ruchu joystickiem; nadal
+można się przesuwać z dotychczasową zmniejszoną prędkością. Sterowanie kierunkiem
+wraca po animacji. `main.gd` opóźnia szum ostrza o .065/.14 s, aby pasował do
+przyspieszenia klingi; opóźnione wywołanie sprawdza serial, panel, śmierć i respawn.
+
+Walidacja Godot 4.6, izolowane katalogi, bez transmisji diagnostycznej:
+`animation_continuity` 69/69 (120 Hz, cztery bronie i wszystkie ciosy), model
+39/39, combo 55/55, podgląd 32/32, ogień 38/38, kierunek ciosu 13/13,
+opóźnienie i anulowanie dźwięku 8/8. Nowy test wykrył podczas pracy oderwanie
+lewej dłoni o 26–30 cm; zostało naprawione, przy pełnym chwycie błąd jest
+poniżej 0,05 mm w próbkach. Finalna integracja 50/50 oraz OpenGL modelu
+50/50 z 11 rzeczywistymi kadrami również przeszły. Szczegóły poleceń
+w `tests/README.md`.
+
+Finalny film `docs/warrior-motion-0.2.1.mp4` (10 s, 1280×720 H.264/AAC)
+pokazuje dwie serie ciosów przez kontroler gry oraz ataki w portrecie. Wilk
+ma zwiększone PŻ i wstrzymane AI wyłącznie w scenie nagrania. Jest to render
+Godota na Linuxie, nie pomiar FPS telefonu.
+
+Identyfikatory przedmiotów, modele, ceny, zapis, obrażenia, cooldowny i zasięg
+pozostają zgodne. Znane ograniczenie: stary zasięg kontaktu 3,2 m bywa większy
+od widocznego zasięgu klingi; poprawne podejście z kolizjami wymaga osobnej
+zmiany kontrolera. Nie maskować tego teleportowaniem samego modelu do celu.
+
+## Historia 0.2.0 — rozbudowa grafiki i animacji
 
 Użytkownik wybrał wszystkie trzy plansze wyposażenia oraz polecił wdrożyć
 podniesienie jakości modeli, materiałów, animacji, trafień i świata. Plansze
