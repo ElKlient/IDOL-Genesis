@@ -8,6 +8,7 @@ godot --headless --path . --script res://tests/ui_flow.gd -- --test-isolated
 godot --headless --path . --script res://tests/combat_combo.gd -- --test-isolated
 godot --headless --path . --script res://tests/character_preview.gd -- --test-isolated
 godot --headless --path . --script res://tests/fire_skill.gd -- --test-isolated
+godot --headless --path . --script res://tests/warrior_model.gd -- --test-isolated
 godot --headless --path . --script res://tests/render_stability.gd -- --test-isolated
 godot --headless --path . --script res://tests/forge_deferred.gd -- --test-isolated
 godot --headless --audio-driver Dummy --path . --script res://tests/audio_regression.gd -- --test-isolated
@@ -19,9 +20,33 @@ godot --headless --audio-driver Dummy --path . --script res://tests/audio_regres
 
 `combat_combo.gd` exercises four real main-controller attacks, contact timing, cooldown/modal/range/death guards, the 1.2-second combo reset, finisher-only impulse decay, enemy windup interruption and collision against a temporary wall. It verifies one defeat reward, exact camera focus during movement/stops/teleports, four distinct blade contacts in front of the warrior above ground, bounded idle breathing, and safe transition from a skill spin. The real enemy fixture avoids respawn timers; the full integration test covers spawned-enemy rewards and respawn. On an OpenGL display, omit `--headless` and add `--capture-dir=/absolute/path/to/previews` for the actual idle pose and four contact-pose screenshots. Version 0.1.6 passed 55 headless checks and 60 checks with these captures.
 
-`character_preview.gd` opens the actual inventory and exercises mouse/touch rotation, exclusive finger ownership, emulated-mouse suppression, cancelled touches, and the animation/rotation buttons. Equipping the third-tier sword/armor and rebuilding or reopening panels must preserve one preview, one 320 × 320 viewport and the chosen yaw. It checks 1280 × 720 and 1600 × 720 layout, full rotation, all four complete swings at eleven animation times and eight viewing angles, the bounded 30 Hz render-request clock, and zero hidden animation/render requests. OpenGL runs can add `--capture-dir=/absolute/path/to/previews` for both inventory sizes.
+`character_preview.gd` opens the actual inventory and exercises mouse/touch rotation, exclusive finger ownership, emulated-mouse suppression, cancelled touches, and the animation/rotation buttons. Equipping the third-tier sword/armor and rebuilding or reopening panels must preserve one preview, one 320 × 320 viewport and the chosen yaw. It checks 1280 × 720 and 1600 × 720 layout, full rotation, all four complete swings at eleven animation times and eight viewing angles, the bounded 30 Hz render-request clock, and zero hidden animation/render requests. Rigid curved blades are projected from actual vertices rather than the empty corners of their bounding box; `warrior_model.gd` separately checks the deformed skin. OpenGL runs can add `--capture-dir=/absolute/path/to/previews` for both inventory sizes.
 
 `fire_skill.gd` invokes the real fire button and physical F key. Real enemy fixtures check the contact delay, one area hit, range, attack/movement locks, twenty-second cooldown, thirty-percent ordinary-cut damage bonus, and natural twelve-second expiration. It also checks immediate modal and death cancellation, invalidation of a pending older cut, live/hidden inventory flames, effect disposal, unchanged permanent attack stats and equipment, actual mouse camera orbit, simultaneous left joystick/right camera touch ownership, pitch/yaw bounds, and emulated-mouse suppression on the attack pad and world target picker. Isolated camera preference writes remain disabled. On OpenGL, `--capture-dir=/absolute/path/to/previews` captures the windup, impact, burning sword and inventory. Only the rendered windup is slowed to avoid skipping that pose during initial shader compilation; subsequent gameplay and the natural buff expiry use normal simulation speed. These Linux checks are not a physical-phone frame-rate measurement.
+
+`warrior_model.gd` checks the actual imported warrior and weapons in the playable
+scene and inventory. It requires a weighted continuous body, an articulated
+skeleton and natural adult proportions; a primitive fallback cannot pass. It
+counts only visible geometry across all four armor/weapon stages, with a ceiling
+of 30,000 triangles and sixteen material surfaces per warrior. Main and portrait
+share immutable mesh/skin data while their mutable equipment materials remain
+independent. CPU skinning of the imported vertices verifies that running, all
+four cuts and the two-handed slam actually deform the body and armor without invalid or
+exploded coordinates. Deformed skin and real blade vertices must stay inside the
+portrait through all four cuts and eight viewing angles. The planted blade tip,
+support hand and actual boot sole are measured for all four weapon sizes,
+and the flame must remain attached to that sword. Existing save
+bytes remain unchanged and telemetry stays disabled. On a real OpenGL display,
+add `--capture-dir=/absolute/path/to/warrior-previews` to save village, front/side
+inventory, run, four contact poses, raised/planted slam and burning-sword PNGs.
+These are actual project renders, not concept illustrations or Android FPS claims.
+The final 0.1.8 asset passed 39 isolated headless checks and 50 OpenGL checks
+including eleven captures. Actual armor plus sword totals are 9,923 / 13,775 /
+14,407 / 15,541 visible triangles across tiers 0–3, with at most fourteen opaque
+material surfaces. Seven shared textures have a maximum dimension of 1024 pixels.
+The planted blade tip is 7 cm above ground; actual boot soles remain at 1.3–2.0 cm
+for all four sword sizes. These are asset and geometry measurements, not a
+measurement of the phone's frame rate or actual driver texture allocation.
 
 `render_stability.gd` keeps the real scene active for at least 12 seconds, crossing the former eight-second automatic graphics transition. It upgrades the actual starter sword to +1, +2 and +3 through the forge button, checks each charge and equipped armor, and repeatedly toggles economical graphics. Every toggle must retain the viewport's startup MSAA setting while still switching sun shadows and forge lighting. The same test can run on a real OpenGL display (omit `--headless`, optionally use Xvfb); it then also checks that rendered frames continue after every toggle. This is a targeted renderer regression, not a claim of testing every Android GPU.
 

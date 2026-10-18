@@ -114,7 +114,8 @@ func _run() -> void:
 		await create_timer(0.15).timeout
 		await _capture("inventory-live-%dx720" % width)
 	# The same large sword/armor must remain inside the portrait through a full
-	# rotation and through every contact pose. Bounds are actual mesh corners.
+	# rotation and through every contact pose. Rigid mesh vertices avoid empty
+	# AABB corners around a curved blade; warrior_model.gd also skins the body.
 	preview.set_process(false)
 	preview.preview_model.attack_elapsed = -1
 	var framed: bool = true
@@ -166,12 +167,21 @@ func _model_framed() -> bool:
 	for part: Node in model.find_children("*","MeshInstance3D",true,false):
 		if not part.is_visible_in_tree() or part.mesh == null:
 			continue
-		var bounds: AABB = part.get_aabb()
-		for corner: int in range(8):
-			var p: Vector3 = part.to_global(bounds.get_endpoint(corner))
-			if camera.is_position_behind(p) or not viewport_rect.has_point(camera.unproject_position(p)):
-				print("PORTRAIT FRAME outside: ",part.name," at ",camera.unproject_position(p))
-				return false
+		if part.skin == null:
+			for surface: int in range(part.mesh.get_surface_count()):
+				var arrays: Array = part.mesh.surface_get_arrays(surface)
+				for vertex: Vector3 in arrays[Mesh.ARRAY_VERTEX]:
+					var p: Vector3 = part.to_global(vertex)
+					if camera.is_position_behind(p) or not viewport_rect.has_point(camera.unproject_position(p)):
+						print("PORTRAIT FRAME outside: ",part.name," at ",camera.unproject_position(p))
+						return false
+		else:
+			var bounds: AABB = part.get_aabb()
+			for corner: int in range(8):
+				var p: Vector3 = part.to_global(bounds.get_endpoint(corner))
+				if camera.is_position_behind(p) or not viewport_rect.has_point(camera.unproject_position(p)):
+					print("PORTRAIT FRAME outside: ",part.name," at ",camera.unproject_position(p))
+					return false
 	return true
 
 func _preview_count(node: Node) -> int:

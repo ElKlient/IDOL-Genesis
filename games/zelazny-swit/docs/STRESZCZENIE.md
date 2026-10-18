@@ -1,4 +1,82 @@
-# Żelazny Świt — przekazanie projektu 0.1.7
+# Żelazny Świt — przekazanie projektu 0.1.8
+
+## Aktualny stan 0.1.8 — rzeczywisty model wojownika
+
+Na wyraźne polecenie użytkownika zastąpiono klockową geometrię prawdziwą
+siatką postaci przygotowaną w Blenderze 4.5.3 LTS. To zaimplementowany model
+w grze, nie wizualizacja imagegen. Naturalna twarz, dłonie z palcami, czarne
+włosy, ciągła skóra i trzy osobne warstwowe zbroje inspirowane gatunkiem
+azjatyckiego ARPG. Cztery oryginalne modele mieczy obejmują broń startową.
+
+Baza ciała, oczy, brwi i włosy pochodzą z darmowego Quaternius Universal Base
+Characters Standard (CC0). Zweryfikowano oficjalne pobranie i zgodność BIN.
+Pochodzenie, hashe archiwum, licencja i polecenia odtworzenia są w
+`assets/warrior/CREDITS.md` oraz `QUATERNIUS-LICENSE.txt`. Oryginalne zbroje
+i miecze należą do projektu; nie deklaruj ich automatycznie jako CC0.
+Nie użyto modeli, tekstur ani strojów wyciągniętych z Metin2.
+
+Gotowe `warrior.glb` (4 920 368 B) i `weapons.glb` (117 540 B) zawierają
+zasoby potrzebne w runtime. Blender, źródłowy pakiet i dodatki nie są potrzebne
+na telefonie. Skrypty `build_warrior.py` / `build_weapons.py` zachowują pipeline.
+SHA256 wojownika: `ebe7792e086aa554de585f30461bc01e33bac643fa6e84c55f43a312c720c5c8`.
+
+### Integracja i budżet
+
+- Szkielet ma 65 kości; maksymalnie 4 znormalizowane wagi na wierzchołek.
+  Wysokość z włosami około 2,024 m, przód w Godocie −Z.
+- Widoczne trójkąty z mieczem dla poziomów 0/1/2/3:
+  **9923 / 13775 / 14407 / 15541**. Powierzchnie: **11 / 14 / 14 / 14**.
+- Siedem współdzielonych tekstur, największa 1024²; oczy 256².
+  Siatki, skin i tekstury są wspólne dla postaci oraz podglądu.
+  Małe modyfikowalne materiały są kopiowane raz na instancję, więc ulepszenie
+  lub błysk trafienia nie zmienia drugiej postaci.
+- `WarriorModel` jest rodzeństwem korzenia sterującego `body`, aby ruch nie
+  nakładał się podwójnie. Stawy kontrolne są kalibrowane z faktycznej pozy
+  spoczynkowej importowanego szkieletu, a nie ze starej klockowej sylwetki.
+- Transformacja kości Godota jest pełną transformacją lokalną względem
+  rodzica. Nie mnoż jej ponownie przez rest; palce i niewymienione kości
+  dziedziczą rest od już ustawionego rodzica. Korekcje bind łączą stary
+  publiczny interfejs animacji z nową skórą.
+- Zwykłe cztery ciosy, oddech, bieg, oburęczny slam i płomień używają nowego
+  modelu. Rozmiar i początek broni odpowiadają lokalnemu końcowi klingi −1,205 Y.
+  Nie zmieniono ekonomii, nagród, cooldownów, zapisu ani ustawień kamery.
+- Podgląd ma bliższy kadr dla odpoczynku i rozszerza go podczas ataku.
+  Ukryty podgląd nadal nie renderuje; nie dodano motion blur, DOF ani glow.
+
+Pomiary i testy tej aktualizacji wykonano na Linuxie z Godot 4.4.1 i OpenGL/Mesa.
+Nie oznaczają zmierzonego FPS ani próby tej wersji na fizycznym Androidzie.
+Przy aktualizacji należy zachować zapis i prywatną konfigurację diagnostyki.
+Poniższe sekcje wersji 0.1.1–0.1.7 dokumentują historię, w tym dawny model.
+
+### Weryfikacja modelu 0.1.8
+
+`tests/warrior_model.gd` bada rzeczywiste wierzchołki po skinningu CPU,
+a nie tylko spoczynkowe AABB. Sprawdza proporcje, widoczną geometrię każdego
+zestawu, faktyczne materiały ciała/pancerza, współdzielenie tekstur oraz pełne
+animacje i obrót podglądu. Odrębne materiały na dwóch postaciach nie zmieniają
+wspólnych tekstur. Cztery miecze przy kontakcie mają koniec klingi 0,07 m
+nad gruntem, lewa dłoń dotyka rękojeści; po korekcie wag podeszwy są
+0,013–0,020 m nad gruntem. Samo badanie stawu kostki nie wykrywało starego
+błędu, w którym cała dolna część buta była przypisana do łydki.
+
+Test podglądu dla sztywnej broni projektuje teraz faktyczne wierzchołki,
+zamiast pustych narożników AABB zakrzywionej klingi. Nowy test uzupełnia go
+o rzeczywistą deformację siatki ciała i zbroi podczas ciosów.
+
+Świeża kopia projektu bez cache i wyodrębnionych PNG poprawnie importuje
+oba GLB i odtwarza siedem tekstur. Pliki `warrior_T_*.png`, `.import`, UID,
+`.godot` oraz `__pycache__` są generowane lokalnie i nie trafiają do commita.
+Import na serwerze Dummy może wypisać `texture_2d_get: Parameter t is null`
+podczas miniatur; rzeczywisty runtime OpenGL ładuje i renderuje tekstury.
+Nie wykonano testowej transmisji diagnostyki ani modyfikacji zapisu gracza.
+
+Wyniki: nowy model **39/39 headless i 50/50 OpenGL** (w tym 11 rzeczywistych
+zrzutów), podgląd **32/32 headless i 32/32 OpenGL**, cztery ciosy **55/55**,
+ogień **38/38**, integracja **51/51**, interfejs **17/17**, kowal **26/26**.
+Testy uruchamiano z `--test-isolated`; obejrzano finalny ekwipunek, kontakt
+miecza i płonące ostrze. `docs/warrior-inventory-0.1.8.png` to rzeczywisty
+zrzut Godota; `docs/warrior-model-0.1.8.png` przedstawia ten sam model
+w studyjnym oświetleniu Blendera, a nie wygląd telefonu ani ilustrację AI.
 
 ## Cel i zgody
 
@@ -32,6 +110,10 @@ Nowy projekt jest odseparowany od dotychczasowych aplikacji i gry:
   wioska, targ, kuźnia, las, brama, staw, ruiny i 7 spawnów.
 - `scripts/player.gd`, `character_visual.gd`: fizyka wojownika, animowane części
   ciała, ekwipunek zmieniający sylwetkę, miecz i zbroja 0–3, efekty ulepszenia.
+- `scripts/warrior_model.gd`: importowany model ze szkieletem, mapowanie stawów
+  animacji, wybór geometrii pancerza/miecza i osobne materiały instancji.
+- `assets/warrior/`: gotowe GLB, generatory Blendera, metryki, rig i licencja
+  bazy Quaternius CC0. Blender nie jest potrzebny na telefonie.
 - `scripts/enemy.gd`: wilk, dzik, Strażnik Korzeni; roaming, aggro, zapowiedź ataku,
   odskok/powrót do spawnu, leczenie po wyjściu ze strefy, śmierć.
 - `scripts/audio.gd`: oryginalna synteza dźwięków i ambientu; dźwięk można wyłączyć.
@@ -78,7 +160,7 @@ nie pobierać paczek starszej gry. W Godocie trzeba importować dokładnie
 Aktualizacja po zamknięciu projektu:
 
 ```bash
-cd /storage/emulated/0/Godot/ZelaznySwit && git stash push -m "Ustawienia Godota przed aktualizacja" -- games/zelazny-swit/project.godot && git pull --ff-only origin zelazny-swit && git --no-pager log -1 --oneline
+cd /storage/emulated/0/Godot/ZelaznySwit && git -c user.name=Backup -c user.email=backup@localhost stash push -m "Ustawienia Godota przed aktualizacja" -- games/zelazny-swit/project.godot && git pull --ff-only origin zelazny-swit && git --no-pager log -1 --oneline
 ```
 
 Nie usuwaj `.godot`, nie stosuj `reset --hard`, nie zmieniaj gałęzi na `main`.
@@ -90,8 +172,9 @@ sprawdź przez `git status --short`; nie odrzucaj ich. Ignorowany plik
 ## Zakres i ograniczenia
 
 To pierwsza grywalna lokalna wersja, nie pełne MMORPG. Brak multiplayera, innych klas,
-rozległych map i kampanii. Grafika jest celowo oryginalna i stylizowana; wszystkie
-modele, ikony i dźwięki generuje kod, bez zewnętrznych paczek i importu Blendera.
+rozległych map i kampanii. Grafika jest stylizowana. Od 0.1.8 wojownik używa
+przygotowanej w Blenderze bazy Quaternius CC0 i własnych modeli wyposażenia.
+Świat, animacje, efekty, ikony i dźwięki pozostają generowane przez kod.
 Fizyczny telefon użytkownika nie był zdalnie dostępny. Użytkownik później
 potwierdził rozgrywkę 0.1.3 na swoim urządzeniu; zakres tej obserwacji i nową
 kamerę 0.1.4 opisano na końcu. Nie przenoś tego potwierdzenia na inne telefony.

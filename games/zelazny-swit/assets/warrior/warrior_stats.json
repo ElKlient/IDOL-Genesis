@@ -1,0 +1,42 @@
+{
+  "Eyebrows": {
+    "triangles": 984,
+    "vertices": 646,
+    "materials": 1
+  },
+  "Eyes": {
+    "triangles": 768,
+    "vertices": 556,
+    "materials": 1
+  },
+  "Body": {
+    "triangles": 5250,
+    "vertices": 3046,
+    "materials": 1
+  },
+  "Armor0": {
+    "triangles": 1120,
+    "vertices": 768,
+    "materials": 4
+  },
+  "Armor1": {
+    "triangles": 3748,
+    "vertices": 2334,
+    "materials": 3
+  },
+  "Armor2": {
+    "triangles": 4396,
+    "vertices": 2846,
+    "materials": 3
+  },
+  "Armor3": {
+    "triangles": 5282,
+    "vertices": 3358,
+    "materials": 3
+  },
+  "Hair": {
+    "triangles": 1301,
+    "vertices": 757,
+    "materials": 1
+  }
+}

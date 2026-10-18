@@ -7,7 +7,7 @@ const VisualScript = preload("res://scripts/character_visual.gd")
 const RENDER_SIZE: Vector2i = Vector2i(320,320)
 const UPDATE_INTERVAL: float = 1.0/30.0
 const MOUSE_GUARD_MSEC: int = 250
-const BODY_CAMERA_SIZE: float = 3.8
+const BODY_CAMERA_SIZE: float = 2.9
 const ATTACK_CAMERA_SIZE: float = 5.3
 const FIRE_ATTACK_CAMERA_SIZE: float = 6.0
 

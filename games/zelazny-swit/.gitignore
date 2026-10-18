@@ -4,3 +4,7 @@ build/
 *.apk
 *.pck
 diagnostics.local.json
+__pycache__/
+*.pyc
+# Godot extracts these embedded GLB images during import.
+assets/warrior/warrior_T_*.png

@@ -1,4 +1,4 @@
-# Żelazny Świt — 0.1.7
+# Żelazny Świt — 0.1.8
 
 Oryginalna, jednoosobowa gra akcji RPG 3D na telefon, napisana w Godocie 4.4+.
 Sterowanie dotykowe w poziomie. Mały grywalny wycinek: wioska Brzeziny, wojownik,
@@ -101,28 +101,52 @@ z filtra motion blur. Przybliżenie i własne ustawienia pozostają zapisane.
 Zamknij projekt w Godocie. W Termuxie:
 
 ```bash
-cd /storage/emulated/0/Godot/ZelaznySwit && git stash push -m "Ustawienia Godota przed aktualizacja" -- games/zelazny-swit/project.godot && git pull --ff-only origin zelazny-swit && git --no-pager log -1 --oneline
+cd /storage/emulated/0/Godot/ZelaznySwit && git -c user.name=Backup -c user.email=backup@localhost stash push -m "Ustawienia Godota przed aktualizacja" -- games/zelazny-swit/project.godot && git pull --ff-only origin zelazny-swit && git --no-pager log -1 --oneline
 ```
 
 Potem otwórz ten sam `games/zelazny-swit/project.godot` i naciśnij ▶.
 Polecenie zachowuje ewentualne lokalne zmiany `project.godot` w `git stash list`.
 Nie przywraca ich automatycznie: nowa wersja zawiera wymagane ustawienia mobilne
 i autoload diagnostyki. Zapis postaci oraz prywatna konfiguracja raportów zostają.
-Nie używaj resetowania ani usuwania folderu. W HUD pod zdrowiem sprawdź numer **v0.1.7**.
+Nie używaj resetowania ani usuwania folderu. W HUD pod zdrowiem sprawdź numer **v0.1.8**.
 
 ## Uruchamianie i zakres
 
 - Godot **4.4.1** lub nowszy z obsługą GDScript; Compatibility / OpenGL.
 - Projekt działa bez Blendera, pobierania paczek i instalowania dodatków.
-- Świat, modele, animacje, ikony i dźwięki powstają z własnego kodu.
+- Wojownik korzysta z prawdziwej siatki i szkieletu przygotowanych w Blenderze:
+  baza ludzka Quaternius CC0, własne zbroje i miecze. Świat, animacje, efekty,
+  ikony i dźwięki powstają z kodu. Pochodzenie: [assets/warrior/CREDITS.md](assets/warrior/CREDITS.md).
 - Rozdzielczość bazowa 1280 × 720, poziomy ekran, interfejs skaluje się do telefonu.
 - Jest to pierwszy grywalny wycinek, a nie rozbudowane MMORPG: brak rozgrywki
   wieloosobowej, klas poza wojownikiem, rozległych map i pełnej kampanii.
 - Udostępniony jest projekt do uruchomienia w Godocie, nie gotowy instalator APK.
 - Użytkownik potwierdził chodzenie, walkę, zabijanie potworów i ulepszanie
   przedmiotów na swoim telefonie oraz zaakceptował zbliżenie kamery 0.1.5.
-  Zrzuty użytkownika pokazują także uruchomioną 0.1.6. Funkcje 0.1.7 wymagają
+  Zrzuty użytkownika pokazują także uruchomioną 0.1.6. Funkcje 0.1.8 wymagają
   jego próby po aktualizacji.
+
+## Aktualizacja 0.1.8 — nowy wojownik i wyposażenie
+
+Dotychczasową klockową postać zastępuje model ze skórą, twarzą, palcami,
+czarnymi włosami i naturalnymi proporcjami. Ma ciągłą siatkę deformowaną
+szkieletem 65 kości. Trzy zbroje mają osobną geometrię: brązowy pancerz,
+błękitną stal oraz ciemny pancerz Świtu ze złotymi obrzeżami i karmazynową
+tkaniną. Każdy miecz także ma nowy model, w tym szerszą klingę Miecza Świtu.
+
+Nowy wojownik działa w wiosce i obracanym podglądzie ekwipunku. Zachowuje
+oddech, bieg, cztery ciosy, oburęczne Pierdolnięcie Miecza i płonące ostrze.
+Podgląd ma bliższy kadr postaci, rozszerzany podczas ataku. Zmiana wyposażenia
+podmienia wygląd także na istniejącym zapisie; nie wymaga rozpoczynania gry.
+
+Model z najcięższą zbroją i mieczem ma około **15,5 tys. widocznych trójkątów**,
+do **14 powierzchni materiałów** i tekstury do **1024 × 1024**. Gotowe GLB zajmują
+łącznie około **5 MB**. Siatki i tekstury są współdzielone z podglądem,
+a zamknięty podgląd nie renderuje. To budżet przygotowany pod telefon;
+wydajność tej wersji na urządzeniu użytkownika wymaga sprawdzenia.
+
+[Zbliżenie rzeczywistego modelu w Blenderze](docs/warrior-model-0.1.8.png)
+oraz [zrzut ekwipunku z Godota](docs/warrior-inventory-0.1.8.png).
 
 ## Aktualizacja 0.1.7 — podgląd postaci, kamera i ogień
 
@@ -146,7 +170,7 @@ ustawiasz w Menu → KAMERA; obrót zapisuje się w tych samych preferencjach.
 Pokazane wizualizacje wioski i realistycznego wojownika to koncepcje docelowej
 grafiki. Kierunek wskazany przez użytkownika: klasyczne azjatyckie MMORPG,
 naturalna sylwetka, efektowne warstwowe zbroje i szeroki miecz, z własnymi
-projektami. W 0.1.7 działa podgląd oraz nowe efekty na dotychczasowym modelu.
+projektami. W 0.1.7 wprowadzono podgląd i efekty; od 0.1.8 używają nowego modelu.
 
 ## Aktualizacja 0.1.6 — ruch i cztery ciosy
 
@@ -156,10 +180,9 @@ przeciwnika, przerywając jego przygotowany atak. Odrzut podlega kolizjom świat
 Postój ma subtelny oddech i przenoszenie ciężaru, a ruch korzysta z osobnych
 stawów łokci i kolan. To aktualizacja animacji dotychczasowej postaci.
 
-Nowy, bardziej realistyczny model i wygląd zbroi są osobnym etapem. Po planszy
-A/B/C użytkownik wskazał kierunek klasycznego azjatyckiego MMORPG. Plansze
-koncepcyjne nie są zrzutami gry ani gotowymi modelami 3D. Obecna wersja zachowuje
-wyposażenie i postęp.
+Po planszy A/B/C użytkownik wskazał kierunek klasycznego azjatyckiego MMORPG.
+Plansze koncepcyjne nie są zrzutami gry. Rzeczywisty model i zbroje dodano
+w 0.1.8, zachowując wyposażenie i postęp.
 
 Dokładny raport weryfikacji i informacje dla kolejnego agenta: [docs/STRESZCZENIE.md](docs/STRESZCZENIE.md).
 
