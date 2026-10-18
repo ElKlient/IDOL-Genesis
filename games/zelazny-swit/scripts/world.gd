@@ -21,6 +21,7 @@ var enemy_spawns: Array[Dictionary] = [
 var _materials: Dictionary = {}
 var _batches: Dictionary = {}
 var _collision: StaticBody3D
+var _camera_collision: StaticBody3D
 var _rng: RandomNumberGenerator = RandomNumberGenerator.new()
 var _fire: Array[MeshInstance3D] = []
 var _fire_light: OmniLight3D
@@ -34,6 +35,12 @@ func _ready() -> void:
 	_collision = StaticBody3D.new()
 	_collision.name = "SceneryCollision"
 	add_child(_collision)
+	# Separate camera-only geometry leaves the existing walking collision intact.
+	_camera_collision = StaticBody3D.new()
+	_camera_collision.name = "CameraRoofCollision"
+	_camera_collision.collision_layer = 4
+	_camera_collision.collision_mask = 0
+	add_child(_camera_collision)
 	_lighting()
 	_landscape()
 	_village()
@@ -274,6 +281,13 @@ func _roof(t: Transform3D, width: float, depth: float, eave: float, ridge: float
 	var d: Vector3 = t * Vector3(0,ridge,-depth*0.5)
 	var e: Vector3 = t * Vector3(width*0.5,eave,depth*0.5)
 	var f: Vector3 = t * Vector3(width*0.5,eave,-depth*0.5)
+	# Six local-to-world points exactly bound the triangular roof prism.
+	var roof_shape: ConvexPolygonShape3D = ConvexPolygonShape3D.new()
+	roof_shape.points = PackedVector3Array([a, b, c, d, e, f])
+	var roof_collider: CollisionShape3D = CollisionShape3D.new()
+	roof_collider.name = "Roof%02d" % _camera_collision.get_child_count()
+	roof_collider.shape = roof_shape
+	_camera_collision.add_child(roof_collider)
 	_quad(a,d,c,b,key)
 	_quad(d,f,e,c,key + "_dark" if _materials.has(key + "_dark") else key)
 	_box_t(Vector3(0,ridge+0.01,0),Vector3(0.18,0.17,depth+0.12),"wood_dark",t)

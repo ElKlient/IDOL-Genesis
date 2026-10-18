@@ -5,10 +5,18 @@ const PlayerScript = preload("res://scripts/player.gd")
 const EnemyScript = preload("res://scripts/enemy.gd")
 const HUDScript = preload("res://ui/hud.gd")
 const AudioScript = preload("res://scripts/audio.gd")
+const CameraPreferencesScript = preload("res://scripts/camera_preferences.gd")
+const CAMERA_DISTANCE: float = 20.2
+const CAMERA_FOCUS: Vector3 = Vector3(0,1.05,0)
 var world: Node3D
 var hero: CharacterBody3D
 var hud: CanvasLayer
 var camera: Camera3D
+var camera_pivot: Node3D
+var camera_arm: SpringArm3D
+var camera_preferences: RefCounted
+var camera_save_timer: Timer
+var camera_settings_dirty: bool = false
 var audio: Node
 var enemies: Array[Node3D] = []
 var target: Node3D
@@ -31,19 +39,37 @@ func _ready() -> void:
 	_diagnostic("world_start")
 	randomize()
 	get_tree().auto_accept_quit = false
+	camera_preferences = CameraPreferencesScript.new()
+	camera_preferences.load_settings()
 	world = WorldScript.new()
 	add_child(world)
 	hero = PlayerScript.new()
 	hero.position = world.spawn_position
 	add_child(hero)
+	camera_pivot = Node3D.new()
+	camera_pivot.name = "CameraPivot"
+	camera_pivot.position = hero.position + CAMERA_FOCUS
+	add_child(camera_pivot)
+	camera_arm = SpringArm3D.new()
+	camera_arm.name = "CameraArm"
+	# Scenery walls and the separate camera-only roof shapes.
+	camera_arm.collision_mask = 1 | 4
+	camera_arm.margin = 0.3
+	camera_arm.add_excluded_object(hero.get_rid())
+	camera_pivot.add_child(camera_arm)
 	camera = Camera3D.new()
 	camera.fov = 48.0
 	camera.near = 0.2
 	camera.far = 190.0
-	camera.position = hero.position + Vector3(0,16,13)
-	add_child(camera)
-	camera.look_at(hero.position + Vector3(0,0.6,-1.5),Vector3.UP)
+	camera_arm.add_child(camera)
+	_apply_camera_settings()
+	camera.position.z = camera_arm.spring_length
 	camera.current = true
+	camera_save_timer = Timer.new()
+	camera_save_timer.one_shot = true
+	camera_save_timer.wait_time = 0.4
+	add_child(camera_save_timer)
+	camera_save_timer.timeout.connect(_save_camera_preferences)
 	audio = AudioScript.new()
 	audio.enabled = GameState.audio_enabled
 	add_child(audio)
@@ -93,7 +119,8 @@ func _physics_process(delta: float) -> void:
 		var keys: Vector2 = Vector2(float(Input.is_physical_key_pressed(KEY_D) or Input.is_physical_key_pressed(KEY_RIGHT))-float(Input.is_physical_key_pressed(KEY_A) or Input.is_physical_key_pressed(KEY_LEFT)), float(Input.is_physical_key_pressed(KEY_S) or Input.is_physical_key_pressed(KEY_DOWN))-float(Input.is_physical_key_pressed(KEY_W) or Input.is_physical_key_pressed(KEY_UP)))
 		if keys.length_squared() > 0:
 			movement = keys.normalized()
-		hero.move_input = movement.limit_length(1.0)
+		var camera_movement: Vector3 = Vector3(movement.x,0,movement.y).rotated(Vector3.UP,deg_to_rad(float(camera_preferences.yaw)))
+		hero.move_input = Vector2(camera_movement.x,camera_movement.z).limit_length(1.0)
 		if hud.attack_held or Input.is_physical_key_pressed(KEY_SPACE):
 			request_attack()
 	else:
@@ -118,9 +145,7 @@ func _physics_process(delta: float) -> void:
 func _process(delta: float) -> void:
 	if not is_instance_valid(hero) or not is_instance_valid(camera):
 		return
-	var offset: Vector3 = Vector3(0,16,13)
-	camera.position = camera.position.lerp(hero.position+offset,1.0-exp(-delta*6.0))
-	camera.look_at(hero.position+Vector3(0,0.6,-1.5),Vector3.UP)
+	camera_pivot.position = camera_pivot.position.lerp(hero.position+CAMERA_FOCUS,1.0-exp(-delta*6.0))
 	minimap_time -= delta
 	if minimap_time <= 0.0 and hud.has_method("set_world_positions"):
 		minimap_time = 0.1
@@ -366,6 +391,39 @@ func set_audio_enabled(value: bool) -> void:
 	GameState.save_game()
 	audio.set_enabled(value)
 
+func get_camera_settings() -> Dictionary:
+	return camera_preferences.as_dictionary()
+
+func set_camera_settings(zoom: float, pitch: float, yaw: float) -> void:
+	camera_preferences.set_values(zoom,pitch,yaw)
+	_apply_camera_settings()
+	camera_settings_dirty = true
+	camera_save_timer.start()
+
+func reset_camera_settings() -> void:
+	camera_preferences.reset_defaults()
+	_apply_camera_settings()
+	camera_settings_dirty = true
+	camera_save_timer.start()
+
+func _apply_camera_settings() -> void:
+	if is_instance_valid(camera_arm):
+		camera_arm.spring_length = CAMERA_DISTANCE / float(camera_preferences.zoom)
+		camera_arm.rotation = Vector3(-deg_to_rad(float(camera_preferences.pitch)),deg_to_rad(float(camera_preferences.yaw)),0)
+
+func _save_camera_preferences() -> void:
+	if not camera_settings_dirty or camera_preferences == null:
+		return
+	if is_instance_valid(camera_save_timer):
+		camera_save_timer.stop()
+	var saved: bool = camera_preferences.save_settings()
+	# Keep a failed real save pending for the next pause/close or adjustment.
+	camera_settings_dirty = not saved and bool(camera_preferences.save_enabled)
+	_diagnostic("camera_settings_saved",{"success":saved})
+
+func _exit_tree() -> void:
+	_save_camera_preferences()
+
 func start_new_game() -> void:
 	GameState.new_game()
 	# Recreate enemies, respawn timers, cooldowns and camera as well as the save.
@@ -424,6 +482,7 @@ func _ring_effect(at: Vector3, color: Color, radius: float) -> void:
 func _notification(what: int) -> void:
 	if what==NOTIFICATION_APPLICATION_PAUSED or what==NOTIFICATION_WM_CLOSE_REQUEST or what==NOTIFICATION_APPLICATION_FOCUS_OUT:
 		GameState.save_game()
+		_save_camera_preferences()
 	if what==NOTIFICATION_WM_GO_BACK_REQUEST:
 		if is_instance_valid(hud) and hud.modal_open:
 			_close_modal()

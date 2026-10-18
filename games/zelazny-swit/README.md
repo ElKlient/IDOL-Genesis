@@ -1,4 +1,4 @@
-# Żelazny Świt — 0.1.3
+# Żelazny Świt — 0.1.4
 
 Oryginalna, jednoosobowa gra akcji RPG 3D na telefon, napisana w Godocie 4.4+.
 Sterowanie dotykowe w poziomie. Mały grywalny wycinek: wioska Brzeziny, wojownik,
@@ -66,6 +66,26 @@ Komputer: **WASD/strzałki** — ruch, **Spacja** — atak, **R** — Wir stali,
 **Q** — mikstura, **E** — rozmowa, **I** — plecak, **Tab** — zmiana celu,
 **Esc** — zamknięcie panelu. Android Wstecz zamyka panel lub otwiera ustawienia.
 
+## Kamera i większa postać
+
+Wybierz **Menu → KAMERA**. Wąski panel po prawej pozwala ustawiać widok na żywo,
+z widocznym bohaterem pośrodku ekranu. Na czas regulacji ruch i walka są wstrzymane.
+
+| Suwak | Zakres | Domyślnie |
+| --- | --- | --- |
+| Przybliżenie | 1,00–1,85× | 1,35× |
+| Wysokość widoku | 38–65° | 48° |
+| Obrót | −180–180° | 0° |
+
+Domyślne przybliżenie daje około 35% większy obraz bohatera niż wcześniejszy widok.
+**PRZYWRÓĆ DOMYŚLNE** cofa trzy suwaki do wartości z tabeli. **WRÓĆ DO MENU**
+przenosi do ustawień, a **X** zamyka panel i wznawia grę.
+
+Joystick i klawiatura działają względem ekranu także po obrocie kamery.
+Przy przeszkodach kamera skraca dystans, aby ograniczyć przenikanie przez budynki.
+Ustawienia zapisują się automatycznie po chwili i pozostają po ponownym
+uruchomieniu, aktualizacji oraz wybraniu Nowej Gry.
+
 ## Aktualizacja
 
 Zamknij projekt w Godocie. W Termuxie:
@@ -78,7 +98,7 @@ Potem otwórz ten sam `games/zelazny-swit/project.godot` i naciśnij ▶.
 Polecenie zachowuje ewentualne lokalne zmiany `project.godot` w `git stash list`.
 Nie przywraca ich automatycznie: nowa wersja zawiera wymagane ustawienia mobilne
 i autoload diagnostyki. Zapis postaci oraz prywatna konfiguracja raportów zostają.
-Nie używaj resetowania ani usuwania folderu. W HUD pod zdrowiem sprawdź numer **v0.1.3**.
+Nie używaj resetowania ani usuwania folderu. W HUD pod zdrowiem sprawdź numer **v0.1.4**.
 
 ## Uruchamianie i zakres
 
@@ -89,7 +109,8 @@ Nie używaj resetowania ani usuwania folderu. W HUD pod zdrowiem sprawdź numer 
 - Jest to pierwszy grywalny wycinek, a nie rozbudowane MMORPG: brak rozgrywki
   wieloosobowej, klas poza wojownikiem, rozległych map i pełnej kampanii.
 - Udostępniony jest projekt do uruchomienia w Godocie, nie gotowy instalator APK.
-- Test na fizycznym telefonie użytkownika wykonuje użytkownik po pobraniu.
+- Użytkownik potwierdził w 0.1.3 chodzenie, walkę, zabijanie potworów i ulepszanie
+  przedmiotów na swoim telefonie. Nowa kamera 0.1.4 wymaga jego próby po aktualizacji.
 
 Dokładny raport weryfikacji i informacje dla kolejnego agenta: [docs/STRESZCZENIE.md](docs/STRESZCZENIE.md).
 
@@ -104,8 +125,9 @@ opłaty. Przeciągnięcie na kowadło nadal tylko wybiera przedmiot.
 Ośmiosekundowy podkład dźwiękowy korzysta z odroczonego ponowienia odtwarzania
 zamiast natywnej pętli WAV. MSAA na telefonie pozostaje wyłączone od startu;
 usunięty w 0.1.1 automatyczny przełącznik grafiki po 8 sekundach nie wraca.
-Użytkownik zgłosił dalsze zamknięcie procesu po 0.1.1. Nowe zmiany są sprawdzone
-na Linuxie; przyczyna awarii na konkretnym Androidzie wymaga dalszego potwierdzenia.
+Użytkownik zgłosił dalsze zamknięcie procesu po 0.1.1, a następnie potwierdził
+prawidłowe działanie rozgrywki w 0.1.3. Konkretna przyczyna poprzednich awarii
+nie została potwierdzona.
 
 ## Jednorazowe włączenie prywatnych raportów
 

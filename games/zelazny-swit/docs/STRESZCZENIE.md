@@ -1,4 +1,4 @@
-# Żelazny Świt — przekazanie projektu
+# Żelazny Świt — przekazanie projektu 0.1.4
 
 ## Cel i zgody
 
@@ -21,9 +21,11 @@ Nowy projekt jest odseparowany od dotychczasowych aplikacji i gry:
 ## Architektura
 
 - `project.godot`, `main.tscn`: wejście, landscape, Compatibility/OpenGL, Canvas Items.
-- `scripts/main.gd`: scena, kamera śledząca, wejście, 3-cio ciosowe combo,
+- `scripts/main.gd`: scena, obrotowa kamera na `SpringArm3D`, ruch względem widoku,
+  wejście, 3-cio ciosowe combo,
   opóźnienie trafienia, automatyczny najbliższy cel / wybór dotykiem, skill obszarowy,
   mikstury, NPC, nagrody i respawn.
+- `scripts/camera_preferences.gd`: niezależne preferencje kamery i atomowy zapis CFG.
 - `scripts/game_state.gd`: autoload `GameState`, katalog, egzemplarze przedmiotów
   z UID, ekonomia, statystyki, zadanie i atomowy zapis JSON.
 - `scripts/world.gd`: oryginalny świat budowany w kodzie; wspólne siatki dekoracji,
@@ -34,7 +36,8 @@ Nowy projekt jest odseparowany od dotychczasowych aplikacji i gry:
   odskok/powrót do spawnu, leczenie po wyjściu ze strefy, śmierć.
 - `scripts/audio.gd`: oryginalna synteza dźwięków i ambientu; dźwięk można wyłączyć.
 - `ui/hud.gd` i pomocnicze skrypty: HUD, minimapa, multitouch, plecak, sklep,
-  kowal z drag & drop oraz wyborem dotykowym, pomoc i przewijane ustawienia.
+  kowal z drag & drop oraz wyborem dotykowym, pomoc, przewijane ustawienia
+  i prawy panel regulacji kamery z podglądem na żywo.
 - `scripts/diagnostics.gd`: autoload `Diagnostics`, lokalne ograniczone ślady zdarzeń,
   wykrycie niedomkniętej sesji, filtrowany ogon logu i opcjonalna wysyłka HTTPS.
 - `tests/`: testy izolowane od właściwego zapisu; część działa także z prawdziwym OpenGL.
@@ -87,8 +90,9 @@ sprawdź przez `git status --short`; nie odrzucaj ich. Ignorowany plik
 To pierwsza grywalna lokalna wersja, nie pełne MMORPG. Brak multiplayera, innych klas,
 rozległych map i kampanii. Grafika jest celowo oryginalna i stylizowana; wszystkie
 modele, ikony i dźwięki generuje kod, bez zewnętrznych paczek i importu Blendera.
-Fizyczny telefon użytkownika nie był zdalnie dostępny; potwierdzenie Androida
-wymaga uruchomienia na telefonie po pobraniu.
+Fizyczny telefon użytkownika nie był zdalnie dostępny. Użytkownik później
+potwierdził rozgrywkę 0.1.3 na swoim urządzeniu; zakres tej obserwacji i nową
+kamerę 0.1.4 opisano na końcu. Nie przenoś tego potwierdzenia na inne telefony.
 
 ## Weryfikacja
 
@@ -110,8 +114,9 @@ odtworzenie pełnej sceny, świeżych potworów, cooldownów i startowego ekwipu
 - render prawdziwym rendererem OpenGL/Mesa w Xvfb:1280×720 oraz1600×720;
   obejrzane ekrany wioski, sklepu, kowala, plecaka i walki; skorygowane
   prześwietlenie oświetlenia, sprawdzone ramki i czytelność paneli;
-- brak testu fizycznego Androida — nie deklaruj potwierdzonego działania
-  na konkretnym telefonie ani potwierdzonej wydajności mobilnej.
+- testy automatyczne i zrzuty wykonano na Linuxie. Późniejsze potwierdzenie
+  użytkownika dotyczy rozgrywki 0.1.3 na jego telefonie, bez pomiaru wydajności;
+  nie jest testem nowej kamery 0.1.4 ani innych modeli Androida.
 
 Przykładowe polecenia w środowisku z desktopowym Godotem:
 
@@ -296,3 +301,64 @@ Pełna regresja tej wersji: integracja 51/51, zapis 19/19, UI OpenGL 17/17,
 kowal OpenGL 26/26, renderer OpenGL 54/54 (świeży katalog danych; liczba
 warunkowych kontroli zależy od istniejącego zapisu), audio 13/13, diagnostyka
 29/29. Końcowe testy OpenGL zakończone bez ostrzeżeń o pozostawionych obiektach.
+
+
+## Wersja 0.1.4 — większy bohater i ustawienia kamery
+
+Przed zleceniem tej zmiany użytkownik potwierdził, że w 0.1.3 może chodzić,
+walczyć, zabijać potwory i ulepszać przedmioty. To obserwacja działającej gry
+na jego telefonie. Nie ustalono konkretnej przyczyny wcześniejszego zamknięcia
+procesu. Nowe zlecenie dotyczy bliższego widoku oraz własnego ustawienia kamery.
+
+Oczekiwany numer w HUD to **v0.1.4**. Odczytywany jest z `application/config/version`,
+a po aktualizacji należy uruchomić ponownie projekt, aby zobaczyć nowy numer.
+Polecenie aktualizacji wyżej nadal zachowuje lokalny `project.godot` w stash
+bez automatycznego przywracania i nie usuwa zapisu ani prywatnej konfiguracji.
+
+**Menu → KAMERA** otwiera prawy panel 350 × 540 px z trzema suwakami:
+przybliżenie 1,00–1,85× (domyślnie 1,35×), wysokość 38–65° (48°),
+obrót −180–180° (0°). Domyślny obraz postaci jest około 35% większy niż
+wcześniejszy daleki widok. Panel pozostawia świat i bohatera widoczne,
+bez przyciemnienia. Kontrolki mają 48-pikselowe uchwyty i wartości liczbowe.
+Ruch oraz walka są wstrzymane przez istniejące `modal_open`.
+
+Suwaki wywołują `main.set_camera_settings(zoom,pitch,yaw)` na żywo.
+`main.get_camera_settings()` zwraca słownik tych trzech wartości w stopniach
+dla pitch/yaw, a `main.reset_camera_settings()` przywraca wartości domyślne.
+HUD nie przebudowuje panelu podczas przeciągania; reset ustawia wartości przez
+`set_value_no_signal` i aktualizuje etykiety bez usuwania aktywnej kontrolki.
+**WRÓĆ DO MENU** przywraca pełny układ ustawień, **X** zamyka panel.
+
+`CameraPivot` podąża za bohaterem, a `SpringArm3D` steruje odległością i obrotem
+kamery. Dystans bazowy wynosi 20,2 m, długość ramienia to dystans/przybliżenie,
+punkt obserwacji leży 1,05 m nad pozycją bohatera, FOV pozostaje 48°.
+Ramię uwzględnia maski kolizji 1 (świat) i 4 (osobne bryły dachów), wykluczając
+RID postaci; skraca widok przy przeszkodzie. `CameraRoofCollision` zawiera
+11 wypukłych brył dachów tworzonych raz ze współrzędnych oryginalnej geometrii.
+Nie zmieniają kolizji chodzenia. Osobny test fizyki potwierdził trafienie
+promienia w dach z maską 4 oraz brak trafienia tego samego promienia z maską 1.
+Kierunek wejścia obraca się razem z yaw kamery,
+więc joystick/WASD nadal odpowiadają kierunkom na ekranie.
+
+Preferencje są niezależne od postaci: `user://camera_settings.cfg`, sekcja
+`camera` z zoom/pitch/yaw. Wartości są sprawdzane pod kątem typu, skończoności
+i dopuszczalnych zakresów, plik jest ograniczony do 4 KiB. Zapis jest atomowy,
+przez `.tmp` i zmianę nazwy, z opóźnieniem 0,4 s po ostatniej regulacji oraz
+przy wyjściu ze sceny. Nowa Gra odtwarza scenę i postać, zachowując te preferencje.
+Flaga `--test-isolated` domyślnie wyłącza zapis preferencji; test trwałości
+wymaga jawnego, jednorazowego katalogu danych.
+
+Automatyczne testy kamery oraz zrzuty OpenGL są odrębną weryfikacją tej wersji;
+nie sumuj historycznych liczb kontroli jako nowego wyniku. Potwierdzenie
+poprzedniej gry przez użytkownika nie zastępuje próby nowych suwaków na telefonie.
+Wszystkie wcześniejsze zasady prywatnej diagnostyki, zgoda użytkownika,
+endpoint i retencja pozostają aktualne.
+
+Weryfikacja 0.1.4: import Godot 4.4.1; integracja sceny 51/51 i interfejs 17/17;
+test kamery 40/40 headless oraz 43/43 z rzeczywistym OpenGL/Mesa. Test porównał
+projekcję postaci: dawniej 50,65 px, teraz 68,17 px, wzrost 34,60%. Sprawdzono
+osiem kierunków joysticka przy czterech obrotach, granice i reset ustawień,
+odsunięcie kamery od przeszkody, zapis po 0,4 s oraz odczyt przez nową instancję.
+Stary plik postaci pozostał identyczny bajt w bajt. Zrzuty 1280×720 i 1600×720
+obejrzano: bohater pozostaje widoczny obok panelu, wszystkie trzy suwaki oraz
+przyciski mieszczą się i są czytelne. Końcowy test OpenGL zakończył się czysto.

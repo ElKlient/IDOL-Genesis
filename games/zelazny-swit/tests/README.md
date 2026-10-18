@@ -44,6 +44,17 @@ This checks bounded/redacted breadcrumbs, error-tail filtering, bounded offline 
 
 `diagnostics_network.gd` is a separate explicitly authorized live smoke test. It requires `--diagnostics-network-test` without `--test-isolated`, a disposable `XDG_DATA_HOME` matching `--test-data-root`, and private local `user://diagnostics_config.json` provisioned outside the repository. It queues a real Godot report, waits at most 20 seconds for acknowledgement/removal and checks confirmed sent status. It prints only opaque report identifiers, numeric transport phases/results and test results; never put credentials in command-line arguments or repository files. Managed QA can pass `--test-https-proxy=host:port` to use its local CONNECT proxy without changing production configuration. The production request timeout is 15 seconds from version 0.1.3.
 
+Camera geometry, touch controls and persistence use their own disposable directory:
+
+```sh
+qa_data="$(mktemp -d)"
+XDG_DATA_HOME="$qa_data" godot --headless --path . --script res://tests/camera_settings.gd -- --test-isolated --test-data-root="$qa_data"
+```
+
+`camera_settings.gd` measures projected warrior height against the previous fixed camera, checks zoom/pitch/orbit limits, and places a temporary collision wall between the focus and desired camera endpoint. The spring arm must shorten, keep the eye outside the wall, and recover its original length after removal. Real joystick input must continue moving up/right on screen at four orbit angles. Pointer input exercises all three live sliders and the reset button; the compact preview panel must leave the warrior visible at 1280 × 720 and 1600 × 720.
+
+The camera test explicitly enables preference persistence only inside the guarded disposable directory, verifies both the standalone preference file and main controller's debounced save/reload, and requires an older-format character-save fixture to remain byte-for-byte unchanged. Run this same test on an active OpenGL display without `--headless` and add `--capture-dir=/absolute/path/to/previews` to save default-camera and live-panel screenshots at both phone aspect ratios. Isolated mode prevents telemetry sends.
+
 To capture real rendered previews, use an active graphical display or Xvfb. This check cannot use `--headless`:
 
 ```sh

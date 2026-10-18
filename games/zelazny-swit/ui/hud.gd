@@ -55,6 +55,14 @@ var _npc_access: String = ""
 var _map_time: float = 0.0
 var _modal_generation: int = 0
 var _diagnostics_status_label: Label
+var _modal_header: HBoxContainer
+var _modal_tabs: HBoxContainer
+var _modal_eyebrow: Label
+var _modal_column: VBoxContainer
+var _camera_values: Dictionary = {}
+var _camera_sliders: Dictionary = {}
+var _camera_value_labels: Dictionary = {}
+var _camera_grip: Texture2D
 
 func _ready() -> void:
 	layer = 10
@@ -239,15 +247,18 @@ func _build_modal() -> void:
 	modal.offset_bottom = 304
 	overlay.add_child(modal)
 	var col: VBoxContainer = VBoxContainer.new()
+	_modal_column = col
 	col.add_theme_constant_override("separation",14)
 	modal.add_child(col)
 	var header: HBoxContainer = HBoxContainer.new()
+	_modal_header = header
 	header.add_theme_constant_override("separation",20)
 	col.add_child(header)
 	var title_col: VBoxContainer = VBoxContainer.new()
 	title_col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header.add_child(title_col)
-	title_col.add_child(_label("ŻELAZNY ŚWIT  /  BRZEZINY",11,GOLD))
+	_modal_eyebrow = _label("ŻELAZNY ŚWIT  /  BRZEZINY",11,GOLD)
+	title_col.add_child(_modal_eyebrow)
 	modal_title = _label("Ekwipunek",30,CREAM)
 	title_col.add_child(modal_title)
 	modal_gold = _label("10 000 złota",22,GOLD)
@@ -257,6 +268,7 @@ func _build_modal() -> void:
 	header.add_child(close)
 	close.pressed.connect(_close_panel)
 	var tab_row: HBoxContainer = HBoxContainer.new()
+	_modal_tabs = tab_row
 	tab_row.add_theme_constant_override("separation",8)
 	col.add_child(tab_row)
 	for entry: Array in [["inventory","EKWIPUNEK"],["shop","HANDLARZ"],["forge","KOWAL"],["help","JAK GRAĆ"]]:
@@ -369,7 +381,7 @@ func refresh() -> void:
 	gold_text.text = "%s złota" % _number(GameState.gold)
 	quest_text.text = GameState.quest_text()
 	potion_text.text = "POTKA · %d" % GameState.potions
-	if modal_open:
+	if modal_open and modal_mode != "camera":
 		_render_panel()
 
 func _render_panel() -> void:
@@ -396,12 +408,15 @@ func _rebuild_panel() -> void:
 	for child: Node in modal_body.get_children():
 		modal_body.remove_child(child)
 		child.queue_free()
+	_camera_sliders.clear()
+	_camera_value_labels.clear()
+	_apply_modal_layout()
 	modal_gold.text = "%s złota" % _number(GameState.gold)
 	for key: Variant in tabs:
 		var b: Button = tabs[key]
 		b.visible = key not in ["shop","forge"] or key == _npc_access
 		b.add_theme_stylebox_override("normal",_style(Color("365047") if key == modal_mode else Color("172d34"),GOLD if key == modal_mode else Color("40524a"),7,1))
-	var titles: Dictionary = {"inventory":"Ekwipunek wojownika","shop":"Handlarz · Mira","forge":"Kuźnia · Born","help":"Pierwsze kroki","settings":"Obozowisko"}
+	var titles: Dictionary = {"inventory":"Ekwipunek wojownika","shop":"Handlarz · Mira","forge":"Kuźnia · Born","help":"Pierwsze kroki","settings":"Obozowisko","camera":"Kamera"}
 	modal_title.text = str(titles.get(modal_mode,"Ekwipunek"))
 	if modal_mode == "settings" and _reset_confirmation:
 		_render_reset_confirmation()
@@ -411,6 +426,7 @@ func _rebuild_panel() -> void:
 			"forge": _render_forge()
 			"help": _render_help()
 			"settings": _render_settings()
+			"camera": _render_camera()
 			_: _render_inventory()
 	_diagnostic_note("ui_modal_rebuild_end",{"category":modal_mode})
 
@@ -635,6 +651,9 @@ func _render_settings() -> void:
 	var save_button: Button = _button("ZAPISZ GRĘ",Vector2(330,52),false)
 	save_button.pressed.connect(func() -> void: GameState.save_game(); toast("Postęp zapisany."))
 	col.add_child(save_button)
+	var camera_button: Button = _button("KAMERA",Vector2(330,52),false)
+	camera_button.pressed.connect(func() -> void: open_panel("camera"))
+	col.add_child(camera_button)
 	var sound_button: Button = _button("DŹWIĘK: WŁĄCZONY" if _audio_enabled else "DŹWIĘK: WYŁĄCZONY",Vector2(330,48),true)
 	sound_button.pressed.connect(_toggle_audio)
 	col.add_child(sound_button)
@@ -666,6 +685,144 @@ func _render_settings() -> void:
 	var reset_button: Button = _button("NOWA GRA…",Vector2(330,48),true)
 	reset_button.pressed.connect(_confirm_reset)
 	col.add_child(reset_button)
+
+func _apply_modal_layout() -> void:
+	var camera_mode: bool = modal_mode == "camera"
+	overlay.color = Color(0,0,0,0) if camera_mode else Color(0.015,0.035,0.045,0.84)
+	_modal_tabs.visible = not camera_mode
+	_modal_eyebrow.visible = not camera_mode
+	modal_gold.visible = not camera_mode
+	modal_title.add_theme_font_size_override("font_size",24 if camera_mode else 30)
+	_modal_header.add_theme_constant_override("separation",10 if camera_mode else 20)
+	_modal_column.add_theme_constant_override("separation",12 if camera_mode else 14)
+	var style: StyleBoxFlat = modal.get_theme_stylebox("panel") as StyleBoxFlat
+	style.set_content_margin_all(16 if camera_mode else 22)
+	if camera_mode:
+		modal.set_anchors_and_offsets_preset(Control.PRESET_CENTER_RIGHT)
+		modal.offset_left = -374
+		modal.offset_right = -24
+		modal.offset_top = -270
+		modal.offset_bottom = 270
+	else:
+		modal.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+		modal.offset_left = -556
+		modal.offset_right = 556
+		modal.offset_top = -304
+		modal.offset_bottom = 304
+
+func _render_camera() -> void:
+	_camera_values = _read_camera_settings()
+	var scroll: ScrollContainer = ScrollContainer.new()
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	modal_body.add_child(scroll)
+	var col: VBoxContainer = VBoxContainer.new()
+	col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	col.add_theme_constant_override("separation",8)
+	scroll.add_child(col)
+	col.add_child(_text("Dostosuj widok. Bohater jest widoczny na żywo.",14,MUTED))
+	_camera_slider(col,"zoom","Przybliżenie",1.0,1.85,0.05,"CameraZoom")
+	_camera_slider(col,"pitch","Wysokość widoku",38.0,65.0,1.0,"CameraPitch")
+	_camera_slider(col,"yaw","Obrót",-180.0,180.0,5.0,"CameraYaw")
+	var reset: Button = _button("PRZYWRÓĆ DOMYŚLNE",Vector2(0,48),true)
+	reset.add_theme_font_size_override("font_size",14)
+	reset.pressed.connect(_reset_camera_settings)
+	col.add_child(reset)
+	var back: Button = _button("WRÓĆ DO MENU",Vector2(0,48),false)
+	back.add_theme_font_size_override("font_size",14)
+	back.pressed.connect(func() -> void: open_panel("settings"))
+	col.add_child(back)
+
+func _camera_slider(parent: VBoxContainer,key: String,title: String,minimum: float,maximum: float,increment: float,node_name: String) -> void:
+	var group: VBoxContainer = VBoxContainer.new()
+	group.add_theme_constant_override("separation",2)
+	parent.add_child(group)
+	var row: HBoxContainer = HBoxContainer.new()
+	row.add_theme_constant_override("separation",8)
+	group.add_child(row)
+	var caption: Label = _label(title,16,CREAM)
+	caption.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(caption)
+	var value_label: Label = _label(_camera_value_text(key,float(_camera_values[key])),16,GOLD)
+	value_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	value_label.custom_minimum_size.x = 62
+	row.add_child(value_label)
+	var slider: HSlider = HSlider.new()
+	slider.name = node_name
+	slider.min_value = minimum
+	slider.max_value = maximum
+	slider.step = increment
+	slider.value = float(_camera_values[key])
+	slider.custom_minimum_size = Vector2(0,48)
+	slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	slider.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	var track: StyleBoxFlat = _style(Color("314b4c"),Color.TRANSPARENT,4,0)
+	track.set_content_margin_all(0)
+	track.content_margin_top = 3
+	track.content_margin_bottom = 3
+	slider.add_theme_stylebox_override("slider",track)
+	var filled: StyleBoxFlat = track.duplicate() as StyleBoxFlat
+	filled.bg_color = Color("bda36b")
+	slider.add_theme_stylebox_override("grabber_area",filled)
+	slider.add_theme_stylebox_override("grabber_area_highlight",filled)
+	if not is_instance_valid(_camera_grip):
+		_camera_grip = _camera_grip_texture()
+	slider.add_theme_icon_override("grabber",_camera_grip)
+	slider.add_theme_icon_override("grabber_highlight",_camera_grip)
+	slider.add_theme_icon_override("grabber_disabled",_camera_grip)
+	slider.add_theme_constant_override("grabber_offset",0)
+	slider.add_theme_constant_override("center_grabber",1)
+	slider.value_changed.connect(_camera_slider_changed.bind(key))
+	group.add_child(slider)
+	_camera_sliders[key] = slider
+	_camera_value_labels[key] = value_label
+
+func _camera_grip_texture() -> Texture2D:
+	var image: Image = Image.create(48,48,false,Image.FORMAT_RGBA8)
+	image.fill(Color.TRANSPARENT)
+	for y: int in range(48):
+		for x: int in range(48):
+			var distance: float = Vector2(float(x)-23.5,float(y)-23.5).length()
+			if distance <= 23.5:
+				var color: Color = GOLD if distance > 20.0 else Color("24454b")
+				if distance < 6.0:
+					color = Color("e7d2a0")
+				color.a = clampf(23.5-distance,0,1)
+				image.set_pixel(x,y,color)
+	return ImageTexture.create_from_image(image)
+
+func _read_camera_settings() -> Dictionary:
+	var current: Dictionary = {"zoom":1.35,"pitch":48.0,"yaw":0.0}
+	if get_parent().has_method("get_camera_settings"):
+		var value: Variant = get_parent().call("get_camera_settings")
+		if value is Dictionary:
+			current.merge(value,true)
+	return {"zoom":clampf(float(current.get("zoom",1.35)),1.0,1.85),"pitch":clampf(float(current.get("pitch",48.0)),38.0,65.0),"yaw":clampf(float(current.get("yaw",0.0)),-180.0,180.0)}
+
+func _camera_value_text(key: String,value: float) -> String:
+	return "%.2f×" % value if key == "zoom" else "%d°" % int(round(value))
+
+func _camera_slider_changed(value: float,key: String) -> void:
+	if not modal_open or modal_mode != "camera":
+		return
+	_camera_values[key] = value
+	var label: Label = _camera_value_labels.get(key)
+	if is_instance_valid(label):
+		label.text = _camera_value_text(key,value)
+	if get_parent().has_method("set_camera_settings"):
+		get_parent().call("set_camera_settings",float(_camera_values.zoom),float(_camera_values.pitch),float(_camera_values.yaw))
+
+func _reset_camera_settings() -> void:
+	if not modal_open or modal_mode != "camera":
+		return
+	if get_parent().has_method("reset_camera_settings"):
+		get_parent().call("reset_camera_settings")
+	_camera_values = _read_camera_settings()
+	for key: Variant in _camera_sliders:
+		var slider: HSlider = _camera_sliders[key]
+		slider.set_value_no_signal(float(_camera_values[key]))
+		var label: Label = _camera_value_labels[key]
+		label.text = _camera_value_text(str(key),float(_camera_values[key]))
 
 func _connect_diagnostics() -> void:
 	var diagnostics: Node = get_node_or_null("/root/Diagnostics")
