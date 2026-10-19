@@ -1,4 +1,5 @@
 extends SceneTree
+const Timing = preload("res://scripts/attack_timing.gd")
 class AudioProbe extends Node:
 	var swings: Array[int] = []
 	func play_cut_swing(step: int) -> void:
@@ -31,31 +32,31 @@ func _run() -> void:
 	game._attack_serial = 5
 	game._swing_after_windup(1,5)
 	_check(game.audio.swings.is_empty(),"whoosh is not emitted at anticipation start")
-	await create_timer(0.12).timeout
+	await create_timer(Timing.swing_time(0)+0.06).timeout
 	_check(game.audio.swings == [1],"ordinary whoosh emitted once during acceleration")
 	game._swing_after_windup(4,5)
-	await create_timer(0.085).timeout
+	await create_timer(Timing.swing_time(0)-0.04).timeout
 	_check(game.audio.swings == [1],"heavy whoosh waits beyond ordinary windup")
-	await create_timer(0.10).timeout
+	await create_timer(Timing.swing_time(3)-Timing.swing_time(0)+0.10).timeout
 	_check(game.audio.swings == [1,4],"heavy whoosh emitted once")
 	game.audio.swings.clear()
 	game._swing_after_windup(1,5)
 	game._attack_serial = 6
-	await create_timer(0.12).timeout
+	await create_timer(Timing.swing_time(0)+0.06).timeout
 	_check(game.audio.swings.is_empty(),"serial cancellation suppresses pending whoosh")
 	game._swing_after_windup(1,6)
 	game.hud.modal_open = true
-	await create_timer(0.12).timeout
+	await create_timer(Timing.swing_time(0)+0.06).timeout
 	_check(game.audio.swings.is_empty(),"modal suppresses pending whoosh")
 	game.hud.modal_open = false
 	game._swing_after_windup(1,6)
 	game.hero.dead = true
-	await create_timer(0.12).timeout
+	await create_timer(Timing.swing_time(0)+0.06).timeout
 	_check(game.audio.swings.is_empty(),"death suppresses pending whoosh")
 	game.hero.dead = false
 	game._swing_after_windup(1,6)
 	game.respawning = true
-	await create_timer(0.12).timeout
+	await create_timer(Timing.swing_time(0)+0.06).timeout
 	_check(game.audio.swings.is_empty(),"respawn suppresses pending whoosh")
 	game.queue_free()
 	await process_frame

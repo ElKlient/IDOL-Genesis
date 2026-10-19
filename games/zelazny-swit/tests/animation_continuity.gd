@@ -32,7 +32,7 @@ func _run() -> void:
 			var finite: bool = true
 			var max_grip: float = 0.0
 			var minimum_tip: float = 100.0
-			for frame: int in range(80):
+			for frame: int in range(ceili((actor.attack_duration+0.1)*120.0)):
 				actor.tick(1.0/120.0,0.0)
 				var tip: Vector3 = actor.sword.to_global(Vector3(0,-1.205,0))
 				var axis: Vector3 = -actor.sword.global_basis.y.normalized()
@@ -43,7 +43,9 @@ func _run() -> void:
 				max_jump = maxf(max_jump,tip.distance_to(last_tip))
 				max_angle = maxf(max_angle,rad_to_deg(axis.angle_to(last_axis)))
 				minimum_tip = minf(minimum_tip,tip.y)
-				if cut == 3 and actor.attack_elapsed >= 0.14 and actor.attack_elapsed <= 0.37:
+				# The full support-hand grip is authored in normalized action
+				# phases, so slower/faster attack playback samples the same grip.
+				if cut == 3 and actor.attack_elapsed >= actor.attack_duration*0.30 and actor.attack_elapsed <= actor.attack_duration*0.62:
 					max_grip = maxf(max_grip,actor.left_wrist.global_position.distance_to(actor.sword.to_global(Vector3(0,-0.14,0))))
 				last_tip = tip
 				last_axis = axis

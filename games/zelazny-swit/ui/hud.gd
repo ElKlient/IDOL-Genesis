@@ -575,6 +575,7 @@ func _render_inventory() -> void:
 	stats_column.add_theme_constant_override("separation",5)
 	stats_panel.add_child(stats_column)
 	stats_column.add_child(_text("POZIOM %d   ·   ATAK %d   ·   OBRONA %d   ·   PŻ %d   ·   POTKI %d" % [GameState.level,GameState.attack_power(),GameState.defense(),GameState.max_health(),GameState.potions],15,CREAM))
+	stats_column.add_child(_text("SZYBKOŚĆ ATAKU  %.0f%%" % GameState.attack_speed(),13,GOLD))
 	var equipped_row := HBoxContainer.new()
 	equipped_row.add_theme_constant_override("separation",12)
 	stats_column.add_child(equipped_row)

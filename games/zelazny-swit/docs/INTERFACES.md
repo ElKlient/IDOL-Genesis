@@ -1,4 +1,4 @@
-# Kontrakty integracji — 0.2.4
+# Kontrakty integracji — 0.2.5
 
 Godot 4.4+, Compatibility/OpenGL, typowany GDScript, polski interfejs.
 Projekt jest samodzielny w `games/zelazny-swit`; nie ładuje starszego projektu
@@ -110,6 +110,23 @@ w `tests/README.md`. Rzeczywiste rendery OpenGL nie zastępują pomiaru FPS na
 telefonie. Nie kopiować tokenów diagnostyki do testów ani repozytorium.
 
 ## Prowadzenie broni od 0.2.1
+
+Od 0.2.5 `AttackTiming` jest wspólnym źródłem czasów zwykłego ataku.
+Indeks combo jest 0–3, rate jest mnożnikiem 0,5–2,0. Metody statyczne:
+`duration`, `contact_time`, `swing_time`, `contact_hold`, `cooldown`,
+`combo_grace`, `rate_from_speed`, `safe_rate`. Main pobiera szybkość raz
+przy przyjęciu ataku i przekazuje do `Hero.play_attack(combo,skill,rate)`
+oraz `CharacterVisual.start_attack(combo,skill,rate)`. Domyślne rate=1
+zachowuje starszych wywołujących. `attack_elapsed` pozostaje w sekundach,
+`attack_duration` jest już przeskalowane, a `attack_rate` przechowuje snapshot.
+Nie mnożyć ponownie delty przez rate. Zwykłe tory animacji są fazą 0–1;
+umiejętności zachowują odrębne czasy. Pauza kontaktu też dzieli się przez rate.
+
+`GameState.attack_speed()` zwraca 100 plus runtime i opcjonalne bonusy
+definicji założonej broni/zbroi; wynik 50–200. Runtime bonus nie jest
+zapisywany. Przyszły trwały przedmiot wymaga bonusu w definicji katalogowej,
+a tymczasowy efekt musi usunąć swój wkład po wygaśnięciu. Aktualny katalog
+nie daje bonusów szybkości. Nowy buff nie może zmieniać już przyjętego ciosu.
 
 Od 0.2.4 domyślna garda kieruje miecz w górę. Przedostatni klucz wizualny
 powrotu podąża za aktualnym profilem zamiast wymuszać historyczny niski chwyt.

@@ -1,6 +1,7 @@
 extends SceneTree
 ## Actual imported, skinned warrior regression; no player writes or telemetry.
 const VisualScript = preload("res://scripts/character_visual.gd")
+const Timing = preload("res://scripts/attack_timing.gd")
 var game: Node3D
 var state: Node
 var visual: Node3D
@@ -166,7 +167,7 @@ func _run() -> void:
 		visual.attack_elapsed = -1
 		visual.tick(1.0,0.0)
 		visual.start_attack(combo,false)
-		visual.tick(0.16 if combo < 3 else 0.25,0.0)
+		visual.tick(Timing.contact_time(combo),0.0)
 		var points: PackedVector3Array = _skin_vertices(body)
 		_check(_finite_pose(points) and _all_skins_finite() and _vertex_difference(original_points,points) > 0.08,"cut %d deforms the real weighted body and armor without invalid or exploded vertices" % (combo+1))
 		await _capture("05-cut-%d" % (combo+1))

@@ -1,6 +1,7 @@
 extends SceneTree
 ## Real main attack path, enemy physics and camera regression. No player save/network writes.
 const EnemyScript = preload("res://scripts/enemy.gd")
+const Timing = preload("res://scripts/attack_timing.gd")
 var game: Node3D
 var enemy: CharacterBody3D
 var state: Node
@@ -83,6 +84,7 @@ func _run() -> void:
 			_check(enemy._knockback_velocity.length() < speed and enemy.position.distance_to(position_before) > 0.2,"finisher moves the real body while its impulse decays")
 			await _physics(30)
 			_check(enemy._knockback_velocity.length() < 0.01 and enemy._stagger_time <= 0.0,"finisher impulse and stagger expire naturally")
+	await _cooldown()
 	await create_timer(1.25).timeout
 	_check(game.combo == 0,"combo resets after the real 1.2-second inactivity timeout")
 	_place_enemy()
@@ -96,18 +98,19 @@ func _run() -> void:
 	game.request_attack()
 	enemy.position.z = -6.0
 	enemy._spawn = enemy.position
-	await create_timer(0.3).timeout
+	await create_timer(Timing.contact_time(game.combo-1)+0.08).timeout
 	_check(hits == before_hits and enemy.hp == before_hp,"moving out of range during windup prevents damage")
 	await _cooldown()
 	_place_enemy()
 	game.request_attack()
+	var cancelled_contact: float = Timing.contact_time(game.combo-1)
 	game.hud.open_panel("inventory")
 	await _physics(2)
 	var blocked_serial: int = game._attack_serial
 	game.request_attack()
 	_check(game._attack_serial == blocked_serial and game.combo == 0,"modal blocks new attacks and resets the active combo")
 	game.hud.close_panel()
-	await create_timer(0.3).timeout
+	await create_timer(cancelled_contact+0.08).timeout
 	_check(hits == before_hits and enemy.hp == before_hp,"closing a modal does not revive its cancelled pending hit")
 	await _cooldown()
 	game.hero.dead = true
@@ -155,7 +158,7 @@ func _run() -> void:
 	_check(enemy._knockback_velocity == Vector3.ZERO and enemy._stagger_time == 0.0,"dead enemy rejects impulses and retains no stagger")
 	var dead_hits: int = hits
 	game.request_attack()
-	await create_timer(0.35).timeout
+	await create_timer(Timing.contact_time(0)+0.08).timeout
 	_check(hits == dead_hits and deaths == 1 and state.gold == gold_before+enemy.reward_gold,"normal attack cannot hit a dead target or duplicate its reward")
 	game.enemies.erase(enemy)
 	game._set_target(null)
@@ -186,8 +189,10 @@ func _wait_hits(expected: int) -> void:
 		await physics_frame
 
 func _cooldown() -> void:
-	while game.attack_cooldown > 0.0:
+	var started: int = Time.get_ticks_msec()
+	while (game.attack_cooldown > 0.0 or game.hero.visual.is_attacking()) and Time.get_ticks_msec()-started < 3000:
 		await physics_frame
+	_check(game.attack_cooldown <= 0.0 and not game.hero.visual.is_attacking(),"accepted attack completes its cooldown and visual recovery")
 
 func _physics(count: int) -> void:
 	for _index: int in range(count):
@@ -236,13 +241,13 @@ func _visual_poses() -> void:
 	var poses: Array[String] = []
 	for index: int in range(4):
 		visual.start_attack(index,false)
-		visual.tick(0.16 if index < 3 else 0.25,0.0)
+		visual.tick(Timing.contact_time(index),0.0)
 		_check(visual.combo_index == index,"visual contact sample retains strike index %d" % (index+1))
 		var tip: Vector3 = visual.to_local(visual.sword.to_global(Vector3(0,-1.2,0)))
 		_check(tip.z < -0.8 and tip.y > 0.35,"strike %d places the actual blade in front of the warrior above ground" % (index+1))
 		poses.append("%s|%s|%s" % [visual.body.rotation,visual.right_arm.rotation,visual.sword.rotation])
 		await _capture("0%d-strike-%d" % [index+1,index+1])
-		visual.tick(1.0,0.0)
+		visual.tick(visual.attack_duration+0.1,0.0)
 		_check(not visual.is_attacking(),"strike %d recovers to idle after its duration" % (index+1))
 	var unique: Dictionary = {}
 	for pose: String in poses:

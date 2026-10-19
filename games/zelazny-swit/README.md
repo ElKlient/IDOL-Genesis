@@ -1,4 +1,4 @@
-# Żelazny Świt — 0.2.4
+# Żelazny Świt — 0.2.5
 
 Oryginalna, jednoosobowa gra akcji RPG 3D na telefon, napisana w Godocie 4.4+.
 Sterowanie dotykowe w poziomie. Mały grywalny wycinek: wioska Brzeziny, wojownik,
@@ -51,7 +51,9 @@ ponownie — do aktualizacji służy następny blok.
 - Śmierć przenosi do wioski bez utraty złota ani ekwipunku.
 - Potwory odradzają się po 18 s (Strażnik po 24 s).
 - Zwykły atak tworzy serię czterech ciosów: trzy cięcia i mocniejszy czwarty
-  cios, który odrzuca żywego przeciwnika. Przerwa 1,2 s rozpoczyna serię od nowa.
+  cios, który odrzuca żywego przeciwnika. Po zakończeniu cyklu ciosu masz
+  1,2 s na kontynuację przy szybkości 100; większa szybkość skraca to okno.
+  Dłuższa przerwa rozpoczyna serię od nowa.
 - Zapis automatyczny po zakupie, zmianie sprzętu, ulepszeniu i łupach;
   również co 12 sekund oraz po przejściu aplikacji w tło.
 - Zapis: `user://adventure_v1.json`, z kopią poprzedniej wersji `.bak`.
@@ -108,7 +110,7 @@ Potem otwórz ten sam `games/zelazny-swit/project.godot` i naciśnij ▶.
 Polecenie zachowuje ewentualne lokalne zmiany `project.godot` w `git stash list`.
 Nie przywraca ich automatycznie: nowa wersja zawiera wymagane ustawienia mobilne
 i autoload diagnostyki. Zapis postaci oraz prywatna konfiguracja raportów zostają.
-Nie używaj resetowania ani usuwania folderu. W HUD pod zdrowiem sprawdź numer **v0.2.4**.
+Nie używaj resetowania ani usuwania folderu. W HUD pod zdrowiem sprawdź numer **v0.2.5**.
 
 ## Uruchamianie i zakres
 
@@ -128,6 +130,33 @@ Nie używaj resetowania ani usuwania folderu. W HUD pod zdrowiem sprawdź numer 
   Zrzuty użytkownika pokazują także uruchomioną 0.1.6, a później potwierdził
   działanie nowego wojownika. Wersja 0.2.0 została sprawdzona na Linuxie;
   wydajność tej aktualizacji na jego telefonie wymaga próby po pobraniu.
+
+## Aktualizacja 0.2.5 — wyraźny zamach i szybkość ataku
+
+Zwykłe ciosy mają dłuższe przygotowanie, ruch bioder prowadzący barki,
+przyspieszenie klingi do trafienia i wyhamowanie po uderzeniu. Trzy pierwsze
+ciosy mają różne łuki, a czwarty dłuższy oburęczny zamach. Zachowano uniesioną
+gardę i oddychanie. Są to własne animacje, analizowane z publicznym materiałem
+combo na wiki Metina jako odniesieniem dla postawy i pracy całego ciała.
+
+| Cios | Animacja przy szybkości 100 | Trafienie |
+| --- | ---: | ---: |
+| 1 | 0,82 s | 0,34 s |
+| 2 | 0,86 s | 0,36 s |
+| 3 | 0,92 s | 0,38 s |
+| 4 | 1,14 s | 0,56 s |
+
+`AttackTiming` łączy tempo animacji, szum miecza, trafienie, chwilę zatrzymania
+po kontakcie i odstęp do kolejnego ciosu. Wszystkie te czasy skracają się
+proporcjonalnie do szybkości ataku; wartość jest ustalana przy rozpoczęciu
+ciosu. Zmiana bonusu podczas zamachu działa od kolejnego ataku. Ekwipunek
+pokazuje statystykę szybkości. Obecne przedmioty mają wartość bazową 100;
+przygotowano obsługę przyszłych bonusów przedmiotów i tymczasowych efektów.
+Umiejętności mają własne czasy. Zapis postaci pozostaje zgodny.
+
+Rzeczywisty [film porównujący rytm 100 i próbę bonusu +50%](docs/attack-rhythm-0.2.5.mp4)
+pokazuje normalny kontroler gry, dźwięki i po cztery trafienia. W tej próbie
+zatrzymano AI przeciwnika; druga seria ma sztucznie ustawiony bonus testowy.
 
 ## Aktualizacja 0.2.4 — miecz uniesiony do bojowej gardy
 

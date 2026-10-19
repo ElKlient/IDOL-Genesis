@@ -4,6 +4,7 @@ extends Control
 ## Reparenting preserves this viewport, the model, yaw and animation state.
 
 const VisualScript = preload("res://scripts/character_visual.gd")
+const AttackTimingScript = preload("res://scripts/attack_timing.gd")
 const RENDER_SIZE: Vector2i = Vector2i(512,512)
 const UPDATE_INTERVAL: float = 1.0/30.0
 const MOUSE_GUARD_MSEC: int = 250
@@ -354,7 +355,7 @@ func play_preview_attack() -> void:
 		return
 	animation_mode = "idle"
 	preview_model.set_presentation_pose(false)
-	preview_model.start_attack(_next_attack,false)
+	preview_model.start_attack(_next_attack,false,AttackTimingScript.rate_from_speed(GameState.attack_speed()))
 	_next_attack = (_next_attack+1)%4
 	update_framing(0.0)
 

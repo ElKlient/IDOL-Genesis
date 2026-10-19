@@ -1,4 +1,5 @@
 extends SceneTree
+const Timing = preload("res://scripts/attack_timing.gd")
 ## Actual fire-skill/HUD/orbit input regression, with isolated real enemy bodies.
 const EnemyScript = preload("res://scripts/enemy.gd")
 var game: Node3D
@@ -106,7 +107,7 @@ func _run() -> void:
 	game.attack_cooldown = 0
 	game.combo = 0
 	game.request_attack()
-	await create_timer(0.30).timeout
+	await create_timer(Timing.contact_time(0)+0.08).timeout
 	var minimum: int = int((state.attack_power()-2)*1.3)
 	var maximum: int = int((state.attack_power()+3)*1.3)
 	if last_critical:

@@ -151,7 +151,7 @@ func _run() -> void:
 		var swings: int = 0
 		while is_instance_valid(victim) and victim.is_alive() and swings < 15:
 			game.request_attack()
-			await create_timer(0.54).timeout
+			await create_timer(maxf(game.attack_cooldown,game.hero.visual.attack_duration)+0.08).timeout
 			swings += 1
 		_check(is_instance_valid(victim) and not victim.is_alive(), "normal attack defeats a spawned enemy: %s" % victim.display_name)
 		# Restore death animation processing after deterministic AI freeze.

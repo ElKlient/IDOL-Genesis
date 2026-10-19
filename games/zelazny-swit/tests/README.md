@@ -1,5 +1,42 @@
 # Runtime checks
 
+Version 0.2.5 ordinary-attack timing on Godot 4.6 / Linux, with isolated
+saves and disabled diagnostic networking:
+
+| Check | Headless |
+| --- | ---: |
+| `attack_speed.gd`: real controller, contact pose, audio, cancellation, held input and portrait at 100/125/150/200 | 191/191 |
+| `combat_combo.gd`: real contacts, recovery, reset and fourth-hit knockback | 63/63 |
+| `attack_audio_timing.gd`: delayed whooshes and cancellation | 8/8 |
+| `attack_facing.gd`: committed facing through complete cuts at four speeds | 49/49 |
+| `animation_continuity.gd`: complete cuts, four weapon sizes, support grip | 69/69 |
+| `stance_motion.gd`: breathing, planted stance, raised guard and all recoveries | 56/56 |
+| `warrior_model.gd`: imported skin, armor deformation and portrait framing | 40/40 |
+| `integration.gd`: shop, forge, real kills and respawn | 51/51 |
+| `fire_skill.gd`: separate skill timing, interruption and buff expiry | 38/38 |
+| `character_preview.gd`: live inventory controls and bounded rendering | 32/32 |
+
+The attack-speed test timestamps actual events using physics frames. It checks
+one whoosh before one hit per cut and samples `attack_elapsed` inside the real
+enemy damage signal, allowing at most two physics frames of quantization.
+Changing a bonus during a windup must affect the next accepted cut only.
+The fixture checks ordinary recovery protection even with a forced zero
+cooldown, all four cancellation modes, and the actual inventory CIOS action.
+Existing geometry/continuity budgets were preserved; longer clips are sampled
+through their full duration instead of stopping at an old fixed frame count.
+
+```sh
+godot --headless --audio-driver Dummy --path . --script res://tests/attack_speed.gd -- --test-isolated
+godot --path . --script res://tests/capture_attack_rhythm.gd --fixed-fps 30 --write-movie /absolute/rhythm.avi -- --test-isolated --capture-dir=/absolute/rhythm-images
+```
+
+The second command needs a graphical display. Unlike the posed showcase below,
+it leaves the real player/controller physics running, including hit timers and
+audio. Enemy AI is stopped and its HP increased solely for recording. It checks
+four actual hits at base 100 and four with a temporary test-only +50% speed
+bonus. Neither that fixture bonus nor its extra enemy HP is normal game balance.
+The recording is an engine render at fixed 30 FPS, not measured phone performance.
+
 Version 0.2.4 raised-guard regression on Godot 4.6: `stance_motion.gd`
 56/56, `animation_continuity.gd` 69/69, `warrior_model.gd` 40/40,
 `combat_combo.gd` 55/55, `character_preview.gd` 32/32, `fire_skill.gd` 38/38,

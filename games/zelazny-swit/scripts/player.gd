@@ -2,6 +2,7 @@ class_name Hero
 extends CharacterBody3D
 
 const VisualScript = preload("res://scripts/character_visual.gd")
+const AttackTimingScript = preload("res://scripts/attack_timing.gd")
 const MOVE_SPEED: float = 5.0
 var move_input: Vector2 = Vector2.ZERO
 var dead: bool = false
@@ -83,9 +84,9 @@ func _physics_process(delta: float) -> void:
 		_death_angle = move_toward(_death_angle, -PI * 0.48 if dead else 0.0, delta * 3.3)
 		visual.rotation.z = _death_angle
 
-func play_attack(combo: int = 0, skill: bool = false) -> void:
+func play_attack(combo: int = 0, skill: bool = false,rate: float = 1.0) -> void:
 	if not dead and attack_locked_time <= 0.0 and is_instance_valid(visual):
-		visual.start_attack(combo, skill)
+		visual.start_attack(combo, skill,rate)
 
 func play_fire_slam() -> void:
 	if dead or not is_instance_valid(visual):
@@ -122,7 +123,8 @@ func confirm_contact(heavy: bool = false) -> void:
 	# This only holds the visual pose for a few milliseconds. Input, movement,
 	# AI, damage contacts, timers and skill cooldowns keep normal simulation time.
 	if not dead and is_instance_valid(visual) and visual.has_method("contact_pause"):
-		visual.call("contact_pause",0.042 if heavy else 0.028)
+		var rate: float = 1.0 if visual.skill_attack or visual.fire_slam_attack else visual.attack_rate
+		visual.call("contact_pause",AttackTimingScript.contact_hold(3 if heavy else 0,rate))
 
 func reset_to(pos: Vector3) -> void:
 	cancel_fire_slam()

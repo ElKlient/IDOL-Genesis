@@ -47,14 +47,14 @@ func _run() -> void:
 		game.camera.position = focus+Vector3(sin(deg_to_rad(yaw))*5.3,1.2,cos(deg_to_rad(yaw))*5.3)
 		game.camera.look_at(focus)
 		var moving: float = 1.0 if time >= 6.0 and time < 7.4 else 0.0
-		if frame in [450,486,522,558]: game.hero.visual.start_attack([450,486,522,558].find(frame))
-		if frame == 605: game.hero.visual.start_fire_slam()
-		if frame == 675:
+		if frame in [450,510,570,634]: game.hero.visual.start_attack([450,510,570,634].find(frame))
+		if frame == 730: game.hero.visual.start_fire_slam()
+		if frame == 810:
 			game.hud.show()
 			game.hud.open_panel("inventory")
-		if frame < 675: game.hero.visual.tick(1.0/60.0,moving)
+		if frame < 810: game.hero.visual.tick(1.0/60.0,moving)
 		await process_frame
-		if frame in [90,210,330,470,580,730]:
+		if frame in [90,210,330,470,668,850]:
 			await RenderingServer.frame_post_draw
 			var result: Error = root.get_texture().get_image().save_png(output.path_join("stance-%03d.png" % frame))
 			if result != OK: push_error("Stance capture failed")
@@ -78,7 +78,7 @@ func _guard_review(state: Node) -> void:
 		game.camera.look_at(focus)
 		for frame: int in range(90):
 			if frame == 18: game.hero.visual.start_attack(1)
-			if frame == 42: game.hero.visual.start_attack(3)
+			if frame == 50: game.hero.visual.start_attack(3)
 			game.hero.visual.tick(1.0/30.0,0.0)
 			await process_frame
 		print("CAPTURE GUARD MOTION RESULT: 3 seconds at 30 Hz, second cut, finisher and guard")

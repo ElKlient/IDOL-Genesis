@@ -1,4 +1,60 @@
-# Żelazny Świt — przekazanie projektu 0.2.4
+# Żelazny Świt — przekazanie projektu 0.2.5
+
+## Aktualny stan 0.2.5 — rytm walki i skalowanie szybkości
+
+Użytkownik uznał ciosy za za szybkie i bez czytelnego zamachu. Przyczyna:
+zwykła animacja trwała .46 s, a pełny zamach do kontaktu ok. .045 s.
+Przeanalizowano publiczny GIF combo z wiki Gameforge (155 klatek / 3,12 s,
+nieznana szybkość postaci, dodatkowe ciosy combo) oraz wiki szybkości ataku.
+Materiały służyły do obserwacji skrętu tułowia, łuków i prowadzenia biodrami;
+nie przeniesiono zasobów ani danych animacji Metina. Własne czasy nie są
+deklaracją identycznej implementacji gry referencyjnej.
+
+`AttackTiming` określa bazowe długości [.82,.86,.92,1.14], kontakty
+[.34,.36,.38,.56] i szumy [.24,.26,.28,.44]. Szybkość 100 daje mnożnik 1,
+150 daje 1,5; obsługiwany zakres 50–200. Main zapisuje mnożnik przy przyjęciu
+ciosu i przekazuje go wizualizacji oraz oczekującym zdarzeniom. Timery
+normalnych trafień i szumów działają w zegarze fizyki. Cooldown pokrywa całą
+animację, skalowaną pauzę kontaktu i margines .02/rate. Dodatkowe sprawdzenie
+aktywnej animacji zapobiega ucinaniu powrotu. Okno combo ma 1,2/rate s
+tolerancji po cyklu. Umiejętności nadal mogą przerwać zwykły cios i anulują
+jego oczekujące zdarzenia numerem serial; własne czasy skilli są zachowane.
+
+`CharacterVisual` ma autorskie tory ciała i klingi w fazie 0–1. Wspólny
+moment kontaktu mapuje się na dokładny klucz pozy, niezależnie od bonusu.
+Biodra prowadzą klatkę, trzy cięcia mają różne łuki, finisher oburęczny
+dłuższe przygotowanie. Bieżąca garda oraz pełne kwaterniony są zachowane.
+
+`GameState.attack_speed_bonus` jest runtime wkładem przyszłych efektów.
+`attack_speed()` dodaje go do 100 i opcjonalnych pól `attack_speed_bonus`
+w definicjach założonej broni/zbroi. Obecne katalogowe przedmioty nie dodają
+szybkości. Nowa gra i wczytanie zerują runtime wkład; schema1 nadal zapisuje
+tylko znane pola. Ekwipunek wyświetla szybkość, a przycisk CIOS w portrecie
+korzysta z tego samego mnożnika.
+
+Odtwarzalna próba `tests/capture_attack_rhythm.gd` uruchamia prawdziwy
+kontroler, fizykę bohatera i trafienia przy 100 oraz 150. AI jest zatrzymane,
+HP przeciwnika zwiększone, a bonus drugiej serii ustawiony testowo.
+Nie zapisuje stanu i nie wysyła diagnostyki. Film `docs/attack-rhythm-0.2.5.mp4`
+jest nagraniem silnika, nie pomiarem FPS telefonu.
+
+Źródła obserwacyjne: https://tr-wiki.metin2.gameforge.com/index.php?title=Dosya:Kombo_2_Sald%C4%B1r%C4%B1.gif
+oraz https://pl-wiki.metin2.gameforge.com/index.php/Szybko%C5%9B%C4%87_Ataku .
+
+Walidacja 0.2.5 w Godot 4.6: szybkość 191/191, combo 63/63,
+szum ostrza 8/8, kierunek ciosu 49/49, ciągłość 69/69, postawa 56/56,
+model 40/40, integracja 51/51, ogień 38/38 i portret 32/32.
+Nowy test mierzy prawdziwe zdarzenia w klatkach fizyki, także pozę w chwili
+sygnału obrażeń. Sprawdza 100/125/150/200, zmianę bonusu w połowie ciosu,
+ochronę powrotu, cztery rodzaje anulowania i przytrzymanie przycisku.
+Przegląd rzeczywistych klatek ujawnił zbyt gwałtowny środkowy powrót pierwszego
+cięcia; rozłożono go na dłuższy fragment, bez zmiany kontaktu i długości ciosu.
+Kontrolę postawy oraz ciągłości powtórzono po tej korekcie. Wyniki dotyczą
+Linuxa; wydajność i odczucie sterowania trzeba jeszcze ocenić na telefonie.
+Finalny film ma 259 klatek / 8,63 s / 30 Hz, H.264 i dźwięk AAC. Rzeczywisty
+kontroler potwierdził po cztery przyjęte ciosy i trafienia w obu seriach,
+a renderer zakończył nagranie kodem 0. Obejrzano kadry i sekwencję pierwszego
+cięcia po korekcie powrotu. Nie przyspieszano filmu w montażu.
 
 ## Aktualny stan 0.2.4 — wyższa bojowa garda
 

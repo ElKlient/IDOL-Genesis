@@ -71,7 +71,7 @@ func _run() -> void:
 			var recovery_approach: float = 0.0
 			var endpoint_step: float = 0.0
 			var duration: float = actor.attack_duration
-			for frame: int in range(150):
+			for frame: int in range(ceili((duration+0.1)*120.0)):
 				actor.tick(1.0/120.0,1.0 if frame < 20 and phase < 4 else 0.0)
 				var point: Vector3 = _tip(actor)
 				finite_motion = finite_motion and point.is_finite()
@@ -105,7 +105,7 @@ func _run() -> void:
 	_check(not actor.set_motion_profile(invalid_profile),"oversized breathing sway rejected before it can invert carried blade")
 	actor.start_attack(0)
 	_check(not actor.set_motion_profile(original_profile) and actor.motion_profile == custom_profile,"profile change during cut rejected without mutating active grip")
-	actor.tick(1.0,0.0)
+	actor.tick(actor.attack_duration+0.1,0.0)
 	_check(actor.set_motion_profile(original_profile),"original sword posture restored")
 	actor.queue_free()
 	await process_frame

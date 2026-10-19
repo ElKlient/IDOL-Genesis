@@ -22,6 +22,8 @@ var upgraded_any: bool = false
 var audio_enabled: bool = true
 var save_enabled: bool = true
 var last_upgrade_success: bool = false
+## Runtime contribution for future buffs; equipped definitions may add bonuses.
+var attack_speed_bonus: float = 0.0
 
 func _ready() -> void:
 	if "--test-isolated" in OS.get_cmdline_user_args():
@@ -63,6 +65,7 @@ func _add_item(id: String, upgrade: int = 0, uid: int = 0) -> Dictionary:
 	return data
 
 func new_game() -> void:
+	attack_speed_bonus = 0.0
 	gold = 10000
 	level = 1
 	xp = 0
@@ -102,6 +105,12 @@ func equipped(kind: String) -> Dictionary:
 
 func attack_power() -> int:
 	return 8 + level * 2 + item_power(equipped("weapon"))
+
+func attack_speed() -> float:
+	var bonus: float = attack_speed_bonus
+	for kind: String in ["weapon","armor"]:
+		bonus += float(equipped(kind).get("attack_speed_bonus",0.0))
+	return clampf(100.0+bonus,50.0,200.0) if is_finite(bonus) else 100.0
 
 func defense() -> int:
 	return item_power(equipped("armor")) + level - 1
@@ -277,6 +286,7 @@ func _diagnostic(event_name: String, details: Dictionary = {}) -> void:
 		diagnostics.call("note", event_name, details)
 
 func load_game() -> void:
+	attack_speed_bonus = 0.0
 	if not FileAccess.file_exists(SAVE_PATH):
 		new_game()
 		return

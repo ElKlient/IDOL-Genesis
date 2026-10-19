@@ -7,6 +7,7 @@ const HUDScript = preload("res://ui/hud.gd")
 const AudioScript = preload("res://scripts/audio.gd")
 const CameraPreferencesScript = preload("res://scripts/camera_preferences.gd")
 const FireImpactScript = preload("res://scripts/fire_impact.gd")
+const AttackTimingScript = preload("res://scripts/attack_timing.gd")
 const CAMERA_DISTANCE: float = 17.0
 const CAMERA_FOCUS: Vector3 = Vector3(0,1.05,0)
 const FIRE_SKILL_COOLDOWN: float = 20.0
@@ -34,6 +35,7 @@ var _fire_action_time: float = 0.0
 var combo: int = 0
 var combo_time: float = 0.0
 var _attack_serial: int = 0
+var _attack_rate_snapshot: float = 1.0
 var _combat_was_blocked: bool = false
 var context_npc: String = ""
 var autosave_time: float = 0.0
@@ -264,9 +266,12 @@ func _cycle_target() -> void:
 func request_attack() -> void:
 	if not is_instance_valid(hud) or not is_instance_valid(hero) or hero.dead or hud.modal_open or respawning or attack_cooldown>0 or _fire_action_time>0.0 or float(hero.attack_locked_time)>0.0:
 		return
+	if hero.visual.is_attacking() and not hero.visual.skill_attack and not hero.visual.fire_slam_attack:
+		return
 	combo = (combo % 4) + 1
-	attack_cooldown = 0.64 if combo == 4 else 0.48
-	combo_time = 1.2
+	_attack_rate_snapshot = AttackTimingScript.rate_from_speed(GameState.attack_speed())
+	attack_cooldown = AttackTimingScript.cooldown(combo-1,_attack_rate_snapshot)
+	combo_time = attack_cooldown+AttackTimingScript.combo_grace(_attack_rate_snapshot)
 	_attack_serial += 1
 	var nearest: Node3D = _nearest_enemy(3.0)
 	if is_instance_valid(target) and target.is_alive() and hero.position.distance_to(target.position)<3.0:
@@ -276,22 +281,22 @@ func request_attack() -> void:
 		var direction: Vector3 = nearest.position-hero.position
 		direction.y = 0.0
 		hero.face_direction(direction.normalized())
-	hero.play_attack(combo-1,false)
-	_swing_after_windup(combo,_attack_serial)
+	hero.play_attack(combo-1,false,_attack_rate_snapshot)
+	_swing_after_windup(combo,_attack_serial,AttackTimingScript.swing_time(combo-1,_attack_rate_snapshot))
 	# Delay the hit until the sword reaches its arc. Target is rechecked then.
-	_hit_after_windup(nearest,combo,_attack_serial)
+	_hit_after_windup(nearest,combo,_attack_serial,AttackTimingScript.contact_time(combo-1,_attack_rate_snapshot))
 
-func _swing_after_windup(step: int, attack_serial: int) -> void:
+func _swing_after_windup(step: int, attack_serial: int,delay: float = -1.0) -> void:
 	# Center the air envelope on the accelerating blade, not the anticipation.
-	await get_tree().create_timer(0.14 if step == 4 else 0.065).timeout
+	await get_tree().create_timer(AttackTimingScript.swing_time(step-1) if delay < 0.0 else delay,false,true).timeout
 	if attack_serial != _attack_serial or not is_instance_valid(hero) or hero.dead or not is_instance_valid(hud):
 		return
 	if respawning or hud.modal_open or not is_instance_valid(audio):
 		return
 	audio.play_cut_swing(step)
 
-func _hit_after_windup(enemy: Node3D, step: int, attack_serial: int) -> void:
-	await get_tree().create_timer(0.25 if step == 4 else 0.16).timeout
+func _hit_after_windup(enemy: Node3D, step: int, attack_serial: int,delay: float = -1.0) -> void:
+	await get_tree().create_timer(AttackTimingScript.contact_time(step-1) if delay < 0.0 else delay,false,true).timeout
 	if attack_serial != _attack_serial or not is_instance_valid(hero) or hero.dead or not is_instance_valid(hud):
 		return
 	if not is_instance_valid(enemy) or not enemy.is_alive() or respawning or hud.modal_open:
