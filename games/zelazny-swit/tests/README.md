@@ -1,5 +1,37 @@
 # Runtime checks
 
+Version 0.2.3 animation checks on Godot 4.6, isolated from saves and networking:
+
+| Check | Headless |
+| --- | ---: |
+| `stance_motion.gd`: twelve-second idle, planted feet, low guard, all six action recoveries and profile validation | 56/56 |
+| `animation_continuity.gd`: four cuts with all four weapon sizes, full roll and support grip | 69/69 |
+| `warrior_model.gd`: actual skin, soles, two-hand slam and portrait framing | 40/40 |
+| `combat_combo.gd`: actual contact times, four hits and finisher | 55/55 |
+| `character_preview.gd`: animated inventory, drag, framing and hidden rendering | 32/32 |
+| `fire_skill.gd`: real impact/buff timing, interruption and expiry | 38/38 |
+| `integration.gd`: real shop/forge/combat and eighteen-second respawn | 51/51 |
+
+Idle head movement is approximately 1.4–1.55 cm over the sampled cycle, with
+stationary foot anchors. The longest carried sword remains over 42 cm above
+the floor. New recovery sampling caught an initial fire-slam wrist flip of
+14.8–18.3 cm per 1/120 s; coherent hilt/orientation recovery fixed it.
+The last frame joins the live guard within 0.4 mm in these samples. These
+measurements complement visual review; they do not prove animation taste.
+
+Reproduce the actual 15-second animation showcase on a graphical display:
+
+```sh
+godot --path . --script res://tests/stance_motion.gd -- --test-isolated
+godot --path . --script res://tests/capture_stance.gd --fixed-fps 60 --write-movie /absolute/stance.avi -- --test-isolated --capture-dir=/absolute/stance-images
+```
+
+The recording uses actual game assets and a close presentation camera, with
+AI and controller simulation paused. It calls the visual animation interface
+to show idle front/side/back, running in place, four cuts, slam and inventory.
+It is an animation recording, not a gameplay damage demonstration or phone FPS
+measurement. The normal game still uses the tested controller timing.
+
 Version 0.2.2 world graphics: `world_materials.gd` passed 28/28 on actual
 Godot 4.6 Compatibility/OpenGL. It preserves the exact walking/roof collision
 signatures, checks all shared terrain resources and actual mip chains, verifies

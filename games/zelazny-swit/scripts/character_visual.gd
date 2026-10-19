@@ -4,6 +4,8 @@ extends Node3D
 
 const WarriorModelScript = preload("res://scripts/warrior_model.gd")
 const SwordFireScript = preload("res://scripts/sword_fire_effect.gd")
+const MotionProfileScript = preload("res://scripts/weapon_motion_profile.gd")
+const DEFAULT_MOTION_PROFILE = preload("res://assets/warrior/sword_motion.tres")
 const FIRE_SLAM_DURATION: float = 1.0
 const FIRE_SLAM_CONTACT: float = 0.48
 const POSE_CHANNELS: Array[String] = ["root","offset","hips","torso","right_arm","right_forearm","wrist","left_arm","left_forearm","left_leg","right_leg","left_knee","right_knee"]
@@ -13,11 +15,11 @@ const POSE_CHANNELS: Array[String] = ["root","offset","hips","torso","right_arm"
 const BLADE_CUT_TRACKS: Array = [
 	[
 		[0.0,Vector3(0.25,1.25,-0.28),Vector3(0.18,0.42,-0.89)],
-		[0.07,Vector3(0.43,1.43,-0.17),Vector3(0.86,0.44,-0.26)],
+		[0.07,Vector3(0.43,1.33,-0.12),Vector3(0.82,0.22,-0.52)],
 		[0.115,Vector3(0.40,1.45,-0.27),Vector3(0.69,0.23,-0.69)],
 		[0.16,Vector3(0.16,1.32,-0.50),Vector3(-0.30,-0.13,-0.95)],
 		[0.23,Vector3(-0.17,1.12,-0.40),Vector3(-0.84,-0.49,-0.23)],
-		[0.33,Vector3(0.02,1.16,-0.36),Vector3(-0.45,-0.24,-0.86)],
+		[0.33,Vector3(0.16,1.08,-0.23),Vector3(-0.12,-0.42,-0.90)],
 		[0.46,Vector3(0.25,1.25,-0.28),Vector3(0.18,0.42,-0.89)]
 	],
 	[
@@ -26,7 +28,7 @@ const BLADE_CUT_TRACKS: Array = [
 		[0.12,Vector3(-0.06,1.26,-0.43),Vector3(-0.48,-0.12,-0.87)],
 		[0.16,Vector3(0.17,1.36,-0.51),Vector3(0.34,0.12,-0.93)],
 		[0.23,Vector3(0.42,1.49,-0.26),Vector3(0.84,0.42,-0.35)],
-		[0.33,Vector3(0.35,1.34,-0.27),Vector3(0.58,0.29,-0.76)],
+		[0.33,Vector3(0.40,1.18,-0.18),Vector3(0.54,-0.20,-0.82)],
 		[0.46,Vector3(0.25,1.25,-0.28),Vector3(0.18,0.42,-0.89)]
 	],
 	[
@@ -35,7 +37,7 @@ const BLADE_CUT_TRACKS: Array = [
 		[0.115,Vector3(0.23,1.60,-0.27),Vector3(0.18,0.68,-0.71)],
 		[0.16,Vector3(0.10,1.29,-0.51),Vector3(-0.12,-0.33,-0.94)],
 		[0.23,Vector3(-0.03,1.14,-0.38),Vector3(-0.32,-0.72,-0.57)],
-		[0.33,Vector3(0.13,1.12,-0.33),Vector3(-0.10,-0.35,-0.93)],
+		[0.33,Vector3(0.21,1.06,-0.24),Vector3(0.12,-0.48,-0.87)],
 		[0.46,Vector3(0.25,1.25,-0.28),Vector3(0.18,0.42,-0.89)]
 	],
 	[
@@ -88,6 +90,7 @@ var mesh_parts: Array[MeshInstance3D] = []
 var flash_material: StandardMaterial3D
 var walk_phase: float = 0.0
 var idle_phase: float = 0.0
+var motion_profile: Resource = DEFAULT_MOTION_PROFILE
 var locomotion_blend: float = 0.0
 var _combat_tracks: Array = []
 var _attack_origin: Dictionary = {}
@@ -242,6 +245,15 @@ func _arc_mesh(inner: float, outer: float, angle: float, segments: int) -> Array
 	result.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
 	return result
 
+func set_motion_profile(profile: Resource) -> bool:
+	# Shared by live actor and portrait. Grip presentation can be authored for
+	# another class without coupling it to inventory or damage timing. Its
+	# attack clips and support-hand rig still need their own authored motion.
+	if is_attacking() or not profile is MotionProfileScript or not profile.valid():
+		return false
+	motion_profile = profile
+	return true
+
 func set_equipment(new_weapon_tier: int,new_armor_tier: int,upgrade: int = 0,new_armor_upgrade: int = 0) -> void:
 	weapon_tier = clampi(new_weapon_tier,0,3)
 	armor_tier = clampi(new_armor_tier,0,3)
@@ -273,6 +285,8 @@ func start_attack(combo: int = 0, skill: bool = false) -> void:
 		_attack_origin = _capture_pose()
 
 func start_fire_slam() -> void:
+	if is_instance_valid(sword):
+		_attack_blade_origin = global_transform.affine_inverse()*sword.global_transform
 	_contact_hold = 0.0
 	presentation_active = false
 	_presentation_blend = 0.0
@@ -485,7 +499,13 @@ func _apply_blade_cut() -> void:
 	# wrist keys could otherwise roll the edge through the arm or full turns.
 	var first_rotation: Quaternion = first.orientation
 	var second_rotation: Quaternion = second.orientation
-	var blade_rotation: Quaternion = first_rotation.slerp(second_rotation,alpha)
+	# Preserve the incoming recovery speed, then ease the angular velocity to
+	# zero at the live guard. A plain linear slerp stopped the wrist abruptly
+	# even though the hilt's Hermite path already settled smoothly.
+	var rotation_alpha: float = alpha
+	if segment+1 == track.size()-1:
+		rotation_alpha = alpha+alpha*alpha-alpha*alpha*alpha
+	var blade_rotation: Quaternion = first_rotation.slerp(second_rotation,rotation_alpha)
 	var frame: Basis = global_basis.orthonormalized()
 	var blade_basis: Basis = frame*Basis(blade_rotation)
 	var hand_target: Vector3 = to_global(target)
@@ -574,8 +594,8 @@ func _apply_fire_slam_pose() -> void:
 		[0.39,Vector3(-0.06,1.75,-0.10),3.42],
 		[FIRE_SLAM_CONTACT,Vector3(0.0,impact_height,-0.32),0.12],
 		[0.60,Vector3(0.0,impact_height+0.025,-0.31),0.16],
-		[0.82,Vector3(0.0,1.40,-0.28),0.95],
-		[FIRE_SLAM_DURATION,Vector3(0.22,1.30,-0.37),0.94]
+		[0.82,_guard_blade.origin+Vector3(-0.02,0.06,-0.025),0.95],
+		[FIRE_SLAM_DURATION,_guard_blade.origin,0.94]
 	]
 	var first: Array = keys[0]
 	var second: Array = keys.back()
@@ -587,13 +607,26 @@ func _apply_fire_slam_pose() -> void:
 	var alpha: float = clampf((attack_elapsed-float(first[0]))/maxf(float(second[0])-float(first[0]),0.001),0.0,1.0)
 	alpha = alpha*alpha*(3.0-2.0*alpha)
 	var wrist_target: Vector3 = (first[1] as Vector3).lerp(second[1],alpha)
-	var sword_angle: float = lerpf(float(first[2]),float(second[2]),alpha)
+	var first_rotation: Quaternion = Basis.from_euler(Vector3(float(first[2]),0,0)).get_rotation_quaternion()
+	var second_rotation: Quaternion = Basis.from_euler(Vector3(float(second[2]),0,0)).get_rotation_quaternion()
+	if float(first[0]) == 0.0:
+		wrist_target = _attack_blade_origin.origin.lerp(second[1],alpha)
+		first_rotation = _attack_blade_origin.basis.orthonormalized().get_rotation_quaternion()
+	var guard_rotation: Quaternion = _guard_blade.basis.orthonormalized().get_rotation_quaternion()
+	if float(first[0]) >= 0.82:
+		first_rotation = guard_rotation
+	if float(second[0]) >= 0.82:
+		second_rotation = guard_rotation
 	var grip_weight: float = minf(clampf(attack_elapsed/0.12,0.0,1.0),clampf((FIRE_SLAM_DURATION-attack_elapsed)/0.15,0.0,1.0))
 	grip_weight = grip_weight*grip_weight*(3.0-2.0*grip_weight)
-	_solve_arm(right_arm,right_forearm,to_global(wrist_target),1.0,grip_weight)
-	var blade_basis: Basis = global_basis.orthonormalized()*Basis.from_euler(Vector3(sword_angle,0.0,0.0))
+	# Solve the right palm throughout recovery against the live guard. Blending
+	# old Euler arm keys into a new low carry caused a late wrist flip; explicit
+	# hilt position and full blade orientation keep the same endpoint contract
+	# as the ordinary cuts while the support hand can release independently.
+	_solve_cut_arm(right_arm,right_forearm,to_global(wrist_target),1.0,1.0)
+	var blade_basis: Basis = global_basis.orthonormalized()*Basis(first_rotation.slerp(second_rotation,alpha))
 	var wrist_basis: Basis = blade_basis*sword.basis.orthonormalized().inverse()
-	right_wrist.global_basis = Basis(right_wrist.global_basis.get_rotation_quaternion().slerp(wrist_basis.get_rotation_quaternion(),grip_weight))
+	right_wrist.global_basis = wrist_basis
 	# The second palm grips the lower handle, above the crossguard. It is
 	# solved against the actual sword transform, including equipment scale.
 	_solve_arm(left_arm,left_forearm,sword.to_global(Vector3(0,-0.14,0)),-1.0,grip_weight)
@@ -667,7 +700,10 @@ func _running_foot(rest: Vector3,phase: float) -> Vector3:
 	return stance.lerp(target,locomotion_blend)
 
 func _stance_foot(left: bool) -> Vector3:
-	return (_left_ankle_rest+Vector3(-0.065,0.0,-0.055)) if left else (_right_ankle_rest+Vector3(0.065,0.0,0.055))
+	# A small lead with the unarmed side gives the sword room beside the hip.
+	# These anchors remain fixed throughout breathing; pelvis motion is solved
+	# against the planted boots rather than making the entire person float.
+	return (_left_ankle_rest+Vector3(-0.075,0.0,-0.085)) if left else (_right_ankle_rest+Vector3(0.075,0.0,0.070))
 
 func _apply_presentation_pose(delta: float) -> void:
 	presentation_phase += delta
@@ -697,38 +733,52 @@ func tick(delta: float, moving: float) -> void:
 	walk_phase += delta*lerpf(2.8,10.6,locomotion_blend)
 	var step: float = sin(walk_phase)
 	var passing: float = cos(walk_phase)
-	var breath: float = sin(idle_phase*TAU/3.7)
-	var weight_shift: float = sin(idle_phase*TAU/5.2)
+	var breath: float = sin(idle_phase*TAU/3.9)
+	var shoulder_breath: float = sin(idle_phase*TAU/3.9-0.32)
+	var weight_shift: float = sin(idle_phase*TAU/6.4)
 	var resting: float = 1.0-locomotion_blend
-	body.position = Vector3(weight_shift*0.007*resting,(-0.045+0.018*cos(walk_phase*2.0))*locomotion_blend+(-0.020+breath*0.005)*resting,0.0)
-	body.rotation = Vector3(-0.018*locomotion_blend,-0.11*resting,0.0)
-	hips.rotation = Vector3(-0.025*locomotion_blend,0.035*resting+step*0.055*locomotion_blend,step*0.025*locomotion_blend+weight_shift*0.010*resting)
-	torso.rotation = Vector3(-0.032-0.040*locomotion_blend+breath*0.009*resting,-hips.rotation.y*0.8+weight_shift*0.008*resting,-hips.rotation.z*0.6)
+	body.position = Vector3((0.010+weight_shift*0.013)*resting,(-0.045+0.018*cos(walk_phase*2.0))*locomotion_blend+(-0.024+breath*0.004)*resting,0.0)
+	body.rotation = Vector3(-0.018*locomotion_blend,-0.14*resting,0.0)
+	hips.rotation = Vector3(-0.025*locomotion_blend,(0.055+weight_shift*0.010)*resting+step*0.055*locomotion_blend,step*0.025*locomotion_blend+(0.008+weight_shift*0.014)*resting)
+	# Expansion is expressed as a small chest lift and delayed shoulder settle,
+	# not by scaling armor or translating the feet. The longer weight cycle
+	# prevents the idle from reading as a synchronized mechanical oscillation.
+	torso.rotation = Vector3(-0.020-0.052*locomotion_blend+breath*0.018*resting,-hips.rotation.y*0.8+weight_shift*0.011*resting,-hips.rotation.z*0.72)
 	left_leg.rotation = Vector3(step*0.48*locomotion_blend,0.025,-0.012*resting)
 	right_leg.rotation = Vector3(-step*0.48*locomotion_blend,-0.025,0.012*resting)
 	left_knee.rotation = Vector3(-0.045-maxf(0.0,passing)*0.90*locomotion_blend,0.0,0.0)
 	right_knee.rotation = Vector3(-0.045-maxf(0.0,-passing)*0.90*locomotion_blend,0.0,0.0)
 	# The sword arm carries its weight near the ribs instead of swinging like
 	# an empty hand. The free arm counters the leading hip with a soft elbow.
-	left_arm.rotation = Vector3(-0.10-step*0.43*locomotion_blend,0.025,0.095+weight_shift*0.010*resting)
+	left_arm.rotation = Vector3(-0.055-step*0.43*locomotion_blend+shoulder_breath*0.010*resting,0.025,0.075+weight_shift*0.013*resting)
 	right_arm.rotation = Vector3(0.20+step*0.10*locomotion_blend,-0.15,0.12)
-	left_forearm.rotation = Vector3(0.34+0.30*locomotion_blend+maxf(0.0,step)*0.12*locomotion_blend+breath*0.016*resting,0.0,0.0)
+	left_forearm.rotation = Vector3(0.27+0.37*locomotion_blend+maxf(0.0,step)*0.12*locomotion_blend+shoulder_breath*0.023*resting,0.0,0.0)
 	right_forearm.rotation = Vector3(0.88-0.10*locomotion_blend+maxf(0.0,-step)*0.10*locomotion_blend+breath*0.014*resting,0.0,0.0)
 	right_wrist.rotation = Vector3(-0.06-0.05*locomotion_blend,-0.25,0.16+step*0.018*locomotion_blend)
 	left_wrist.rotation = Vector3(0.0,0.0,breath*0.008*resting)
 	left_ankle.rotation = Vector3.ZERO
 	right_ankle.rotation = Vector3.ZERO
-	head.rotation = Vector3(-torso.rotation.x*0.55,sin(idle_phase*0.47)*0.018*resting,-hips.rotation.z*0.65)
+	head.rotation = Vector3(-torso.rotation.x*0.65,-torso.rotation.y*0.40+sin(idle_phase*0.39)*0.024*resting,-hips.rotation.z*0.75)
 	cape.rotation.x = -0.16+0.035*sin(walk_phase-0.6)*locomotion_blend+breath*0.012*resting
 	cape.rotation.z = -hips.rotation.z*0.35
 	var left_pitch: float = clampf(sin(walk_phase-0.8)*0.24,-0.18,0.24)*locomotion_blend
 	var right_pitch: float = clampf(sin(walk_phase+PI-0.8)*0.24,-0.18,0.24)*locomotion_blend
 	_plant_feet(_running_foot(_left_ankle_rest,walk_phase),_running_foot(_right_ankle_rest,walk_phase+PI),1.0,left_pitch,right_pitch)
-	var carry_target := Vector3(0.25,1.25,-0.28)
-	carry_target.y += breath*0.004*resting+step*0.012*locomotion_blend
-	var carry_direction := Vector3(0.18,0.42,-0.89).normalized()
+	# Relaxed low guard: palm beside the right hip, elbow bent, blade running
+	# down/outside the lead leg. The weapon has its own slight lag behind the
+	# chest and a contained running swing, instead of pointing at the horizon.
+	var carry_target: Vector3 = motion_profile.carry_target
+	var breathing_offset: Vector3 = motion_profile.breathing_offset
+	carry_target += (Vector3(weight_shift*0.007,0,0)+breathing_offset*Vector3(weight_shift,shoulder_breath,-breath))*resting
+	carry_target += (motion_profile.run_offset+Vector3(step*0.012,step*0.020,passing*0.025))*locomotion_blend
+	var carry_direction: Vector3 = (motion_profile.carry_direction.normalized()+motion_profile.breathing_blade_sway*shoulder_breath*resting+Vector3(0,.10,step*.035)*locomotion_blend).normalized()
+	# Follow the body's weight and yaw as a held object, with a tiny delayed
+	# forearm roll. Arm IK still keeps the palm exactly on the weapon socket.
+	carry_target = body.transform*carry_target
+	carry_direction = body.basis*carry_direction
 	_solve_cut_arm(right_arm,right_forearm,to_global(carry_target),1.0,1.0)
-	var carry_basis: Basis = global_basis.orthonormalized()*Basis(Quaternion(Vector3.DOWN,carry_direction))
+	var carry_roll: float = deg_to_rad(motion_profile.carry_roll_degrees)+(shoulder_breath*0.018+weight_shift*0.010)*resting+step*0.014*locomotion_blend
+	var carry_basis: Basis = global_basis.orthonormalized()*Basis(Quaternion(Vector3.DOWN,carry_direction))*Basis(Vector3.DOWN,carry_roll)
 	right_wrist.global_basis = carry_basis*sword.basis.orthonormalized().inverse()
 	if _presentation_blend > 0.0 and attack_elapsed < 0.0 and locomotion_blend < 0.01:
 		_apply_presentation_pose(delta)
@@ -749,8 +799,11 @@ func tick(delta: float, moving: float) -> void:
 		elif skill_attack:
 			var spin: float = clampf((t-0.12)/0.76,0,1)
 			spin = spin*spin*(3.0-2.0*spin)
-			var readiness: float = minf(smoothstep(0.0,0.18,t),1.0-smoothstep(0.82,1.0,t))
-			var return_weight: float = smoothstep(0.75,1.0,t)
+			# Release the extended spin guard over the last third of the move;
+			# compressing this into the final .12 s snapped the long blade down
+			# toward the new low carry despite ending at the right transform.
+			var readiness: float = minf(smoothstep(0.0,0.18,t),1.0-smoothstep(0.65,1.0,t))
+			var return_weight: float = smoothstep(0.65,1.0,t)
 			var starting_yaw: float = float((_attack_origin.get("root",Vector3.ZERO) as Vector3).y)
 			body.rotation.y = spin*TAU+lerp_angle(starting_yaw,(_locomotion_pose.root as Vector3).y,return_weight)
 			body.position.y -= sin(t*PI)*0.025

@@ -1,4 +1,47 @@
-# Żelazny Świt — przekazanie projektu 0.2.2
+# Żelazny Świt — przekazanie projektu 0.2.3
+
+## Aktualny stan 0.2.3 — niska garda, oddech i powroty animacji
+
+Użytkownik ponownie wskazał animację jako główny priorytet: miecz wyglądał
+jak przyklejony i wycelowany wprost. Trzech agentów zajęło się ruchem,
+niezależnym przeglądem i regresją/rzeczywistym nagraniem. Główny agent dodał
+wspólny zasób profilu postawy i zintegrował wydanie.
+
+Przyczyna: pełne IK co klatkę nadpisywało drobny oddech prawego ramienia,
+a rękojeść i kierunek ostrza były prawie stałe w przestrzeni postaci.
+`character_visual.gd` używa teraz niskiej gardy przy biodrze, kierunku w dół
+i na zewnątrz, postawy z wysuniętą lewą stopą, osobnego rytmu oddechu i
+przenoszenia ciężaru. Dłoń lekko opóźnia się względem klatki i barków,
+a broń podąża za transformacją ciała. Stopy są rozwiązywane do stałych kotwic.
+
+Pierwszy zamach ma łagodniejsze przygotowanie, powroty zwykłych cięć
+wyhamowują pełną orientację nadgarstka. Nowa garda ujawniła skok końcówki
+slamu: 14,8–18,3 cm w 1/120 s. Naprawiono go prowadzeniem prawej dłoni
+po spójnym torze rękojeści i kwaternionów do bieżącej gardy. Obrót umiejętności
+wyhamowuje przez dłuższy końcowy fragment. Terminy .16/.25 s i .48 s,
+cooldowny, siła ciosów, odrzut, zapis i ekonomia pozostają zgodne.
+
+`scripts/weapon_motion_profile.gd` i `assets/warrior/sword_motion.tres` to
+używane dane postawy, wspólne dla gry i podglądu. Setter sprawdza typ,
+skończoność danych, niezerowy kierunek i ograniczony sway; odrzuca podmianę
+podczas ciosu. Profile są współdzielone i powinny być traktowane jako
+niemutowalne. To fundament przyszłych czterech klas, nie gotowa obsługa
+ninja/długiej broni. Te wymagają własnych modeli, torów i drugiego chwytu.
+
+Model, tekstury i budżety 0.2.2 zachowano. Zmiana poprawia wygląd przez
+postawę i ruch, bez dokładania cięższych modeli ani efektów ekranowych.
+Nie modyfikowano enemy.gd; potwory pozostają osobnym zakresem pracy.
+
+Walidacja Godot 4.6: nowa postawa 56/56, ciągłość 69/69, rzeczywisty model
+40/40, combo 55/55, podgląd 32/32, ogień 38/38 i integracja 51/51 headless.
+Oddech daje ok. 1,4–1,55 cm ruchu głowy, kotwice stóp bez dryfu, najdłuższe
+ostrze w postoju ponad 42 cm nad ziemią. Przejście końca akcji do gardy
+poniżej 0,4 mm w próbkach 120 Hz. To metryki ciągłości, nie dowód artyzmu.
+
+`tests/capture_stance.gd` nagrywa prawdziwe zasoby w Godocie, z bliską kamerą
+pokazową, zatrzymanym AI i symulacją kontrolera. Woła interfejs wizualny:
+postój z trzech stron, bieg w miejscu, cztery cięcia, slam i portret. Nagranie
+nie pokazuje naliczania obrażeń i nie mierzy wydajności fizycznego telefonu.
 
 ## Aktualny stan 0.2.2 — grafika otoczenia i światło postaci
 

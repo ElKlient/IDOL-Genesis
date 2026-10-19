@@ -1,4 +1,4 @@
-# Żelazny Świt — 0.2.2
+# Żelazny Świt — 0.2.3
 
 Oryginalna, jednoosobowa gra akcji RPG 3D na telefon, napisana w Godocie 4.4+.
 Sterowanie dotykowe w poziomie. Mały grywalny wycinek: wioska Brzeziny, wojownik,
@@ -108,7 +108,7 @@ Potem otwórz ten sam `games/zelazny-swit/project.godot` i naciśnij ▶.
 Polecenie zachowuje ewentualne lokalne zmiany `project.godot` w `git stash list`.
 Nie przywraca ich automatycznie: nowa wersja zawiera wymagane ustawienia mobilne
 i autoload diagnostyki. Zapis postaci oraz prywatna konfiguracja raportów zostają.
-Nie używaj resetowania ani usuwania folderu. W HUD pod zdrowiem sprawdź numer **v0.2.2**.
+Nie używaj resetowania ani usuwania folderu. W HUD pod zdrowiem sprawdź numer **v0.2.3**.
 
 ## Uruchamianie i zakres
 
@@ -128,6 +128,28 @@ Nie używaj resetowania ani usuwania folderu. W HUD pod zdrowiem sprawdź numer 
   Zrzuty użytkownika pokazują także uruchomioną 0.1.6, a później potwierdził
   działanie nowego wojownika. Wersja 0.2.0 została sprawdzona na Linuxie;
   wydajność tej aktualizacji na jego telefonie wymaga próby po pobraniu.
+
+## Aktualizacja 0.2.3 — postawa i ruch wojownika
+
+W spoczynku wojownik trzyma miecz przy prawym biodrze, z ugiętym łokciem
+i klingą skierowaną ukośnie w dół obok nogi. Asymetryczna postawa ma
+przenoszenie ciężaru, ruch klatki, barków i głowy oraz delikatnie opóźniony
+ruch dłoni. Stopy są zakotwiczone, a broń podąża za ciałem podczas biegu.
+
+Pierwsze cięcie łagodniej wychodzi z niskiej gardy. Zwykłe ciosy wyhamowują
+nadgarstek przed powrotem do postoju, a obrotowa umiejętność stopniowo wraca
+do postawy. Powrót po uderzeniu w ziemię prowadzi rękojeść i pełną orientację
+ostrza, usuwając szarpnięcie przy opuszczaniu miecza. Cztery kontakty,
+oburęczny finisher i działanie umiejętności zachowują dotychczasowe zasady.
+
+Postawa korzysta z rzeczywiście używanego `WeaponMotionProfile` oraz zasobu
+`sword_motion.tres`, wspólnych dla postaci w świecie i obracanego podglądu.
+To podstawa dopasowania gardy do przyszłych klas i typów broni. Ninja,
+pozostałe klasy oraz animacje długiej broni będą wymagały własnych modeli,
+chwytów i torów ataku; nie są jeszcze grywalne w tej wersji.
+
+Rzeczywiste nagranie animacji z Godota: [postawa, bieg i ciosy](docs/warrior-motion-0.2.3.mp4).
+Ujęcia pokazują te same modele i materiały co gra, z bliską kamerą pokazową.
 
 ## Aktualizacja 0.2.2 — materiały i otoczenie
 

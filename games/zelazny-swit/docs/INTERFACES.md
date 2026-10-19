@@ -1,4 +1,4 @@
-# Kontrakty integracji — 0.2.2
+# Kontrakty integracji — 0.2.3
 
 Godot 4.4+, Compatibility/OpenGL, typowany GDScript, polski interfejs.
 Projekt jest samodzielny w `games/zelazny-swit`; nie ładuje starszego projektu
@@ -110,6 +110,20 @@ w `tests/README.md`. Rzeczywiste rendery OpenGL nie zastępują pomiaru FPS na
 telefonie. Nie kopiować tokenów diagnostyki do testów ani repozytorium.
 
 ## Prowadzenie broni od 0.2.1
+
+Od 0.2.3 `WeaponMotionProfile extends Resource` opisuje ułożenie rękojeści,
+kierunek i obrót klingi, przesunięcie w biegu i amplitudy oddechu. Domyślny
+`assets/warrior/sword_motion.tres` jest używany przez CharacterVisual
+w świecie i portrecie. Zasoby profilu traktować jako niemutowalne dane;
+do autorskich zmian tworzyć własną kopię. `set_motion_profile(profile)`
+zwraca false dla złego typu, błędnych danych i podczas ataku, zachowując
+dotychczasowy profil. Wybór wykonywać na etapie tworzenia aktora lub postoju.
+Walidacja i normalizacja ograniczają ryzyko zerowego kierunku nadgarstka.
+
+Ten kontrakt opisuje postawę, nie obrażenia ani gotowe animacje każdej broni.
+Przyszłe cztery klasy mogą korzystać ze wspólnego interfejsu, ale długi miecz,
+broń drzewcowa i dwa ostrza wymagają własnych torów i konfiguracji podpórki
+drugiej dłoni. Nie używać indeksu tieru jako identyfikatora klasy/chwytu.
 
 Zwykłe cięcia używają toru rękojeści i kwaternionów klingi; IK wyznacza ramię.
 Pełny obrót startu/końca musi być zachowany, nie tylko kierunek ostrza.
