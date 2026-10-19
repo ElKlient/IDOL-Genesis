@@ -112,10 +112,11 @@ func _toggle_quality(value: bool, index: int) -> void:
 	var sun_found: bool = false
 	var sun_matches: bool = true
 	for child: Node in game.world.get_children():
-		if child is DirectionalLight3D:
+		if child is DirectionalLight3D and child.name == "WarmAfternoonSun":
 			sun_found = true
 			sun_matches = sun_matches and child.shadow_enabled == not value
 	_check(sun_found and sun_matches and game.world._fire_light.visible == not value,"manual graphics toggle %d still controls sun shadows and forge fire light" % index)
+	_check(not game.world.get_node("CharacterSoftFill").shadow_enabled,"character fill never adds a shadow pass on quality toggle %d" % index)
 	if draw_enabled:
 		_check(rendered_frames > draws_before,"manual graphics toggle %d continues rendering without a lost redraw" % index)
 

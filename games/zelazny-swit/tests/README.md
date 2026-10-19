@@ -1,5 +1,27 @@
 # Runtime checks
 
+Version 0.2.2 world graphics: `world_materials.gd` passed 28/28 on actual
+Godot 4.6 Compatibility/OpenGL. It preserves the exact walking/roof collision
+signatures, checks all shared terrain resources and actual mip chains, verifies
+the character-only nonshadowed fill and both quality paths, and measures
+91,856 full-map triangles / 61 surfaces (a deliberate 100k / 66 ceiling).
+The original eight material families use 10,485,744 image bytes; the two new
+shared maps add less than 3 MiB including mipmaps. Model/layer regression
+passed 40/40 under OpenGL, and full gameplay integration passed 51/51 headless.
+Renderer/forge quality regression passed 54/54 headless and 65/65 OpenGL,
+including ten quality toggles, three upgrades and unchanged startup MSAA.
+These checks do not establish Android FPS.
+
+Use a real graphical display to reproduce the current gameplay images:
+
+```sh
+godot --path . --script res://tests/capture_valley.gd -- --test-isolated --capture-dir=/absolute/output/path
+```
+
+The fixture buys third-tier equipment and pauses enemy AI for screenshots;
+normal game balance and starting equipment are unchanged. It captures the
+village, wilderness, pond and flaming sword without editing a player save.
+
 Run from the Godot project directory with Godot 4.4 or newer:
 
 ```sh

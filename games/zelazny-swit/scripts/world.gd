@@ -28,7 +28,9 @@ var _fire_light: OmniLight3D
 var _embers: MultiMeshInstance3D
 var _banners: Array[Node3D] = []
 var _world_textures: Dictionary = {}
+var _detail_textures: Dictionary = {}
 var _clock: float = 0.0
+var _terrain_material: ShaderMaterial
 
 func _ready() -> void:
 	_rng.seed = 51472026
@@ -47,6 +49,8 @@ func _ready() -> void:
 	_village()
 	_forest()
 	_gardens()
+	_ground_cover()
+	_terrain_surface()
 	_flush_batches()
 	_create_npc("Mira • Handel", npc_positions["merchant"], false)
 	_create_npc("Born • Kowal", npc_positions["blacksmith"], true)
@@ -96,6 +100,10 @@ func _palette() -> void:
 	_material("mountain", "819198")
 	_material("paving", "b4b2a4")
 	_water_material()
+	var needles: ShaderMaterial = ShaderMaterial.new()
+	needles.shader = preload("res://assets/world/pine.gdshader")
+	needles.set_shader_parameter("needles",_detail_texture("pine_spray"))
+	_materials["pine_needles"] = needles
 
 func _material(key: String, hex: String, emission: float = 0.0) -> void:
 	var mat: StandardMaterial3D = StandardMaterial3D.new()
@@ -168,6 +176,19 @@ func _material_family(key: String) -> String:
 		return "cloth"
 	return ""
 
+func _detail_texture(file: String) -> Texture2D:
+	if _detail_textures.has(file):
+		return _detail_textures[file]
+	var source: Texture2D = load("res://assets/world/"+file+".png") as Texture2D
+	var pixels: Image = source.get_image()
+	if pixels.is_compressed():
+		pixels.decompress()
+	if not pixels.has_mipmaps():
+		pixels.generate_mipmaps()
+	var result: ImageTexture = ImageTexture.create_from_image(pixels)
+	_detail_textures[file] = result
+	return result
+
 func _water_material() -> void:
 	var shader: Shader = Shader.new()
 	shader.code = """shader_type spatial;
@@ -207,7 +228,7 @@ func _lighting() -> void:
 	env.reflected_light_source = Environment.REFLECTION_SOURCE_SKY
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	env.ambient_light_color = Color("bbcdd9")
-	env.ambient_light_energy = 0.32
+	env.ambient_light_energy = 0.40
 	env.tonemap_mode = Environment.TONE_MAPPER_LINEAR
 	env.tonemap_exposure = 1.0
 	env.fog_enabled = true
@@ -219,15 +240,25 @@ func _lighting() -> void:
 	var sun: DirectionalLight3D = DirectionalLight3D.new()
 	sun.name = "WarmAfternoonSun"
 	sun.rotation_degrees = Vector3(-53, -33, -8)
-	sun.light_color = Color("fff2df")
-	sun.light_energy = 0.86
+	sun.light_color = Color("fff0db")
+	sun.light_energy = 1.02
 	sun.shadow_enabled = true
 	sun.directional_shadow_max_distance = 48.0
 	sun.directional_shadow_split_1 = 0.35
 	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
 	sun.shadow_bias = 0.12
-	sun.shadow_normal_bias = 2.5
+	sun.shadow_normal_bias = 1.2
 	add_child(sun)
+	# One unshadowed fill affects only the hero's meshes (visual layer 2),
+	# revealing black armour and facial planes without relighting every tree.
+	var character_fill: DirectionalLight3D = DirectionalLight3D.new()
+	character_fill.name = "CharacterSoftFill"
+	character_fill.rotation_degrees = Vector3(-30,145,0)
+	character_fill.light_color = Color("c2d9e6")
+	character_fill.light_energy = .38
+	character_fill.light_cull_mask = 2
+	character_fill.shadow_enabled = false
+	add_child(character_fill)
 
 func _landscape() -> void:
 	_box(Vector3(0, -0.22, 0), Vector3(100, 0.44, 100), "grass")
@@ -288,6 +319,10 @@ func _landscape() -> void:
 			_cylinder(p + Vector3(float(j) * 0.09, 0.72, 0), 0.055, 0.2, "wood", 5)
 
 func _ground_patch(p: Vector3, radius: Vector2, key: String, segments: int) -> void:
+	# Legacy base patches remain below the new continuous surface. Keep the
+	# visible terrain below the measured 15.4 mm boot sole, not at the old
+	# courtyard's 9 cm overlay height across the whole forest.
+	p.y = .004
 	# A broad intermediate ring avoids the old hard seven-sided colour stamps.
 	for ring: int in range(2):
 		var inner: float = float(ring)*0.67
@@ -318,7 +353,7 @@ func _road(a: Vector3, b: Vector3, width: float) -> void:
 	for edge: int in range(2):
 		var half: float = (width+(0.64 if edge == 0 else 0.0))*0.5
 		var key: String = "path_edge" if edge == 0 else "path"
-		var lift: float = 0.057 if edge == 0 else 0.078
+		var lift: float = 0.006
 		for i: int in range(segments):
 			var q: Vector3 = a.lerp(b,float(i)/float(segments))+Vector3.UP*lift
 			var r: Vector3 = a.lerp(b,float(i+1)/float(segments))+Vector3.UP*lift
@@ -408,6 +443,19 @@ func _house(p: Vector3, size: Vector3, roof: String, plaster: String, yaw: float
 		_box_t(Vector3(0,0.25,0),Vector3(1.15,0.9,1.3),plaster,dormer)
 		_roof(dormer,1.5,1.6,0.7,1.25,roof)
 		_window(dormer,Vector3(0,0.27,0.68),Vector2(0.6,0.6))
+	# Long-read architectural detail: masonry joints, door ironwork and carved
+	# bracket silhouettes, all in existing material batches, no extra colliders.
+	for side: float in [-1.0,1.0]:
+		for row: int in range(4):
+			var y: float = .45+float(row)*.27
+			_box_t(Vector3(side*(w*.5+.025),y,d*.5-.15),Vector3(.26,.21,.42 if row%2 == 0 else .27),"stone_light",t)
+		var bracket: Transform3D = t*Transform3D(Basis(Vector3.FORWARD,side*-.58),Vector3(side*w*.42,h-.1,d*.5+.23))
+		_box_t(Vector3.ZERO,Vector3(.13,.72,.16),"wood_dark",bracket)
+	for y: float in [.54,1.47]:
+		_box_t(Vector3(-w*.2,y,d*.51+.145),Vector3(.69,.055,.025),"iron",t)
+	# Foundation mortar is a shallow inset band, not a new row of physics boxes.
+	for j: int in range(int(w/.55)):
+		_box_t(Vector3(-w*.5+.28+float(j)*.55,.21,d*.5+.14),Vector3(.035,.29,.012),"stone_dark",t)
 
 func _roof(t: Transform3D, width: float, depth: float, eave: float, ridge: float, key: String) -> void:
 	var a: Vector3 = t * Vector3(-width*0.5,eave,-depth*0.5)
@@ -626,7 +674,7 @@ func _forest() -> void:
 		_box(p+Vector3.UP*1.73,Vector3(0.83,0.18,0.83),"stone_light",0.13)
 	# Tufts and tiny pale flowers, all packed into the same material batches.
 	for i: int in range(240):
-		var p: Vector3=Vector3(_rng.randf_range(-39,39),0.09,_rng.randf_range(-43,35))
+		var p: Vector3=Vector3(_rng.randf_range(-39,39),0.015,_rng.randf_range(-43,35))
 		if absf(p.x)<17 and p.z>-16 and p.z<16:
 			continue
 		if absf(p.x)<3.2 and p.z<-16:
@@ -652,7 +700,7 @@ func _gardens() -> void:
 	var beds: Array[Vector3] = [Vector3(-10.2,0,2.0),Vector3(-7.8,0,1.6),Vector3(11.0,0,2.8),Vector3(-6.4,0,8.6),Vector3(3.8,0,9.6),Vector3(-4.8,0,-12.4),Vector3(5.0,0,-12.4)]
 	for bed: Vector3 in beds:
 		for i: int in range(12):
-			var p: Vector3 = bed+Vector3(garden_rng.randf_range(-.65,.65),.08,garden_rng.randf_range(-.4,.4))
+			var p: Vector3 = bed+Vector3(garden_rng.randf_range(-.65,.65),.015,garden_rng.randf_range(-.4,.4))
 			_grass_clump(p,garden_rng.randf_range(.16,.32),garden_rng.randf()*TAU)
 			if i%6 == 0:
 				_wildflower(p,.23+garden_rng.randf()*.08,"flower_blue" if i == 0 else "flower")
@@ -682,6 +730,67 @@ func _grass_clump(p: Vector3, height: float, yaw: float) -> void:
 		_tri(p-side,middle+side*.58,middle-side*.58,"grass_dark")
 		_tri(middle-side*.58,middle+side*.58,tip,"grass_light")
 
+func _terrain_surface() -> void:
+	# One opaque surface blends the whole walkable map. Existing decorative
+	# ground geometry stays for compatibility; its flat surfaces sit below this.
+	var mesh: PlaneMesh = PlaneMesh.new()
+	mesh.size = Vector2(100,100)
+	var surface: MeshInstance3D = MeshInstance3D.new()
+	surface.name = "ValleyTerrain"
+	surface.mesh = mesh
+	surface.position.y = .012
+	surface.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_terrain_material = ShaderMaterial.new()
+	_terrain_material.shader = preload("res://assets/world/terrain.gdshader")
+	_terrain_material.set_shader_parameter("control_map",_detail_texture("terrain_control"))
+	for family: String in ["grass","earth","paving"]:
+		_terrain_material.set_shader_parameter(family+"_map",_world_textures[family+"_albedo"])
+		_terrain_material.set_shader_parameter(family+"_normal",_world_textures[family+"_normal"])
+	surface.material_override = _terrain_material
+	add_child(surface)
+
+func _ground_cover() -> void:
+	var material: ShaderMaterial = ShaderMaterial.new()
+	material.shader = preload("res://assets/world/meadow.gdshader")
+	_materials["meadow"] = material
+	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
+	rng.seed = 22051019
+	for i: int in range(1250):
+		var p: Vector3 = Vector3(rng.randf_range(-43,43),.015,rng.randf_range(-45,38))
+		# Clear combat silhouettes and every established walking lane.
+		if pow(p.x/13.1,2)+pow((p.z-2.0)/12.7,2) < 1.0:
+			continue
+		if absf(p.x) < 3.0 and p.z < 16.0:
+			continue
+		if p.distance_to(Vector3(-18,.015,-25)) < 5.8:
+			continue
+		var height: float = rng.randf_range(.16,.38)
+		var yaw: float = rng.randf()*TAU
+		for blade: int in range(4):
+			var angle: float = yaw+float(blade)*2.39996
+			var side: Vector3 = Vector3(cos(angle),0,sin(angle))*.033
+			var lean: Vector3 = Vector3(-sin(angle),0,cos(angle))*height*.35
+			var middle: Vector3 = p+Vector3.UP*height*.60+lean*.40
+			var tip: Vector3 = p+Vector3.UP*height+lean
+			var base_tint: Color = Color(1,1,1,0)
+			var mid_tint: Color = Color(1,1,1,.6)
+			var tip_tint: Color = Color(1,1,1,1)
+			_tri(p-side,p+side,middle+side*.55,"meadow",PackedColorArray([base_tint,base_tint,mid_tint]))
+			_tri(p-side,middle+side*.55,middle-side*.55,"meadow",PackedColorArray([base_tint,mid_tint,mid_tint]))
+			_tri(middle-side*.55,middle+side*.55,tip,"meadow",PackedColorArray([mid_tint,mid_tint,tip_tint]))
+	# Ferns have a distinct low silhouette beside the forest approach.
+	for p: Vector3 in [Vector3(-7,.015,-18),Vector3(8.7,.015,-21),Vector3(-8,.015,-28),Vector3(10,.015,-34),Vector3(-14,.015,-21)]:
+		for frond: int in range(7):
+			var angle: float = float(frond)*TAU/7.0+p.x
+			var direction: Vector3 = Vector3(cos(angle),0,sin(angle))
+			var side: Vector3 = Vector3(-sin(angle),0,cos(angle))
+			for pair: int in range(5):
+				var u: float = float(pair+1)/6.0
+				var center: Vector3 = p+direction*u*.70+Vector3.UP*sin(u*PI*.75)*.45
+				for sign_value: float in [-1.0,1.0]:
+					var tip: Vector3 = center+side*sign_value*(1.0-u)*.24+direction*.13
+					_tri(center-direction*.06,center+direction*.08,tip,"meadow",PackedColorArray([Color(1,1,1,.3),Color(1,1,1,.6),Color(1,1,1,1)]))
+
 func _wildflower(p: Vector3, height: float, key: String) -> void:
 	_cylinder(p+Vector3.UP*height*.5,.012,height,"leaf",4)
 	var center: Vector3 = p+Vector3.UP*height
@@ -696,16 +805,35 @@ func _tree(p: Vector3,pine: bool,scale_factor: float,solid: bool) -> void:
 	var s: float=scale_factor
 	_cylinder(p+Vector3.UP*1.55*s,0.16*s,3.1*s,"wood",7)
 	if pine:
-		for i: int in range(3):
-			_cone(p+Vector3.UP*(2.2+float(i)*0.78)*s,(1.3-float(i)*0.27)*s,2.0*s,"pine" if i%2==0 else "pine_light",7)
+		# Individual swept boughs replace three closed cone silhouettes. The seed
+		# is spatial: visual detail never consumes the collision-layout RNG.
+		var phase: float = p.x*.71+p.z*.43
+		for tier: int in range(5):
+			var y: float = (1.45+float(tier)*.57)*s
+			var radius: float = (1.43-float(tier)*.24)*s
+			for branch: int in range(8):
+				var angle: float = float(branch)*TAU/8.0+phase+float(tier)*.61
+				var direction: Vector3 = Vector3(cos(angle),0,sin(angle))
+				var side: Vector3 = Vector3(-sin(angle),0,cos(angle))
+				var length: float = radius*(.87+.13*sin(angle*3.0+phase))
+				var root_point: Vector3 = p+Vector3.UP*(y+.43*s)
+				var tip: Vector3 = p+direction*length+Vector3.UP*(y-.08*s)
+				_needle_spray(root_point,tip,side*length*.41)
+				# A second tilted spray fills the vertical outline when orbiting.
+				_needle_spray(root_point,tip,(side*.45+Vector3.UP*.55)*length*.39)
+		_cone(p+Vector3.UP*4.02*s,.30*s,.94*s,"pine_light",7)
 	else:
 		var key: String="leaf_gold" if int(absf(p.x)*7)%3==0 else ("leaf_orange" if int(absf(p.z)*5)%3==0 else "leaf")
 		var lean: float = sin(p.x*1.7+p.z*.9)*.17
-		_sphere(p+Vector3(0,3.1,0)*s,Vector3(1.25,1.0,1.05)*s,key,6,3)
-		_sphere(p+Vector3(-.78,2.84+lean,.18)*s,Vector3(1.0,.82,.90)*s,key,6,3)
-		_sphere(p+Vector3(.72,3.22-lean,-.2)*s,Vector3(.90,.85,.95)*s,key,6,3)
-		_sphere(p+Vector3(-.18,2.66,.7)*s,Vector3(.82,.72,.72)*s,key,6,3)
-		_sphere(p+Vector3(.12,3.55,-.58)*s,Vector3(.72,.70,.75)*s,key,6,3)
+		for crown: int in range(7):
+			var a: float = float(crown)*2.39996+p.x
+			var r: float = .62 if crown < 6 else .30
+			var y: float = 2.98+sin(float(crown)*1.7)*.32+(.47 if crown > 5 else 0.0)
+			var at: Vector3 = Vector3(cos(a)*r,y+lean,sin(a)*r)
+			_sphere(p+at*s,Vector3(.79,.61,.74)*s,key,8,3)
+			# Small lobes break the octagonal outline without transparent cards.
+			if crown%2 == 0:
+				_sphere(p+(at+Vector3(cos(a)*.40,.06,sin(a)*.4))*s,Vector3(.40,.32,.40)*s,key,6,2)
 		_cylinder(p+Vector3(-.27,2.13,.06)*s,.09*s,.96*s,"wood",5,Vector3(0,0,-.64))
 		_cylinder(p+Vector3(.29,2.27,-.08)*s,.08*s,.88*s,"wood",5,Vector3(0,0,.67))
 	if solid:
@@ -721,16 +849,46 @@ func _rock(p: Vector3,s: float) -> void:
 		shape.radius=0.57*s
 		_add_collision(shape,Transform3D(Basis.IDENTITY,p+Vector3.UP*0.25*s))
 
+func _needle_spray(base: Vector3,tip: Vector3,side: Vector3) -> void:
+	# Explicit atlas UVs; ordinary world-projected UVs cannot describe a cutout.
+	var key: String = "pine_needles"
+	_ensure_batch(key)
+	var batch: Dictionary = _batches[key]
+	var vertices: PackedVector3Array = batch.vertices
+	var normals: PackedVector3Array = batch.normals
+	var uvs: PackedVector2Array = batch.uvs
+	var colors: PackedColorArray = batch.colors
+	var tangents: PackedFloat32Array = batch.tangents
+	var indices: PackedInt32Array = batch.indices
+	var offset: int = vertices.size()
+	var points: Array[Vector3] = [base-side,base+side,tip+side,tip-side]
+	var texcoords: Array[Vector2] = [Vector2(0,1),Vector2(1,1),Vector2(1,0),Vector2(0,0)]
+	var normal: Vector3 = (points[2]-points[0]).cross(points[1]-points[0]).normalized()
+	var tangent: Vector3 = side.normalized()
+	for i: int in range(4):
+		vertices.append(points[i])
+		normals.append(normal)
+		uvs.append(texcoords[i])
+		colors.append(Color.WHITE*(.86+sin(base.x+base.z)*.08))
+		tangents.append_array(PackedFloat32Array([tangent.x,tangent.y,tangent.z,-1.0]))
+	indices.append_array(PackedInt32Array([offset,offset+1,offset+2,offset,offset+2,offset+3]))
+	batch.vertices = vertices
+	batch.normals = normals
+	batch.uvs = uvs
+	batch.colors = colors
+	batch.tangents = tangents
+	batch.indices = indices
+
 func _mountain(p: Vector3,radius: float,height: float,light: bool) -> void:
 	# Asymmetric ridges with secondary shoulders replace the old seven-triangle
-	# pointed cones. A whole peak costs 112 triangles in the shared matte batch.
+	# pointed cones. A whole peak costs 208 triangles in the shared matte batch.
 	var phase: float = p.x*.071+p.z*.037+(0.7 if light else 1.9)
 	var vertices: PackedVector3Array = PackedVector3Array()
 	var normals: PackedVector3Array = PackedVector3Array()
 	var tangents: PackedFloat32Array = PackedFloat32Array()
 	var uvs: PackedVector2Array = PackedVector2Array()
 	var indices: PackedInt32Array = PackedInt32Array()
-	var rings: Array[float] = [0.0,.26,.51,.77,1.0]
+	var rings: Array[float] = [0.0,.14,.28,.42,.56,.70,.84,1.0]
 	var sectors: int = 16
 	for ring: int in range(rings.size()):
 		var count: int = 1 if ring == 0 else sectors
@@ -748,7 +906,7 @@ func _mountain(p: Vector3,radius: float,height: float,light: bool) -> void:
 			uvs.append(Vector2(u,v))
 	for i: int in range(sectors):
 		indices.append_array(PackedInt32Array([0,1+i,1+(i+1)%sectors]))
-	for ring: int in range(1,4):
+	for ring: int in range(1,rings.size()-1):
 		var inner: int = 1+(ring-1)*sectors
 		var outer: int = 1+ring*sectors
 		for i: int in range(sectors):
@@ -929,9 +1087,14 @@ func _update_embers() -> void:
 		_embers.multimesh.set_instance_transform(i,Transform3D(Basis.IDENTITY.scaled(size),at))
 
 func set_low_quality(enabled: bool) -> void:
+	if _terrain_material != null:
+		_terrain_material.set_shader_parameter("detailed_normals",not enabled)
+	var meadow: MeshInstance3D = get_node_or_null("Scenery_meadow")
+	if meadow != null:
+		meadow.visible = not enabled
 	for child: Node in get_children():
 		if child is DirectionalLight3D:
-			(child as DirectionalLight3D).shadow_enabled = not enabled
+			(child as DirectionalLight3D).shadow_enabled = not enabled and child.name != "CharacterSoftFill"
 	if is_instance_valid(_fire_light):
 		_fire_light.visible = not enabled
 
@@ -1161,7 +1324,7 @@ func _flush_batches() -> void:
 		visual.name="Scenery_"+key
 		visual.mesh=mesh
 		visual.material_override=_materials[key]
-		if key in ["grass","grass_light","grass_dark","earth","path","path_edge","paving","mountain","water"]:
+		if key in ["grass","grass_light","grass_dark","earth","path","path_edge","paving","mountain","water","meadow"]:
 			visual.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		add_child(visual)
 	_batches.clear()

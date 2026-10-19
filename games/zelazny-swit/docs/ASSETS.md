@@ -1,4 +1,4 @@
-# Pochodzenie zasobów — 0.2.0
+# Pochodzenie zasobów — 0.2.2
 
 Żelazny Świt używa modelu człowieka animowanego szkieletem, autorskiego wyposażenia
 przygotowanego w Blenderze oraz własnego świata i efektów. Poniższy opis dotyczy
@@ -58,6 +58,12 @@ python assets/world/build_materials.py
 
 Ten generator autorski wymaga NumPy i Pillow. Opis materiałów świata:
 [assets/world/CREDITS.md](../assets/world/CREDITS.md).
+
+Od 0.2.2 oryginalne dodatkowe mapy otoczenia odtwarzają
+`build_terrain_mask.py` (sterowanie mieszaniem podłoża) i `build_pine_spray.py`
+(atlas pędów iglastych). `build_courtyard.py` odtwarza aktualne nierówne
+kamienie bruku; jest też wywoływany przez pełny generator materiałów.
+Te mapy, shadery i geometria roślinności są autorską zawartością projektu.
 
 Blender, NumPy, Pillow, pobrany pakiet źródłowy i powyższe generatory służą
 wyłącznie do przygotowania zasobów. Telefon uruchamia gotowe GLB, PNG

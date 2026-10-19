@@ -1,4 +1,50 @@
-# Żelazny Świt — przekazanie projektu 0.2.1
+# Żelazny Świt — przekazanie projektu 0.2.2
+
+## Aktualny stan 0.2.2 — grafika otoczenia i światło postaci
+
+Własny shader `assets/world/terrain.gdshader` łączy trawę, ziemię i bruk
+na jednym nieprzezroczystym PlaneMesh `ValleyTerrain`, y=.012. Stare płaskie
+podkłady są niżej (.004/.006), aby nie chować pod ziemią podeszwy .0154 m.
+Mapa RGBA
+512² zawiera wydeptanie/bruki/zmienność/przyciemnienia kontaktowe; autorowanie
+w `build_terrain_mask.py`, bez generowania map na telefonie. Trzy pary
+istniejących tekstur korzystają z tego samego cache. Wersja oszczędna pomija
+trzy próbki normalnych i ukrywa `Scenery_meadow`. Nie przełącza MSAA.
+
+Bruk jest teraz nieregularnym, bezszwowym wzorem z przetarciami i normalnymi
+fazowanych krawędzi. Kanoniczne paving_albedo/normal generuje
+`build_courtyard.py`, wywoływany także na końcu `build_materials.py`.
+Iglaki korzystają z oryginalnego atlasu igieł 256x512 i alpha scissor,
+zamiast stożków. `build_pine_spray.py` odtwarza atlas. Całe igliwie jest
+w jednej partii z jawnie przypisanymi UV; pędy lekko pracują w shaderze.
+Dodatkowe mapy mają rzeczywiste mipmapy w `_detail_textures`, osobno od
+istniejącego cache 16 map. Trawa i paprocie są jedną nieprzezroczystą partią,
+bez cieni źdźbeł. Korony liściaste, narożniki budynków, drzwi i wsporniki
+mają dodatkowy detal; góry gęstszy obrys.
+
+Słońce i ambient lekko wzmocnione. `CharacterSoftFill` ma maskę 2 i brak
+cieni; tylko siatki WarriorModel mają warstwy 1+2 (`layers=3`). Kamera i
+słońce nadal widzą warstwę 1. Wykryto i usunięto stary dublujący przełącznik
+cieni w main.set_low_quality: pełna odpowiedzialność jest teraz w świecie,
+aby zmiana jakości nigdy nie uruchamiała cieni światła wypełniającego.
+
+Pełny budżet świata 91 856 trójkątów / 61 powierzchni (poprzednio 59 562).
+Nowy limit 100 tys. obejmuje statyczne drzewa i roślinność całej mapy;
+nie podniesiono budżetu wojownika. Mapa kontrolna i igły poniżej 3 MiB razem
+z mipmapami; maksymalny wymiar 512. Wszystkie 136 kolizji ruchu i 11 dachów
+mają identyczne sygnatury, spawny i pozycje NPC są zachowane. Oddzielny agent
+użytkownika zajmuje się potworami; ta aktualizacja nie zmienia enemy.gd.
+
+Kadry `docs/valley-*-0.2.2.png` pochodzą z prawdziwego Godota/OpenGL na
+Linuxie. `tests/capture_valley.gd` ustawia kupiony sprzęt i wstrzymuje AI
+wyłącznie dla ujęć. Nie są pomiarem FPS telefonu. Rozmycie pozostaje wyłączone.
+Źródłowe skrypty generujące PNG nie są wymagane przez grę na Androidzie.
+
+Weryfikacja 0.2.2 Godot 4.6: świat/materiały 28/28 OpenGL, model i warstwy
+40/40 OpenGL, pełna integracja zakup/kowal/walka/respawn 51/51 headless,
+stabilność jakości i kowala 54/54 headless oraz 65/65 OpenGL. Rzeczywista
+próba OpenGL obejmuje dziesięć zmian jakości, trzy ulepszenia i stałe MSAA.
+Wszystkie testy są izolowane od sieci raportów i zapisu użytkownika.
 
 
 ## Aktualny stan 0.2.1 — poprawa animacji walki

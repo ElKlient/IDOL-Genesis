@@ -119,3 +119,8 @@ for row in range(8):
 save('paving',grey(shade,[.99,1,.98]),h,4.4)
 
 print('Generated eight original 512 px albedo / normal pairs.')
+
+# The current courtyard uses irregular, weathered setts instead of the legacy
+# rounded rectangle pattern above. Keep a full rebuild reproducible.
+import runpy
+runpy.run_path(str(OUT/'build_courtyard.py'))

@@ -582,9 +582,6 @@ func set_low_quality(value: bool) -> void:
 	low_quality=value
 	# Keep startup MSAA fixed to avoid render-target reallocation while playing,
 	# especially in Android/ANGLE embedded views where a process exit was reported.
-	for child: Node in world.get_children():
-		if child is DirectionalLight3D:
-			child.shadow_enabled=not value
 	if world.has_method("set_low_quality"):
 		world.set_low_quality(value)
 

@@ -1,4 +1,4 @@
-# Żelazny Świt — 0.2.1
+# Żelazny Świt — 0.2.2
 
 Oryginalna, jednoosobowa gra akcji RPG 3D na telefon, napisana w Godocie 4.4+.
 Sterowanie dotykowe w poziomie. Mały grywalny wycinek: wioska Brzeziny, wojownik,
@@ -108,7 +108,7 @@ Potem otwórz ten sam `games/zelazny-swit/project.godot` i naciśnij ▶.
 Polecenie zachowuje ewentualne lokalne zmiany `project.godot` w `git stash list`.
 Nie przywraca ich automatycznie: nowa wersja zawiera wymagane ustawienia mobilne
 i autoload diagnostyki. Zapis postaci oraz prywatna konfiguracja raportów zostają.
-Nie używaj resetowania ani usuwania folderu. W HUD pod zdrowiem sprawdź numer **v0.2.1**.
+Nie używaj resetowania ani usuwania folderu. W HUD pod zdrowiem sprawdź numer **v0.2.2**.
 
 ## Uruchamianie i zakres
 
@@ -128,6 +128,33 @@ Nie używaj resetowania ani usuwania folderu. W HUD pod zdrowiem sprawdź numer 
   Zrzuty użytkownika pokazują także uruchomioną 0.1.6, a później potwierdził
   działanie nowego wojownika. Wersja 0.2.0 została sprawdzona na Linuxie;
   wydajność tej aktualizacji na jego telefonie wymaga próby po pobraniu.
+
+## Aktualizacja 0.2.2 — materiały i otoczenie
+
+Brzeziny mają ciągłe, teksturowane podłoże: trawa przechodzi nieregularnie
+w wydeptaną ziemię, a bruk prowadzi przez plac i podejście do bramy. Kamienie
+mają nierówne kształty, przetarcia i normal mapę krawędzi. Znikają duże,
+ostro odcięte kolorowe plamy dawnego podłoża.
+
+Iglaki mają ażurowe pędy igieł zamiast zamkniętych stożków, drzewa liściaste
+bardziej rozczłonkowane korony, a dzicz kępy trawy i paprocie. Trawa i końce
+pędów lekko reagują na wiatr. Budynki mają kamienne narożniki, okucia drzwi
+i wsporniki okapu. Dalsze grzbiety gór mają gęstszy obrys.
+
+Delikatne chłodne światło wydobywa szczegóły twarzy i ciemnego pancerza.
+Obejmuje wyłącznie wojownika i nie tworzy dodatkowej mapy cieni. Tryb
+oszczędny ukrywa nową trawę i pomija normal mapy terenu. MSAA pozostaje stałe.
+
+Cały świat ma **91 856 trójkątów i 61 powierzchni materiałów**. Dwie nowe mapy
+(sterowanie podłożem i igły) współdzielą mipmapy; największa ma 512².
+To budżet zasobów, a wydajność Androida trzeba ocenić na telefonie.
+Układ przejść, postęp i animacje ciosów z 0.2.1 pozostają zgodne.
+
+Rzeczywiste ujęcia z Godota: [wioska](docs/valley-village-0.2.2.png),
+[dzicz](docs/valley-forest-0.2.2.png), [staw](docs/valley-pond-0.2.2.png).
+Zdjęcia demonstracyjne pokazują kupiony sprzęt; nowa postać nadal zaczyna
+z 10 000 G. To kolejny etap grafiki z dotychczasowymi modelami wojownika,
+NPC i potworów.
 
 ## Aktualizacja 0.2.1 — prowadzenie miecza
 

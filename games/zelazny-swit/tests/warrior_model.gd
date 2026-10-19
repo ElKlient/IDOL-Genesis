@@ -51,6 +51,10 @@ func _run() -> void:
 		quit(1)
 		return
 	var skeleton: Skeleton3D = model.get("skeleton") as Skeleton3D
+	var fill_layer: bool = true
+	for part: MeshInstance3D in model.mesh_parts:
+		fill_layer = fill_layer and part.layers == 3
+	_check(fill_layer,"body and equipment retain camera layer one and receive character-only fill on layer two")
 	_check(is_instance_valid(skeleton) and skeleton.get_bone_count() >= 40,"imported warrior has a complete articulated adult skeleton")
 	var body: MeshInstance3D = model.find_child("Body",true,false) as MeshInstance3D
 	_check(is_instance_valid(body) and body.mesh is ArrayMesh and body.skin != null and body.mesh.get_surface_count() == 1,"continuous smooth body is a skinned ArrayMesh rather than separate box limbs")

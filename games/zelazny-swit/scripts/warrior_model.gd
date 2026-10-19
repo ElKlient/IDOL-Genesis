@@ -106,6 +106,9 @@ func _collect_meshes(scene: Node,equipment_kind: String = "armor") -> void:
 					_material_defaults[copy.get_instance_id()] = {"roughness":copy.roughness,"emission_energy":copy.emission_energy_multiplier,"equipment_kind":equipment_kind}
 			part.set_surface_override_material(surface,_material_copies[key])
 		part.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		# Layer 2 receives the village's bounded character-only soft fill. Keep
+		# layer 1 as well for normal cameras, sun shadows and the inventory world.
+		part.layers = 3
 		mesh_parts.append(part)
 
 func _depth(index: int) -> int:

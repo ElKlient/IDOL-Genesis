@@ -95,8 +95,30 @@ func _run() -> void:
 	if is_instance_valid(mountains) and mountains.mesh != null and mountains.mesh.get_surface_count() == 1:
 		var mountain_data: Array = mountains.mesh.surface_get_arrays(0)
 		mountain_triangles = int((mountain_data[Mesh.ARRAY_INDEX] as PackedInt32Array).size()/3)
-	_check(mountain_triangles >= 1800 and mountain_triangles <= 2300 and world._materials.mountain.albedo_texture == null,"all eighteen asymmetric distant ridges are present in one bounded untextured surface")
-	_check(triangles <= 60000 and surfaces <= 66,"the complete village stays within sixty thousand triangles and sixty-six material surfaces")
+	_check(mountain_triangles >= 3700 and mountain_triangles <= 3900 and world._materials.mountain.albedo_texture == null,"all eighteen smoother distant ridges share one bounded untextured surface")
+	# 0.2.2 allocates at most 40k additional static triangles to visible boughs,
+	# crowns, grass and architecture. No per-leaf nodes or alpha shadow cards.
+	_check(triangles <= 100000 and surfaces <= 66,"the complete dressed village stays within one hundred thousand triangles and sixty-six material surfaces")
+	var terrain: MeshInstance3D = world.get_node_or_null("ValleyTerrain")
+	var meadow: MeshInstance3D = world.get_node_or_null("Scenery_meadow")
+	_check(is_instance_valid(terrain) and terrain.mesh.get_surface_count() == 1 and terrain.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF,"the blended landscape is a single opaque shadow-receiving surface")
+	_check(terrain.position.y > .006 and terrain.position.y < .0154,"continuous terrain covers legacy patches while remaining below the measured warrior boot sole")
+	var control: Texture2D = world._terrain_material.get_shader_parameter("control_map")
+	_check(control != null and control.get_width() == 512 and control.get_height() == 512,"landscape control data stays at 512 square instead of a full-resolution terrain atlas")
+	var additional_bytes: int = 0
+	var mipmapped: bool = world._detail_textures.size() == 2
+	for texture: Texture2D in world._detail_textures.values():
+		var pixels: Image = texture.get_image()
+		mipmapped = mipmapped and pixels.has_mipmaps()
+		additional_bytes += pixels.get_data().size()
+	_check(mipmapped and additional_bytes < 3*1024*1024,"both new shared maps have actual mip chains and stay below three MiB together")
+	var shared_terrain: bool = true
+	for family: String in ["grass","earth","paving"]:
+		shared_terrain = shared_terrain and world._terrain_material.get_shader_parameter(family+"_map") == maps[family+"_albedo"] and world._terrain_material.get_shader_parameter(family+"_normal") == maps[family+"_normal"]
+	_check(shared_terrain,"blended terrain reuses all six existing colour/normal textures without duplicate uploads")
+	_check(is_instance_valid(meadow) and meadow.mesh.get_surface_count() == 1 and meadow.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF,"all wind-driven grass and ferns share one surface and do not add leaf shadow passes")
+	var fill: DirectionalLight3D = world.get_node("CharacterSoftFill")
+	_check(fill.light_cull_mask == 2 and not fill.shadow_enabled,"soft character fill affects only layer two without another shadow map")
 	var ground_shadows: bool = true
 	for key: String in ["grass","grass_light","grass_dark","earth","path","path_edge","paving"]:
 		var visual: MeshInstance3D = world.get_node_or_null("Scenery_"+key)
@@ -112,7 +134,9 @@ func _run() -> void:
 	for texture: Texture2D in world._world_textures.values():
 		texture_ids.append(texture.get_instance_id())
 	world.set_low_quality(true)
+	_check(not meadow.visible and not world._terrain_material.get_shader_parameter("detailed_normals"),"low quality hides additional grass and skips terrain normal texture reads")
 	world.set_low_quality(false)
+	_check(meadow.visible and world._terrain_material.get_shader_parameter("detailed_normals"),"returning to normal quality restores detail without rebuilding resources")
 	var same_materials: bool = true
 	var material_index: int = 0
 	for value: Material in world._materials.values():

@@ -1,4 +1,4 @@
-# Kontrakty integracji — 0.2.1
+# Kontrakty integracji — 0.2.2
 
 Godot 4.4+, Compatibility/OpenGL, typowany GDScript, polski interfejs.
 Projekt jest samodzielny w `games/zelazny-swit`; nie ładuje starszego projektu
@@ -51,6 +51,14 @@ Ulepszenie miecza i zbroi trafia do adaptera osobno.
 służy portretowi; atak i slam wyłączają tę pozę przed rozpoczęciem.
 
 ## Świat i przeciwnicy
+
+Od 0.2.2 teren ma jeden shader mieszający istniejące materiały i mapę
+`terrain_control.png`; igliwie wymaga `pine_spray.png`. Oba obrazy są
+kanonicznymi źródłami i otrzymują współdzielone mipmapy przy wczytaniu.
+`VillageWorld.set_low_quality` jest jedynym właścicielem przełączania cieni:
+wypełnienie `CharacterSoftFill` zawsze pozostaje bez cieni, z maską 2.
+Siatki `WarriorModel` mają warstwy 1+2, a kamery zachowują warstwę 1.
+Nie dodawać ogólnego przełącznika włączającego cienie wszystkim światłom.
 
 `VillageWorld extends Node3D` buduje świat na `_ready()`, udostępnia
 `spawn_position`, `npc_positions`, `enemy_spawns` i `tick(delta)`. Ziemia ma
