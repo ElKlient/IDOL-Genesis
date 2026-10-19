@@ -5,10 +5,10 @@ extends Resource
 ## changes hit timing, damage, inventory or the player's saved equipment.
 
 @export var profile_id: StringName = &"sword_one_hand"
-@export var carry_target: Vector3 = Vector3(.36,1.035,-.10)
-@export var carry_direction: Vector3 = Vector3(.38,-.46,-.80)
+@export var carry_target: Vector3 = Vector3(.35,1.20,-.18)
+@export var carry_direction: Vector3 = Vector3(.38,.84,-.40)
 @export_range(-180.0,180.0,.1) var carry_roll_degrees: float = 0.0
-@export var run_offset: Vector3 = Vector3(0,.105,-.055)
+@export var run_offset: Vector3 = Vector3(0,.035,-.035)
 @export var breathing_offset: Vector3 = Vector3(0,.009,.006)
 @export var breathing_blade_sway: Vector3 = Vector3(.015,0,0)
 

@@ -35,6 +35,9 @@ func _run() -> void:
 	game.hud.hide()
 	game.camera.reparent(game)
 	game.camera.fov = 35.0
+	if "--guard-review" in OS.get_cmdline_user_args() or "--guard-motion" in OS.get_cmdline_user_args():
+		await _guard_review(state)
+		return
 	for frame: int in range(900):
 		var time: float = frame/60.0
 		var yaw: float = 150.0
@@ -56,6 +59,50 @@ func _run() -> void:
 			var result: Error = root.get_texture().get_image().save_png(output.path_join("stance-%03d.png" % frame))
 			if result != OK: push_error("Stance capture failed")
 	print("CAPTURE STANCE RESULT: 15 seconds, front/side/back, run, four cuts, fire slam, inventory portrait")
+	game.queue_free()
+	await process_frame
+	quit()
+
+func _guard_review(state: Node) -> void:
+	# Fast actual-world stills for the raised guard, including the largest set.
+	state.buy("dawn_sword")
+	state.equip(int(state.inventory.back().uid))
+	state.buy("dawn_armor")
+	state.equip(int(state.inventory.back().uid))
+	game.hero.visual.tick(1.0,0.0)
+	if "--guard-motion" in OS.get_cmdline_user_args():
+		# Short 30-Hz timing review; actual assets and unchanged game lighting.
+		root.size = Vector2i(640,360)
+		var focus: Vector3 = game.hero.position+Vector3(0,1.15,0)
+		game.camera.position = focus+Vector3(2.65,1.2,-4.59)
+		game.camera.look_at(focus)
+		for frame: int in range(90):
+			if frame == 18: game.hero.visual.start_attack(1)
+			if frame == 42: game.hero.visual.start_attack(3)
+			game.hero.visual.tick(1.0/30.0,0.0)
+			await process_frame
+		print("CAPTURE GUARD MOTION RESULT: 3 seconds at 30 Hz, second cut, finisher and guard")
+		game.queue_free()
+		await process_frame
+		quit()
+		return
+	for view: String in ["front","side","gameplay","inventory"]:
+		var focus: Vector3 = game.hero.position+Vector3(0,1.15,0)
+		var offset: Vector3 = Vector3(2.65,1.2,-4.59)
+		if view == "side": offset = Vector3(5.3,1.2,0)
+		elif view == "gameplay": offset = Vector3(0,5.8,-5.8)
+		game.camera.position = focus+offset
+		game.camera.look_at(focus)
+		if view == "inventory":
+			game.hud.show()
+			game.hud.open_panel("inventory")
+		for frame: int in range(4):
+			game.hero.visual.tick(1.0/60.0,0.0)
+			await process_frame
+		await RenderingServer.frame_post_draw
+		var result: Error = root.get_texture().get_image().save_png(output.path_join("guard-"+view+".png"))
+		if result != OK: push_error("Guard capture failed")
+	print("CAPTURE GUARD RESULT: actual tier-three front, side, elevated gameplay view and inventory")
 	game.queue_free()
 	await process_frame
 	quit()

@@ -1,4 +1,4 @@
-# Żelazny Świt — 0.2.3
+# Żelazny Świt — 0.2.4
 
 Oryginalna, jednoosobowa gra akcji RPG 3D na telefon, napisana w Godocie 4.4+.
 Sterowanie dotykowe w poziomie. Mały grywalny wycinek: wioska Brzeziny, wojownik,
@@ -108,7 +108,7 @@ Potem otwórz ten sam `games/zelazny-swit/project.godot` i naciśnij ▶.
 Polecenie zachowuje ewentualne lokalne zmiany `project.godot` w `git stash list`.
 Nie przywraca ich automatycznie: nowa wersja zawiera wymagane ustawienia mobilne
 i autoload diagnostyki. Zapis postaci oraz prywatna konfiguracja raportów zostają.
-Nie używaj resetowania ani usuwania folderu. W HUD pod zdrowiem sprawdź numer **v0.2.3**.
+Nie używaj resetowania ani usuwania folderu. W HUD pod zdrowiem sprawdź numer **v0.2.4**.
 
 ## Uruchamianie i zakres
 
@@ -128,6 +128,21 @@ Nie używaj resetowania ani usuwania folderu. W HUD pod zdrowiem sprawdź numer 
   Zrzuty użytkownika pokazują także uruchomioną 0.1.6, a później potwierdził
   działanie nowego wojownika. Wersja 0.2.0 została sprawdzona na Linuxie;
   wydajność tej aktualizacji na jego telefonie wymaga próby po pobraniu.
+
+## Aktualizacja 0.2.4 — miecz uniesiony do bojowej gardy
+
+Wojownik trzyma teraz rękojeść wyżej, przy pasie i dolnych żebrach,
+z ugiętym łokciem. Klinga jest skierowana ukośnie w górę i na zewnątrz,
+tak aby uniesienie było czytelne również przy kamerze nad postacią.
+Oddech i nieruchome stopy pozostają aktywne. Bieg ma mniejsze dodatkowe
+unoszenie dłoni, a powroty po cięciach od razu prowadzą do nowej gardy.
+
+Rzeczywiste kadry z Godota z największym mieczem:
+[z przodu](docs/raised-guard-front-0.2.4.png) oraz
+[z kamery nad postacią](docs/raised-guard-gameplay-0.2.4.png).
+To widoki tych samych modeli, bez zmiany geometrii, statystyk i zapisu.
+Krótki [film z nową gardą i powrotami](docs/raised-guard-motion-0.2.4.mp4)
+pokazuje rzeczywiste drugie cięcie i czwarty cios w Godocie.
 
 ## Aktualizacja 0.2.3 — postawa i ruch wojownika
 

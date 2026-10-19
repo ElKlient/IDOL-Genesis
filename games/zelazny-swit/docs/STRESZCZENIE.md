@@ -1,4 +1,29 @@
-# Żelazny Świt — przekazanie projektu 0.2.3
+# Żelazny Świt — przekazanie projektu 0.2.4
+
+## Aktualny stan 0.2.4 — wyższa bojowa garda
+
+Na prośbę użytkownika podniesiono miecz z niskiego chwytu. Profil domyślny
+i `sword_motion.tres` używają target (.35,1.20,-.18), kierunku (.38,.84,-.40)
+i run_offset (0,.035,-.035). Kierunek daje ok. 57° uniesienia w świecie;
+bardziej płaski wariant wyglądał prawie poziomo z kamery nachylonej 45°.
+Render sprawdzono z przodu, boku, góry i w ekwipunku z największym sprzętem.
+
+Zmiana ujawniła gwałtowny powrót ze starego niskiego klucza. Przedostatni
+klucz cięcia teraz podąża za bieżącą gardą (82% pozycji, 85% kwaternionu),
+a końcowy segment wyhamowuje. Pierwszy wizualny klucz przygotowania drugiego
+cięcia przesunięto .075→.09 s. Kontakty .16/.25 s, slam .48 s, obrażenia,
+zapis oraz geometria są zachowane. Poprzedni film 0.2.3 jest historyczny;
+nowe rzeczywiste kadry są w `docs/raised-guard-*-0.2.4.png`.
+
+`tests/capture_stance.gd --guard-review` zapisuje szybkie ujęcia wyższej gardy
+bez zmiany podstawowego 15-sekundowego trybu nagrania. Wymaga
+`--test-isolated` i `--capture-dir`, nie zapisuje postaci ani nie wysyła danych.
+Tryb `--guard-motion` dał rzeczywisty film 3 s / 30 Hz, z drugim i czwartym
+ciosem; plik `docs/raised-guard-motion-0.2.4.mp4`. Kadry oraz sekwencję ruchu
+ocenił niezależny agent. Testy finalne: postawa z projekcją kamery 56/56,
+ciągłość 69/69, model 40/40, combo 55/55, portret 32/32, ogień 38/38,
+integracja zakup/kowal/walka/respawn 51/51. Rzeczywisty renderer OpenGL
+zakończył oba tryby kodem 0, bez błędów wykonania. Testy były izolowane.
 
 ## Aktualny stan 0.2.3 — niska garda, oddech i powroty animacji
 

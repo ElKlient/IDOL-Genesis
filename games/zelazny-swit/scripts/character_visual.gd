@@ -24,7 +24,7 @@ const BLADE_CUT_TRACKS: Array = [
 	],
 	[
 		[0.0,Vector3(0.25,1.25,-0.28),Vector3(0.18,0.42,-0.89)],
-		[0.075,Vector3(-0.12,1.15,-0.30),Vector3(-0.80,-0.36,-0.48)],
+		[0.09,Vector3(-0.12,1.15,-0.30),Vector3(-0.80,-0.36,-0.48)],
 		[0.12,Vector3(-0.06,1.26,-0.43),Vector3(-0.48,-0.12,-0.87)],
 		[0.16,Vector3(0.17,1.36,-0.51),Vector3(0.34,0.12,-0.93)],
 		[0.23,Vector3(0.42,1.49,-0.26),Vector3(0.84,0.42,-0.35)],
@@ -477,6 +477,14 @@ func _blade_key(track: Array,index: int) -> Dictionary:
 		orientation = _attack_blade_origin.basis.orthonormalized().get_rotation_quaternion()
 	elif index == track.size()-1:
 		orientation = _guard_blade.basis.orthonormalized().get_rotation_quaternion()
+	elif index == track.size()-2:
+		# Recovery belongs to the equipped weapon's current guard, not the
+		# historical lowered carry baked into these attack keys. Arrive near
+		# that live guard early so the final segment merely settles the sword,
+		# rather than whipping a lowered blade up in the last tenth of a cut.
+		target = target.lerp(_guard_blade.origin,0.82)
+		orientation = orientation.slerp(_guard_blade.basis.orthonormalized().get_rotation_quaternion(),0.85)
+		direction = -(Basis(orientation).y)
 	return {"time":key[0],"target":target,"direction":direction,"orientation":orientation}
 
 func _apply_blade_cut() -> void:
@@ -764,9 +772,9 @@ func tick(delta: float, moving: float) -> void:
 	var left_pitch: float = clampf(sin(walk_phase-0.8)*0.24,-0.18,0.24)*locomotion_blend
 	var right_pitch: float = clampf(sin(walk_phase+PI-0.8)*0.24,-0.18,0.24)*locomotion_blend
 	_plant_feet(_running_foot(_left_ankle_rest,walk_phase),_running_foot(_right_ankle_rest,walk_phase+PI),1.0,left_pitch,right_pitch)
-	# Relaxed low guard: palm beside the right hip, elbow bent, blade running
-	# down/outside the lead leg. The weapon has its own slight lag behind the
-	# chest and a contained running swing, instead of pointing at the horizon.
+	# The profile places the palm and blade in the weapon's authored guard.
+	# Its own slight lag behind the chest and contained running swing keep
+	# the current raised guard responsive without fixing the hand in space.
 	var carry_target: Vector3 = motion_profile.carry_target
 	var breathing_offset: Vector3 = motion_profile.breathing_offset
 	carry_target += (Vector3(weight_shift*0.007,0,0)+breathing_offset*Vector3(weight_shift,shoulder_breath,-breath))*resting

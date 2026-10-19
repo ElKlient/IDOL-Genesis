@@ -35,7 +35,8 @@ func _run() -> void:
 		var foot_drift: float = 0.0
 		var min_clearance: float = 100.0
 		var max_forward: float = -1.0
-		var max_down: float = -1.0
+		var minimum_up: float = 1.0
+		var minimum_camera_up: float = 1.0
 		var finite: bool = true
 		for frame: int in range(1440):
 			actor.tick(1.0/120.0,0.0)
@@ -46,13 +47,16 @@ func _run() -> void:
 			foot_drift = maxf(foot_drift,actor.to_local(actor.right_ankle.global_position).distance_to(right_anchor))
 			min_clearance = minf(min_clearance,_tip(actor).y)
 			max_forward = maxf(max_forward,direction.dot(Vector3.FORWARD))
-			max_down = maxf(max_down,direction.y)
+			minimum_up = minf(minimum_up,direction.y)
+			# A 45-degree elevated front camera can cancel equal upward and
+			# forward components, making an apparently raised blade look flat.
+			minimum_camera_up = minf(minimum_camera_up,direction.dot(Vector3(0,1,1).normalized()))
 			finite = finite and point.is_finite() and direction.is_finite()
-		print("STANCE tier=%d head_motion=%.4fm boot_drift=%.5fm blade_floor=%.3fm forward_dot=%.3f blade_y=%.3f" % [tier,largest_motion,foot_drift,min_clearance,max_forward,max_down])
+		print("STANCE tier=%d head_motion=%.4fm boot_drift=%.5fm blade_floor=%.3fm forward_dot=%.3f blade_y=%.3f" % [tier,largest_motion,foot_drift,min_clearance,max_forward,minimum_up])
 		_check(finite,"tier %d finite idle geometry" % tier)
 		_check(largest_motion > 0.002 and largest_motion < 0.065,"tier %d visible bounded breathing and weight shift" % tier)
 		_check(foot_drift < 0.002,"tier %d planted boots over twelve seconds" % tier)
-		_check(max_forward < cos(deg_to_rad(25.0)) and max_down < -0.15,"tier %d lowered diagonal guard, no horizontal pointing" % tier)
+		_check(max_forward < cos(deg_to_rad(25.0)) and minimum_up > 0.45 and minimum_camera_up > 0.20,"tier %d raised guard stays upward in the elevated front view" % tier)
 		_check(min_clearance > 0.10,"tier %d relaxed sword clears ground by ten centimetres" % tier)
 		# Real start/recovery at 120 Hz, including running-to-idle and tier changes.
 		for phase: int in range(6):

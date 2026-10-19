@@ -5,9 +5,9 @@
 [resource]
 script = ExtResource("1_motion")
 profile_id = &"sword_one_hand"
-carry_target = Vector3(0.36, 1.035, -0.1)
-carry_direction = Vector3(0.38, -0.46, -0.8)
+carry_target = Vector3(0.35, 1.2, -0.18)
+carry_direction = Vector3(0.38, 0.84, -0.4)
 carry_roll_degrees = 0.0
-run_offset = Vector3(0, 0.105, -0.055)
+run_offset = Vector3(0, 0.035, -0.035)
 breathing_offset = Vector3(0, 0.009, 0.006)
 breathing_blade_sway = Vector3(0.015, 0, 0)

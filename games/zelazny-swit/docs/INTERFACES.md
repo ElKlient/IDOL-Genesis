@@ -1,4 +1,4 @@
-# Kontrakty integracji — 0.2.3
+# Kontrakty integracji — 0.2.4
 
 Godot 4.4+, Compatibility/OpenGL, typowany GDScript, polski interfejs.
 Projekt jest samodzielny w `games/zelazny-swit`; nie ładuje starszego projektu
@@ -110,6 +110,10 @@ w `tests/README.md`. Rzeczywiste rendery OpenGL nie zastępują pomiaru FPS na
 telefonie. Nie kopiować tokenów diagnostyki do testów ani repozytorium.
 
 ## Prowadzenie broni od 0.2.1
+
+Od 0.2.4 domyślna garda kieruje miecz w górę. Przedostatni klucz wizualny
+powrotu podąża za aktualnym profilem zamiast wymuszać historyczny niski chwyt.
+Klucze kontaktów oraz kontrakt czasu obrażeń pozostają niezależne od profilu.
 
 Od 0.2.3 `WeaponMotionProfile extends Resource` opisuje ułożenie rękojeści,
 kierunek i obrót klingi, przesunięcie w biegu i amplitudy oddechu. Domyślny

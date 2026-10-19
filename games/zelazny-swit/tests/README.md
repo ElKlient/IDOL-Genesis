@@ -1,5 +1,26 @@
 # Runtime checks
 
+Version 0.2.4 raised-guard regression on Godot 4.6: `stance_motion.gd`
+56/56, `animation_continuity.gd` 69/69, `warrior_model.gd` 40/40,
+`combat_combo.gd` 55/55, `character_preview.gd` 32/32, `fire_skill.gd` 38/38,
+`integration.gd` 51/51, including real shop/forge/kills and respawn.
+The guard test checks upward direction both in world space and when projected
+onto a 45-degree elevated front view, plus planted feet and all six recoveries.
+The late ordinary-cut step is at most 2.23 cm per 1/120 s in the sampled motion;
+final joins remain below 0.4 mm. Existing continuity limits were preserved.
+
+For quick actual OpenGL guard stills with the largest sword and armor:
+
+```sh
+godot --path . --script res://tests/capture_stance.gd -- --test-isolated --guard-review --capture-dir=/absolute/guard-images
+```
+
+This captures front, side, elevated gameplay-camera and inventory views.
+It is a posed rendering check, not a phone-performance measurement.
+For a short actual second-cut/finisher timing movie, replace `--guard-review`
+with `--guard-motion` and add `--fixed-fps 30 --write-movie /absolute/guard.avi`
+before `--`. The short mode ticks the visual at 30 Hz for three seconds.
+
 Version 0.2.3 animation checks on Godot 4.6, isolated from saves and networking:
 
 | Check | Headless |
